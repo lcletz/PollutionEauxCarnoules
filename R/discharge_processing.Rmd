@@ -131,20 +131,47 @@ data4$Dates <- as.Date(data4$Dates, format = "%Y-%m-%d")
 data4$monthly_discharge <- as.numeric(data4$monthly_discharge)
 ```
 
+Piezometer at station S5 from 2006 to 2015:
+```{r, warning=FALSE}
+data5 <- read.table(here("raw_data","S1.csv"), sep = ";", 
+                    dec = ",", header = TRUE)[1:2]
+
+data5$Date.heure <- as.Date(data5$Date.heure, format = "%m/%d/%y")
+
+data5$Date.heure <- as.Date(substr(data5$Date.heure, 1, 10))
+all_months <- seq(
+  from = as.Date(format(min(data5$Date.heure), "%Y-%m-01")),
+  to   = as.Date(format(max(data5$Date.heure), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+data5$Dates <- as.Date(format(data5$Date.heure, "%Y-%m-01"))
+
+data5$MonthDate <- as.Date(format(data5$Date.heure, "%Y-%m-01"))
+data5 <- all_months_df %>%
+  left_join(data5, by = c("Dates" = "MonthDate"))
+
+data5 <- data5 %>% select(-c(Date.heure, Dates.y))
+
+write_delim(data5, here("processed","S1_piezo.csv"), delim = ';')
+```
+
 # Comparison
 
 ```{r}
 y_range <- range(c(data1$monthly_piezometer, data3$monthly_piezometer), na.rm=TRUE)
-plot.ts(ts(rep(NA, 204), start=c(2006,9), end=c(2022,7), frequency=12),
+plot.ts(ts(rep(NA, 204), start=c(2005,11), end=c(2022,7), frequency=12),
         ylab="Piezometer (in m)", xlab="Time", ylim=y_range, xaxt = 'n')
 grid()
 lines(ts(data1$monthly_piezometer, start=c(2006,9), end=c(2015,2), frequency=12))
 lines(ts(data3$monthly_piezometer, start=c(2020,11), end=c(2022,7), frequency=12), col='red')
-legend("topright", legend=c("Données de 2006 à 2015", "Données de 2020 à 2022"),
-       col=c("black", "red"), lty=c(1,1))
+points(ts(data5$Niveau.piezometrique..m., start=c(2005,11), end=c(2015,11), frequency=12), col='blue')
+legend("topright", legend=c("Données de 2006 à 2015", "Données de 2020 à 2022", "Données de 2005 à 2015"),
+       col=c("black", "red", "blue"), pch=c(NA,NA,1), lty=c(1,1,NA))
 axis(1, at = seq(2006, 2023, by = 1), las=2)
 ```
-Between 9 and 13 for the first dataset, high occurences in 2007, late-2011 and 2014, low occurences in 2009 and 2010. Betwen 2 and 4.5 for the second dataset, high occurences in the beginning of 2021 and 2022, low occurences in late-2021.
+Between 9 and 13 for the first dataset, high occurences in 2007, late-2011 and 2014, low occurences in 2009 and 2010. Betwen 2 and 4.5 for the second dataset, high occurences in the beginning of 2021 and 2022, low occurences in late-2021. Not enough piezometer data for the last dataset.
 
 ```{r}
 y_range <- range(c(data2$monthly_discharge, data3$monthly_discharge, 
