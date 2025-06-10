@@ -1,0 +1,948 @@
+---
+title: "Datas processing"
+author: "CLETZ Laura"
+date: "02/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(readr)
+library(dplyr)
+library(tidyverse)
+```
+Each .csv file from the folder `/tables` corresponds with one exported sheet from the .xlsm file:
+```{r, warning=FALSE}
+files <- list.files("tables", pattern = "\\.csv$", full.names = TRUE)
+data <- data.frame()
+for(file in files){
+  file <- read_delim(file, na = c("", "NA"), col_names = FALSE, show_col_types = FALSE)
+  file <- file %>% select(1:8)
+  file <- file[1:86,]
+  data <- rbind(data, file)
+}
+```
+
+Cleaning dates format:
+```{r}
+get_dates <- grep('/', data$X1)
+dates <- data$X1[get_dates]
+
+parse_date_time_robust <- function(x){
+   parse_date_time(
+     x,
+     orders = c('dmy','dmY','mdy','mdY','ymd','y-md'),
+     quiet=TRUE
+   )
+}
+dates <- parse_date_time_robust(dates)
+```
+
+# Creating a data.frame for each variables
+
+```{r}
+Temperature <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='T')],
+  "S5" = data$X3[which(data$X1=='T')],
+  "COWG" = data$X5[which(data$X1=='T')],
+  "GAL" = data$X6[which(data$X1=='T')],
+  "Confluence" = data$X7[which(data$X1=='T')],
+  "Amous" = data$X8[which(data$X1=='T')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+pH <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='pH')],
+  "S5" = data$X3[which(data$X1=='pH')],
+  "COWG" = data$X5[which(data$X1=='pH')],
+  "GAL" = data$X6[which(data$X1=='pH')],
+  "Confluence" = data$X7[which(data$X1=='pH')],
+  "Amous" = data$X8[which(data$X1=='pH')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Eh <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Eh')],
+  "S5" = data$X3[which(data$X1=='Eh')],
+  "COWG" = data$X5[which(data$X1=='Eh')],
+  "GAL" = data$X6[which(data$X1=='Eh')],
+  "Confluence" = data$X7[which(data$X1=='Eh')],
+  "Amous" = data$X8[which(data$X1=='Eh')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Conductivité <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Conductivité')],
+  "S5" = data$X3[which(data$X1=='Conductivité')],
+  "COWG" = data$X5[which(data$X1=='Conductivité')],
+  "GAL" = data$X6[which(data$X1=='Conductivité')],
+  "Confluence" = data$X7[which(data$X1=='Conductivité')],
+  "Amous" = data$X8[which(data$X1=='Conductivité')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+O2 <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X4[which(data$X2=='colorimétrie - ppm')]), data$X4[which(data$X2=='electrode Mettler - ppm')], data$X4[which(data$X2=='colorimétrie - ppm')]), data$X4[which(data$X2=='electrode HACH - ppm')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X3[which(data$X2=='colorimétrie - ppm')]), data$X3[which(data$X2=='electrode Mettler - ppm')], data$X3[which(data$X2=='colorimétrie - ppm')]), data$X3[which(data$X2=='electrode HACH - ppm')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X5[which(data$X2=='colorimétrie - ppm')]), data$X5[which(data$X2=='electrode Mettler - ppm')], data$X5[which(data$X2=='colorimétrie - ppm')]), data$X5[which(data$X2=='electrode HACH - ppm')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X6[which(data$X2=='colorimétrie - ppm')]), data$X6[which(data$X2=='electrode Mettler - ppm')], data$X6[which(data$X2=='colorimétrie - ppm')]), data$X6[which(data$X2=='electrode HACH - ppm')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X7[which(data$X2=='colorimétrie - ppm')]), data$X7[which(data$X2=='electrode Mettler - ppm')], data$X7[which(data$X2=='colorimétrie - ppm')]), data$X7[which(data$X2=='electrode HACH - ppm')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X8[which(data$X2=='colorimétrie - ppm')]), data$X8[which(data$X2=='electrode Mettler - ppm')], data$X8[which(data$X2=='colorimétrie - ppm')]), data$X8[which(data$X2=='electrode HACH - ppm')])
+) %>%
+  arrange(Dates)
+
+# peut-être rajouter aux dataframes les méthodes choisies ou faire une data frame pour chaque méthode
+```
+
+```{r}
+Sulfate <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='SO42-')],
+  "S5" = data$X3[which(data$X1=='SO42-')],
+  "COWG" = data$X5[which(data$X1=='SO42-')],
+  "GAL" = data$X6[which(data$X1=='SO42-')],
+  "Confluence" = data$X7[which(data$X1=='SO42-')],
+  "Amous" = data$X8[which(data$X1=='SO42-')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Ion_Ferreux <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Fe II')],
+  "S5" = data$X3[which(data$X1=='Fe II')],
+  "COWG" = data$X5[which(data$X1=='Fe II')],
+  "GAL" = data$X6[which(data$X1=='Fe II')],
+  "Confluence" = data$X7[which(data$X1=='Fe II')],
+  "Amous" = data$X8[which(data$X1=='Fe II')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Fer_Total <- data.frame(
+  "Dates" = dates[-which(dates==as.Date("2019-01-28 UTC"))],
+  "S1" = data$X4[which(data$X1=='Fe total par AA')],
+  "S5" = data$X3[which(data$X1=='Fe total par AA')],
+  "COWG" = data$X5[which(data$X1=='Fe total par AA')],
+  "GAL" = data$X6[which(data$X1=='Fe total par AA')],
+  "Confluence" = data$X7[which(data$X1=='Fe total par AA')],
+  "Amous" = data$X8[which(data$X1=='Fe total par AA')]
+) %>%
+  arrange(Dates)
+Fer_Total <- Fer_Total %>% bind_rows(
+  data.frame(
+    Dates = as.Date("2019-01-28", format = "%Y-%m-%d"), 
+    S1 = NA,
+    S5 = NA,
+    COWG = NA,
+    GAL = NA,
+    Confluence = NA,
+    Amous = NA
+    )
+  )
+```
+
+```{r}
+Ion_Chlorure <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Cl-')],
+  "S5" = data$X3[which(data$X1=='Cl-')],
+  "COWG" = data$X5[which(data$X1=='Cl-')],
+  "GAL" = data$X6[which(data$X1=='Cl-')],
+  "Confluence" = data$X7[which(data$X1=='Cl-')],
+  "Amous" = data$X8[which(data$X1=='Cl-')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Nitrate <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='NO3-')],
+  "S5" = data$X3[which(data$X1=='NO3-')],
+  "COWG" = data$X5[which(data$X1=='NO3-')],
+  "GAL" = data$X6[which(data$X1=='NO3-')],
+  "Confluence" = data$X7[which(data$X1=='NO3-')],
+  "Amous" = data$X8[which(data$X1=='NO3-')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Ion_Calcium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Ca2+')],
+  "S5" = data$X3[which(data$X1=='Ca2+')],
+  "COWG" = data$X5[which(data$X1=='Ca2+')],
+  "GAL" = data$X6[which(data$X1=='Ca2+')],
+  "Confluence" = data$X7[which(data$X1=='Ca2+')],
+  "Amous" = data$X8[which(data$X1=='Ca2+')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Ion_Magnésium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Mg2+')],
+  "S5" = data$X3[which(data$X1=='Mg2+')],
+  "COWG" = data$X5[which(data$X1=='Mg2+')],
+  "GAL" = data$X6[which(data$X1=='Mg2+')],
+  "Confluence" = data$X7[which(data$X1=='Mg2+')],
+  "Amous" = data$X8[which(data$X1=='Mg2+')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Ion_Sodium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Na+')],
+  "S5" = data$X3[which(data$X1=='Na+')],
+  "COWG" = data$X5[which(data$X1=='Na+')],
+  "GAL" = data$X6[which(data$X1=='Na+')],
+  "Confluence" = data$X7[which(data$X1=='Na+')],
+  "Amous" = data$X8[which(data$X1=='Na+')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Ion_Potassium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='K+')],
+  "S5" = data$X3[which(data$X1=='K+')],
+  "COWG" = data$X5[which(data$X1=='K+')],
+  "GAL" = data$X6[which(data$X1=='K+')],
+  "Confluence" = data$X7[which(data$X1=='K+')],
+  "Amous" = data$X8[which(data$X1=='K+')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Ion_Fluorure <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='F-')],
+  "S5" = data$X3[which(data$X1=='F-')],
+  "COWG" = data$X5[which(data$X1=='F-')],
+  "GAL" = data$X6[which(data$X1=='F-')],
+  "Confluence" = data$X7[which(data$X1=='F-')],
+  "Amous" = data$X8[which(data$X1=='F-')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Ion_Bromure <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Br-')],
+  "S5" = data$X3[which(data$X1=='Br-')],
+  "COWG" = data$X5[which(data$X1=='Br-')],
+  "GAL" = data$X6[which(data$X1=='Br-')],
+  "Confluence" = data$X7[which(data$X1=='Br-')],
+  "Amous" = data$X8[which(data$X1=='Br-')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Arsénite <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='As III')],
+  "S5" = data$X3[which(data$X1=='As III')],
+  "COWG" = data$X5[which(data$X1=='As III')],
+  "GAL" = data$X6[which(data$X1=='As III')],
+  "Confluence" = data$X7[which(data$X1=='As III')],
+  "Amous" = data$X8[which(data$X1=='As III')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Arséniate <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='As V')],
+  "S5" = data$X3[which(data$X1=='As V')],
+  "COWG" = data$X5[which(data$X1=='As V')],
+  "GAL" = data$X6[which(data$X1=='As V')],
+  "Confluence" = data$X7[which(data$X1=='As V')],
+  "Amous" = data$X8[which(data$X1=='As V')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Arsenic_Total <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='As total')],
+  "S5" = data$X3[which(data$X1=='As total')],
+  "COWG" = data$X5[which(data$X1=='As total')],
+  "GAL" = data$X6[which(data$X1=='As total')],
+  "Confluence" = data$X7[which(data$X1=='As total')],
+  "Amous" = data$X8[which(data$X1=='As total')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Cobalt <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='59Co')],
+  "S5" = data$X3[which(data$X1=='59Co')],
+  "COWG" = data$X5[which(data$X1=='59Co')],
+  "GAL" = data$X6[which(data$X1=='59Co')],
+  "Confluence" = data$X7[which(data$X1=='59Co')],
+  "Amous" = data$X8[which(data$X1=='59Co')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Souffre <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='34S')],
+  "S5" = data$X3[which(data$X1=='34S')],
+  "COWG" = data$X5[which(data$X1=='34S')],
+  "GAL" = data$X6[which(data$X1=='34S')],
+  "Confluence" = data$X7[which(data$X1=='34S')],
+  "Amous" = data$X8[which(data$X1=='34S')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Bore <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='11B')],
+  "S5" = data$X3[which(data$X1=='11B')],
+  "COWG" = data$X5[which(data$X1=='11B')],
+  "GAL" = data$X6[which(data$X1=='11B')],
+  "Confluence" = data$X7[which(data$X1=='11B')],
+  "Amous" = data$X8[which(data$X1=='11B')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Sodium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Na')],
+  "S5" = data$X3[which(data$X1=='Na')],
+  "COWG" = data$X5[which(data$X1=='Na')],
+  "GAL" = data$X6[which(data$X1=='Na')],
+  "Confluence" = data$X7[which(data$X1=='Na')],
+  "Amous" = data$X8[which(data$X1=='Na')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Magnésium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='Mg')],
+  "S5" = data$X3[which(data$X1=='Mg')],
+  "COWG" = data$X5[which(data$X1=='Mg')],
+  "GAL" = data$X6[which(data$X1=='Mg')],
+  "Confluence" = data$X7[which(data$X1=='Mg')],
+  "Amous" = data$X8[which(data$X1=='Mg')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Aluminium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='27Al')],
+  "S5" = data$X3[which(data$X1=='27Al')],
+  "COWG" = data$X5[which(data$X1=='27Al')],
+  "GAL" = data$X6[which(data$X1=='27Al')],
+  "Confluence" = data$X7[which(data$X1=='27Al')],
+  "Amous" = data$X8[which(data$X1=='27Al')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Cuivre <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='65Cu')]), data$X4[which(data$X1=='63Cu')], data$X4[which(data$X1=='65Cu')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='65Cu')]), data$X3[which(data$X1=='63Cu')], data$X3[which(data$X1=='65Cu')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='65Cu')]), data$X5[which(data$X1=='63Cu')], data$X5[which(data$X1=='65Cu')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='65Cu')]), data$X6[which(data$X1=='63Cu')], data$X6[which(data$X1=='65Cu')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='65Cu')]), data$X7[which(data$X1=='63Cu')], data$X4[which(data$X7=='65Cu')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='65Cu')]), data$X8[which(data$X1=='63Cu')], data$X8[which(data$X1=='65Cu')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Calcium <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='44Ca')]), data$X4[which(data$X1=='43Ca')], data$X4[which(data$X1=='44Ca')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='44Ca')]), data$X3[which(data$X1=='43Ca')], data$X3[which(data$X1=='44Ca')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='44Ca')]), data$X5[which(data$X1=='43Ca')], data$X5[which(data$X1=='44Ca')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='44Ca')]), data$X6[which(data$X1=='43Ca')], data$X6[which(data$X1=='44Ca')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='44Ca')]), data$X7[which(data$X1=='43Ca')], data$X4[which(data$X7=='44Ca')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='44Ca')]), data$X8[which(data$X1=='43Ca')], data$X8[which(data$X1=='44Ca')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Titane <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='49Ti')]), data$X4[which(data$X1=='47Ti')], data$X4[which(data$X1=='49Ti')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='49Ti')]), data$X3[which(data$X1=='47Ti')], data$X3[which(data$X1=='49Ti')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='49Ti')]), data$X5[which(data$X1=='47Ti')], data$X5[which(data$X1=='49Ti')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='49Ti')]), data$X6[which(data$X1=='47Ti')], data$X6[which(data$X1=='49Ti')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='49Ti')]), data$X7[which(data$X1=='47Ti')], data$X4[which(data$X7=='49Ti')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='49Ti')]), data$X8[which(data$X1=='47Ti')], data$X8[which(data$X1=='49Ti')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Vanadium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='51V')],
+  "S5" = data$X3[which(data$X1=='51V')],
+  "COWG" = data$X5[which(data$X1=='51V')],
+  "GAL" = data$X6[which(data$X1=='51V')],
+  "Confluence" = data$X7[which(data$X1=='51V')],
+  "Amous" = data$X8[which(data$X1=='51V')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Rubidium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='85Rb')],
+  "S5" = data$X3[which(data$X1=='85Rb')],
+  "COWG" = data$X5[which(data$X1=='85Rb')],
+  "GAL" = data$X6[which(data$X1=='85Rb')],
+  "Confluence" = data$X7[which(data$X1=='85Rb')],
+  "Amous" = data$X8[which(data$X1=='85Rb')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Yttrium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='89Y')],
+  "S5" = data$X3[which(data$X1=='89Y')],
+  "COWG" = data$X5[which(data$X1=='89Y')],
+  "GAL" = data$X6[which(data$X1=='89Y')],
+  "Confluence" = data$X7[which(data$X1=='89Y')],
+  "Amous" = data$X8[which(data$X1=='89Y')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Zirconium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='90Zr')],
+  "S5" = data$X3[which(data$X1=='90Zr')],
+  "COWG" = data$X5[which(data$X1=='90Zr')],
+  "GAL" = data$X6[which(data$X1=='90Zr')],
+  "Confluence" = data$X7[which(data$X1=='90Zr')],
+  "Amous" = data$X8[which(data$X1=='90Zr')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Césium <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='133Cs')],
+  "S5" = data$X3[which(data$X1=='133Cs')],
+  "COWG" = data$X5[which(data$X1=='133Cs')],
+  "GAL" = data$X6[which(data$X1=='133Cs')],
+  "Confluence" = data$X7[which(data$X1=='133Cs')],
+  "Amous" = data$X8[which(data$X1=='133Cs')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Chrome <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='53Cr')]), data$X4[which(data$X1=='52Cr')], data$X4[which(data$X1=='53Cr')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='53Cr')]), data$X3[which(data$X1=='52Cr')], data$X3[which(data$X1=='53Cr')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='53Cr')]), data$X5[which(data$X1=='52Cr')], data$X5[which(data$X1=='53Cr')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='53Cr')]), data$X6[which(data$X1=='52Cr')], data$X6[which(data$X1=='53Cr')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='53Cr')]), data$X7[which(data$X1=='52Cr')], data$X4[which(data$X7=='53Cr')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='53Cr')]), data$X8[which(data$X1=='52Cr')], data$X8[which(data$X1=='53Cr')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Molybdène <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='97Mo')]), data$X4[which(data$X1=='95Mo')], data$X4[which(data$X1=='97Mo')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='97Mo')]), data$X3[which(data$X1=='95Mo')], data$X3[which(data$X1=='97Mo')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='97Mo')]), data$X5[which(data$X1=='95Mo')], data$X5[which(data$X1=='97Mo')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='97Mo')]), data$X6[which(data$X1=='95Mo')], data$X6[which(data$X1=='97Mo')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='97Mo')]), data$X7[which(data$X1=='95Mo')], data$X4[which(data$X7=='97Mo')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='97Mo')]), data$X8[which(data$X1=='95Mo')], data$X8[which(data$X1=='97Mo')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Étain <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='120Sn')]), data$X4[which(data$X1=='118Sn')], data$X4[which(data$X1=='120Sn')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='120Sn')]), data$X3[which(data$X1=='118Sn')], data$X3[which(data$X1=='120Sn')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='120Sn')]), data$X5[which(data$X1=='118Sn')], data$X5[which(data$X1=='120Sn')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='120Sn')]), data$X6[which(data$X1=='118Sn')], data$X6[which(data$X1=='120Sn')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='120Sn')]), data$X7[which(data$X1=='118Sn')], data$X4[which(data$X7=='120Sn')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='120Sn')]), data$X8[which(data$X1=='118Sn')], data$X8[which(data$X1=='120Sn')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Strontium <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='88Sr')]), data$X4[which(data$X1=='86Sr')], data$X4[which(data$X1=='88Sr')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='88Sr')]), data$X3[which(data$X1=='86Sr')], data$X3[which(data$X1=='88Sr')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='88Sr')]), data$X5[which(data$X1=='86Sr')], data$X5[which(data$X1=='88Sr')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='88Sr')]), data$X6[which(data$X1=='86Sr')], data$X6[which(data$X1=='88Sr')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='88Sr')]), data$X7[which(data$X1=='86Sr')], data$X4[which(data$X7=='88Sr')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='88Sr')]), data$X8[which(data$X1=='86Sr')], data$X8[which(data$X1=='88Sr')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Nickel <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='62Ni')]), data$X4[which(data$X1=='60Ni')], data$X4[which(data$X1=='62Ni')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='62Ni')]), data$X3[which(data$X1=='60Ni')], data$X3[which(data$X1=='62Ni')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='62Ni')]), data$X5[which(data$X1=='60Ni')], data$X5[which(data$X1=='62Ni')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='62Ni')]), data$X6[which(data$X1=='60Ni')], data$X6[which(data$X1=='62Ni')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='62Ni')]), data$X7[which(data$X1=='60Ni')], data$X4[which(data$X7=='62Ni')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='62Ni')]), data$X8[which(data$X1=='60Ni')], data$X8[which(data$X1=='62Ni')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Zinc <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='68Zn')]), ifelse(is.na(data$X4[which(data$X1=='67Zn')]), data$X4[which(data$X1=='66Zn')], data$X4[which(data$X1=='67Zn')]), data$X4[which(data$X1=='68Zn')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='68Zn')]), ifelse(is.na(data$X3[which(data$X1=='67Zn')]), data$X3[which(data$X1=='66Zn')], data$X3[which(data$X1=='67Zn')]), data$X3[which(data$X1=='68Zn')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='68Zn')]), ifelse(is.na(data$X5[which(data$X1=='67Zn')]), data$X5[which(data$X1=='66Zn')], data$X5[which(data$X1=='67Zn')]), data$X5[which(data$X1=='68Zn')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='68Zn')]), ifelse(is.na(data$X6[which(data$X1=='67Zn')]), data$X6[which(data$X1=='66Zn')], data$X6[which(data$X1=='67Zn')]), data$X6[which(data$X1=='68Zn')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='68Zn')]), ifelse(is.na(data$X7[which(data$X1=='67Zn')]), data$X7[which(data$X1=='66Zn')], data$X7[which(data$X1=='67Zn')]), data$X7[which(data$X1=='68Zn')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='68Zn')]), ifelse(is.na(data$X8[which(data$X1=='67Zn')]), data$X8[which(data$X1=='66Zn')], data$X8[which(data$X1=='67Zn')]), data$X8[which(data$X1=='68Zn')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Cadmium <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='114Cd')]), data$X4[which(data$X1=='111Cd')], data$X4[which(data$X1=='114Cd')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='114Cd')]), data$X3[which(data$X1=='111Cd')], data$X3[which(data$X1=='114Cd')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='114Cd')]), data$X5[which(data$X1=='111Cd')], data$X5[which(data$X1=='114Cd')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='114Cd')]), data$X6[which(data$X1=='111Cd')], data$X6[which(data$X1=='114Cd')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='114Cd')]), data$X7[which(data$X1=='111Cd')], data$X4[which(data$X7=='114Cd')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='114Cd')]), data$X8[which(data$X1=='111Cd')], data$X8[which(data$X1=='114Cd')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Antimoine <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='123Sb')]), data$X4[which(data$X1=='121Sb')], data$X4[which(data$X1=='123Sb')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='123Sb')]), data$X3[which(data$X1=='121Sb')], data$X3[which(data$X1=='123Sb')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='123Sb')]), data$X5[which(data$X1=='121Sb')], data$X5[which(data$X1=='123Sb')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='123Sb')]), data$X6[which(data$X1=='121Sb')], data$X6[which(data$X1=='123Sb')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='123Sb')]), data$X7[which(data$X1=='121Sb')], data$X4[which(data$X7=='123Sb')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='123Sb')]), data$X8[which(data$X1=='121Sb')], data$X8[which(data$X1=='123Sb')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Thallium <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='205Tl')]), data$X4[which(data$X1=='203Tl')], data$X4[which(data$X1=='205Tl')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='205Tl')]), data$X3[which(data$X1=='203Tl')], data$X3[which(data$X1=='205Tl')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='205Tl')]), data$X5[which(data$X1=='203Tl')], data$X5[which(data$X1=='205Tl')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='205Tl')]), data$X6[which(data$X1=='203Tl')], data$X6[which(data$X1=='205Tl')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='205Tl')]), data$X7[which(data$X1=='203Tl')], data$X4[which(data$X7=='205Tl')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='205Tl')]), data$X8[which(data$X1=='203Tl')], data$X8[which(data$X1=='205Tl')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Plomb <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='208Pb')]), ifelse(is.na(data$X4[which(data$X1=='207Pb')]), data$X4[which(data$X1=='206Pb')], data$X4[which(data$X1=='207Pb')]), data$X4[which(data$X1=='208Pb')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='208Pb')]), ifelse(is.na(data$X3[which(data$X1=='207Pb')]), data$X3[which(data$X1=='206Pb')], data$X3[which(data$X1=='207Pb')]), data$X3[which(data$X1=='208Pb')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='208Pb')]), ifelse(is.na(data$X5[which(data$X1=='207Pb')]), data$X5[which(data$X1=='206Pb')], data$X5[which(data$X1=='207Pb')]), data$X5[which(data$X1=='208Pb')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='208Pb')]), ifelse(is.na(data$X6[which(data$X1=='207Pb')]), data$X6[which(data$X1=='206Pb')], data$X6[which(data$X1=='207Pb')]), data$X6[which(data$X1=='208Pb')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='208Pb')]), ifelse(is.na(data$X7[which(data$X1=='207Pb')]), data$X7[which(data$X1=='206Pb')], data$X7[which(data$X1=='207Pb')]), data$X7[which(data$X1=='208Pb')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='208Pb')]), ifelse(is.na(data$X8[which(data$X1=='207Pb')]), data$X8[which(data$X1=='206Pb')], data$X8[which(data$X1=='207Pb')]), data$X8[which(data$X1=='208Pb')])
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Lanthane <- data.frame(
+  "Dates" = dates,
+  "S1" = data$X4[which(data$X1=='139La')],
+  "S5" = data$X3[which(data$X1=='139La')],
+  "COWG" = data$X5[which(data$X1=='139La')],
+  "GAL" = data$X6[which(data$X1=='139La')],
+  "Confluence" = data$X7[which(data$X1=='139La')],
+  "Amous" = data$X8[which(data$X1=='139La')]
+) %>%
+  arrange(Dates)
+```
+
+```{r}
+Baryum <- data.frame(
+  "Dates" = dates,
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='138Ba')]), ifelse(is.na(data$X4[which(data$X1=='137Ba')]), data$X4[which(data$X1=='136Ba')], data$X4[which(data$X1=='137Ba')]), data$X4[which(data$X1=='138Ba')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='138Ba')]), ifelse(is.na(data$X3[which(data$X1=='137Ba')]), data$X3[which(data$X1=='136Ba')], data$X3[which(data$X1=='137Ba')]), data$X3[which(data$X1=='138Ba')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='138Ba')]), ifelse(is.na(data$X5[which(data$X1=='137Ba')]), data$X5[which(data$X1=='136Ba')], data$X5[which(data$X1=='137Ba')]), data$X5[which(data$X1=='138Ba')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='138Ba')]), ifelse(is.na(data$X6[which(data$X1=='137Ba')]), data$X6[which(data$X1=='136Ba')], data$X6[which(data$X1=='137Ba')]), data$X6[which(data$X1=='138Ba')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='138Ba')]), ifelse(is.na(data$X7[which(data$X1=='137Ba')]), data$X7[which(data$X1=='136Ba')], data$X7[which(data$X1=='137Ba')]), data$X7[which(data$X1=='138Ba')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='138Ba')]), ifelse(is.na(data$X8[which(data$X1=='137Ba')]), data$X8[which(data$X1=='136Ba')], data$X8[which(data$X1=='137Ba')]), data$X8[which(data$X1=='138Ba')])
+) %>%
+  arrange(Dates)
+```
+
+# Creating and saving a data.frame for each station
+
+```{r}
+Source_S1 <- data.frame(
+  Dates = Temperature$Dates,
+  Temperature = Temperature$S1,
+  pH = pH$S1,
+  Eh = Eh$S1,
+  O2 = O2$S1,
+  Plomb = Plomb$S1,
+  Aluminium = Aluminium$S1,
+  Antimoine = Antimoine$S1,
+  Arséniate = Arséniate$S1,
+  Arsénite = Arsénite$S1,
+  Arsenic_Total = Arsenic_Total$S1,
+  Baryum = Baryum$S1,
+  Bore = Bore$S1,
+  Rubidium = Rubidium$S1,
+  Sodium = Sodium$S1,
+  Souffre = Souffre$S1,
+  Strontium = Strontium$S1,
+  Sulfate = Sulfate$S1,
+  Thallium = Thallium$S1,
+  Titane = Titane$S1,
+  Vanadium = Vanadium$S1,
+  Yttrium = Yttrium$S1,
+  Zinc = Zinc$S1,
+  Zirconium = Zirconium$S1,
+  Cadmium = Cadmium$S1,
+  Calcium = Calcium$S1,
+  Césium = Césium$S1,
+  Chrome = Chrome$S1,
+  Cobalt = Cobalt$S1,
+  Cuivre = Cuivre$S1,
+  Lanthane = Lanthane$S1,
+  Magnésium = Magnésium$S1,
+  Molybdène = Molybdène$S1,
+  Fer_Total = Fer_Total$S1,
+  Nickel = Nickel$S1,
+  Nitrate = Nitrate$S1,
+  Étain = Étain$S1,
+  Ion_Bromure = Ion_Bromure$S1,
+  Ion_Calcium = Ion_Calcium$S1,
+  Ion_Ferreux = Ion_Ferreux$S1,
+  Ion_Fluorure = Ion_Fluorure$S1,
+  Ion_Magnésium = Ion_Magnésium$S1,
+  Ion_Sodium = Ion_Sodium$S1,
+  Ion_Potassium = Ion_Potassium$S1
+)
+```
+
+```{r}
+S5 <- data.frame(
+  Dates = Temperature$Dates,
+  Temperature = Temperature$S5,
+  pH = pH$S5,
+  Eh = Eh$S5,
+  O2 = O2$S5,
+  Plomb = Plomb$S5,
+  Aluminium = Aluminium$S5,
+  Antimoine = Antimoine$S5,
+  Arséniate = Arséniate$S5,
+  Arsénite = Arsénite$S5,
+  Arsenic_Total = Arsenic_Total$S5,
+  Baryum = Baryum$S5,
+  Bore = Bore$S5,
+  Rubidium = Rubidium$S5,
+  Sodium = Sodium$S5,
+  Souffre = Souffre$S5,
+  Strontium = Strontium$S5,
+  Sulfate = Sulfate$S5,
+  Thallium = Thallium$S5,
+  Titane = Titane$S5,
+  Vanadium = Vanadium$S5,
+  Yttrium = Yttrium$S5,
+  Zinc = Zinc$S5,
+  Zirconium = Zirconium$S5,
+  Cadmium = Cadmium$S5,
+  Calcium = Calcium$S5,
+  Césium = Césium$S5,
+  Chrome = Chrome$S5,
+  Cobalt = Cobalt$S5,
+  Cuivre = Cuivre$S5,
+  Lanthane = Lanthane$S5,
+  Magnésium = Magnésium$S5,
+  Molybdène = Molybdène$S5,
+  Nickel = Nickel$S5,
+  Nitrate = Nitrate$S5,
+  Étain = Étain$S5,
+  Fer_Total = Fer_Total$S5,
+  Ion_Bromure = Ion_Bromure$S5,
+  Ion_Calcium = Ion_Calcium$S5,
+  Ion_Ferreux = Ion_Ferreux$S5,
+  Ion_Fluorure = Ion_Fluorure$S5,
+  Ion_Magnésium = Ion_Magnésium$S5,
+  Ion_Sodium = Ion_Sodium$S5,
+  Ion_Potassium = Ion_Potassium$S5
+)
+```
+
+```{r}
+COWG <- data.frame(
+  Dates = Temperature$Dates,
+  Temperature = Temperature$COWG,
+  pH = pH$COWG,
+  Eh = Eh$COWG,
+  O2 = O2$COWG,
+  Plomb = Plomb$COWG,
+  Aluminium = Aluminium$COWG,
+  Antimoine = Antimoine$COWG,
+  Arséniate = Arséniate$COWG,
+  Arsénite = Arsénite$COWG,
+  Arsenic_Total = Arsenic_Total$COWG,
+  Baryum = Baryum$COWG,
+  Fer_Total = Fer_Total$COWG,
+  Bore = Bore$COWG,
+  Rubidium = Rubidium$COWG,
+  Sodium = Sodium$COWG,
+  Souffre = Souffre$COWG,
+  Strontium = Strontium$COWG,
+  Sulfate = Sulfate$COWG,
+  Thallium = Thallium$COWG,
+  Titane = Titane$COWG,
+  Vanadium = Vanadium$COWG,
+  Yttrium = Yttrium$COWG,
+  Zinc = Zinc$COWG,
+  Zirconium = Zirconium$COWG,
+  Cadmium = Cadmium$COWG,
+  Calcium = Calcium$COWG,
+  Césium = Césium$COWG,
+  Chrome = Chrome$COWG,
+  Cobalt = Cobalt$COWG,
+  Cuivre = Cuivre$COWG,
+  Lanthane = Lanthane$COWG,
+  Magnésium = Magnésium$COWG,
+  Molybdène = Molybdène$COWG,
+  Nickel = Nickel$COWG,
+  Nitrate = Nitrate$COWG,
+  Étain = Étain$COWG,
+  Ion_Bromure = Ion_Bromure$COWG,
+  Ion_Calcium = Ion_Calcium$COWG,
+  Ion_Ferreux = Ion_Ferreux$COWG,
+  Ion_Fluorure = Ion_Fluorure$COWG,
+  Ion_Magnésium = Ion_Magnésium$COWG,
+  Ion_Sodium = Ion_Sodium$COWG,
+  Ion_Potassium = Ion_Potassium$COWG
+)
+```
+
+```{r}
+GAL <- data.frame(
+  Dates = Temperature$Dates,
+  Temperature = Temperature$GAL,
+  pH = pH$GAL,
+  Eh = Eh$GAL,
+  O2 = O2$GAL,
+  Plomb = Plomb$GAL,
+  Aluminium = Aluminium$GAL,
+  Antimoine = Antimoine$GAL,
+  Arséniate = Arséniate$GAL,
+  Fer_Total = Fer_Total$GAL,
+  Arsénite = Arsénite$GAL,
+  Arsenic_Total = Arsenic_Total$GAL,
+  Baryum = Baryum$GAL,
+  Bore = Bore$GAL,
+  Rubidium = Rubidium$GAL,
+  Sodium = Sodium$GAL,
+  Souffre = Souffre$GAL,
+  Strontium = Strontium$GAL,
+  Sulfate = Sulfate$GAL,
+  Thallium = Thallium$GAL,
+  Titane = Titane$GAL,
+  Vanadium = Vanadium$GAL,
+  Yttrium = Yttrium$GAL,
+  Zinc = Zinc$GAL,
+  Zirconium = Zirconium$GAL,
+  Cadmium = Cadmium$GAL,
+  Calcium = Calcium$GAL,
+  Césium = Césium$GAL,
+  Chrome = Chrome$GAL,
+  Cobalt = Cobalt$GAL,
+  Cuivre = Cuivre$GAL,
+  Lanthane = Lanthane$GAL,
+  Magnésium = Magnésium$GAL,
+  Molybdène = Molybdène$GAL,
+  Nickel = Nickel$GAL,
+  Nitrate = Nitrate$GAL,
+  Étain = Étain$GAL,
+  Ion_Bromure = Ion_Bromure$GAL,
+  Ion_Calcium = Ion_Calcium$GAL,
+  Ion_Ferreux = Ion_Ferreux$GAL,
+  Ion_Fluorure = Ion_Fluorure$GAL,
+  Ion_Magnésium = Ion_Magnésium$GAL,
+  Ion_Sodium = Ion_Sodium$GAL,
+  Ion_Potassium = Ion_Potassium$GAL
+)
+```
+
+```{r}
+Confluence <- data.frame(
+  Dates = Temperature$Dates,
+  Temperature = Temperature$Confluence,
+  pH = pH$Confluence,
+  Eh = Eh$Confluence,
+  O2 = O2$Confluence,
+  Plomb = Plomb$Confluence,
+  Aluminium = Aluminium$Confluence,
+  Antimoine = Antimoine$Confluence,
+  Fer_Total = Fer_Total$Confluence,
+  Arséniate = Arséniate$Confluence,
+  Arsénite = Arsénite$Confluence,
+  Arsenic_Total = Arsenic_Total$Confluence,
+  Baryum = Baryum$Confluence,
+  Bore = Bore$Confluence,
+  Rubidium = Rubidium$Confluence,
+  Sodium = Sodium$Confluence,
+  Souffre = Souffre$Confluence,
+  Strontium = Strontium$Confluence,
+  Sulfate = Sulfate$Confluence,
+  Thallium = Thallium$Confluence,
+  Titane = Titane$Confluence,
+  Vanadium = Vanadium$Confluence,
+  Yttrium = Yttrium$Confluence,
+  Zinc = Zinc$Confluence,
+  Zirconium = Zirconium$Confluence,
+  Cadmium = Cadmium$Confluence,
+  Calcium = Calcium$Confluence,
+  Césium = Césium$Confluence,
+  Chrome = Chrome$Confluence,
+  Cobalt = Cobalt$Confluence,
+  Cuivre = Cuivre$Confluence,
+  Lanthane = Lanthane$Confluence,
+  Magnésium = Magnésium$Confluence,
+  Molybdène = Molybdène$Confluence,
+  Nickel = Nickel$Confluence,
+  Nitrate = Nitrate$Confluence,
+  Étain = Étain$Confluence,
+  Ion_Bromure = Ion_Bromure$Confluence,
+  Ion_Calcium = Ion_Calcium$Confluence,
+  Ion_Ferreux = Ion_Ferreux$Confluence,
+  Ion_Fluorure = Ion_Fluorure$Confluence,
+  Ion_Magnésium = Ion_Magnésium$Confluence,
+  Ion_Sodium = Ion_Sodium$Confluence,
+  Ion_Potassium = Ion_Potassium$Confluence
+)
+```
+
+```{r}
+Amous1200 <- data.frame(
+  Dates = Temperature$Dates,
+  Temperature = Temperature$Amous,
+  pH = pH$Amous,
+  Eh = Eh$Amous,
+  O2 = O2$Amous,
+  Fer_Total = Fer_Total$Amous,
+  Plomb = Plomb$Amous,
+  Aluminium = Aluminium$Amous,
+  Antimoine = Antimoine$Amous,
+  Arséniate = Arséniate$Amous,
+  Arsénite = Arsénite$Amous,
+  Arsenic_Total = Arsenic_Total$Amous,
+  Baryum = Baryum$Amous,
+  Bore = Bore$Amous,
+  Rubidium = Rubidium$Amous,
+  Sodium = Sodium$Amous,
+  Souffre = Souffre$Amous,
+  Strontium = Strontium$Amous,
+  Sulfate = Sulfate$Amous,
+  Thallium = Thallium$Amous,
+  Titane = Titane$Amous,
+  Vanadium = Vanadium$Amous,
+  Yttrium = Yttrium$Amous,
+  Zinc = Zinc$Amous,
+  Zirconium = Zirconium$Amous,
+  Cadmium = Cadmium$Amous,
+  Calcium = Calcium$Amous,
+  Césium = Césium$Amous,
+  Chrome = Chrome$Amous,
+  Cobalt = Cobalt$Amous,
+  Cuivre = Cuivre$Amous,
+  Lanthane = Lanthane$Amous,
+  Magnésium = Magnésium$Amous,
+  Molybdène = Molybdène$Amous,
+  Nickel = Nickel$Amous,
+  Nitrate = Nitrate$Amous,
+  Étain = Étain$Amous,
+  Ion_Bromure = Ion_Bromure$Amous,
+  Ion_Calcium = Ion_Calcium$Amous,
+  Ion_Ferreux = Ion_Ferreux$Amous,
+  Ion_Fluorure = Ion_Fluorure$Amous,
+  Ion_Magnésium = Ion_Magnésium$Amous,
+  Ion_Sodium = Ion_Sodium$Amous,
+  Ion_Potassium = Ion_Potassium$Amous
+)
+```
+
+```{r}
+write_delim(Source_S1, "Source_S1.csv", delim = ';')
+write_delim(S5, "S5.csv", delim = ';')
+write_delim(COWG, "COWG.csv", delim = ';')
+write_delim(GAL, "GAL.csv", delim = ';')
+write_delim(Confluence, "Confluence.csv", delim = ';')
+write_delim(Amous1200, "Amous_1200.csv", delim = ';')
+```

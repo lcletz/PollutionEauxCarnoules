@@ -1,0 +1,462 @@
+---
+title: "Different ways to impute missing values in Source_S1.csv"
+author: "CLETZ Laura"
+date: "03/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+```
+
+Informations about the datas:
+```{r}
+data <- read.table('Source_S1.csv', dec = ',', sep = ";", header = TRUE)[-c(15, 17, 23, 31, 40, 41,
+                                                                            47, 48, 49, 78, 79, 
+                                                                            82, 90, 101, 103),]
+rownames(data) <- 1:nrow(data)
+summary(data)
+```
+Creating missing dates (one for each month):
+```{r}
+data$Dates <- as.Date(substr(data$Dates, 1, 10))
+all_months <- seq(
+  from = as.Date(format(min(data$Dates), "%Y-%m-01")),
+  to   = as.Date(format(max(data$Dates), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+data$MonthDate <- as.Date(format(data$Dates, "%Y-%m-01"))
+data <- all_months_df %>%
+  left_join(data, by = c("Dates" = "MonthDate"))
+
+data <- data[order(data$Dates), ] %>%
+  select(-Dates.y)
+```
+
+```{r}
+dup_dates <- data %>%
+  group_by(Dates) %>%
+  filter(n() > 1) %>%
+  mutate(row_id = row_number()) %>%
+  ungroup()
+
+second_measures <- dup_dates %>% 
+  filter(row_id == 2) %>% 
+  select(-row_id) %>% 
+  mutate(Dates = Dates %m+% months(1))
+
+empty_months <- data %>%
+  group_by(Dates) %>%
+  filter(n() == 1 & if_all(setdiff(names(data), "Dates"), is.na)) %>%
+  pull(Dates)
+
+second_measures <- second_measures %>% 
+  filter(Dates %in% empty_months)
+
+data_cleaned <- data %>%
+  group_by(Dates) %>%
+  filter(!(n() > 1 & row_number() == 2)) %>%
+  ungroup()
+
+data <- bind_rows(data_cleaned, second_measures) %>%
+  arrange(Dates) %>%
+  filter(!(Dates %in% second_measures$Dates & if_all(setdiff(names(.), "Dates"), is.na)))
+```
+
+# Converting characters datas to doubles
+
+```{r, warning=FALSE}
+for(col in 1:ncol(data)) {
+  current_col <- as.character(data[[col]])
+  ld_rows <- grep("<LD|<LQ|<LOD|< LD|< LQ", current_col)
+  if(length(ld_rows) > 0) {
+    data[ld_rows, col] <- NA
+  }
+}
+write_delim(data, "Source_S1_v2.csv", delim = ";")
+```
+
+```{r}
+data2 <- read.table('Source_S1_v2.csv', dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  select(-Dates) %>%
+  mutate_all(function(x) as.numeric(as.character(x)))
+
+data2 <- cbind(data$Dates, data2)
+names(data2)[names(data2) == 'data$Dates'] <- 'Dates'
+
+data2 <- data2 %>% select(which(colSums(is.na(data2))<116))
+
+summary(data2)
+```
+
+# Mean Imputation
+
+```{r}
+data_mean <- data2
+for(col in 2:ncol(data2)) {
+  for(row in 1:nrow(data2)) {
+    if(is.na(data2[[col]][row])) {
+      data_mean[[col]][row] <- mean(data2[[col]], na.rm = TRUE)
+    }
+  }
+}
+```
+
+# Non-Missing Values' Distance Imputation 
+
+This algorithm works like this:
+- it finds the first occurence of a missing value (NA),
+- it counts the occurences of NAs after the first one until it finds a non-missing value,
+- it calculates the distance between this non-missing value V2 and the non-missing value before the first occurence V1,
+- it imputes V1 - position_of_occurence * dist(V1,V2) / (count_of_occurences + 1).
+```{r}
+data_nmv_dist <- data2
+
+for(col in 2:ncol(data2)) {
+  for(row in 1:nrow(data_nmv_dist)) {
+    if(is.na(data_nmv_dist[[col]][row])) {
+      
+      row_start <- row
+      row_end <- row
+      
+      while(row_end <= nrow(data_nmv_dist) && is.na(data_nmv_dist[[col]][row_end])) {
+        row_end <- row_end + 1
+      }
+      row_end <- row_end - 1
+      
+      if(row_start > 1 && row_end < nrow(data_nmv_dist)) {
+        prev_row <- data_nmv_dist[[col]][row_start - 1]
+        next_row <- data_nmv_dist[[col]][row_end + 1]
+        
+        for(i in row_start:row_end) {
+          coeff <- (i - row_start + 1) / (row_end - row_start + 2)
+          data_nmv_dist[[col]][i] <- prev_row + coeff * (next_row - prev_row)
+        }
+      }
+    }
+  }
+}
+```
+
+# Hot-Deck Imputation
+
+The function `hotdeck` from the package `VIM` imputes new values where missing values are located by looking at the other variables without missing values then seeking randomly a similar individual and finally imputing the same value or a similar value.
+```{r}
+library(VIM)
+data_hd <- hotdeck(data2, imp_var = FALSE)
+```
+
+# Stochastic regression imputation
+
+This method of multiple imputation doesn't seem to work in our case because there are too much NAs, and since we created rows where the dates were missing and filled them with NAs, there are whole rows without any information to apply the regression on...
+```{r}
+library(Hmisc)
+set.seed(9204)
+data_mi <- aregImpute(~ Temperature + pH + Eh + O2 + Plomb + Aluminium + Antimoine + Arséniate +
+                        Arsénite + Arsenic_Total + Baryum + Strontium + Sulfate +
+                        Thallium + Zinc + Cadmium + Chrome + Cobalt + Cuivre +
+                        Nickel + Ion_Ferreux, data = data2, n.impute = 5)
+```
+
+```{r, warning=FALSE}
+#data_model_mi <- fit.mult.impute(~ Temperature + pH + Eh + O2 + Plomb + Aluminium + Antimoine +
+#                                 Arséniate + Arsénite + Arsenic_Total + Baryum + Strontium + 
+#                                   Sulfate + Thallium + Zinc + Cadmium + Chrome + Cobalt + 
+#                                   Cuivre + Nickel + Ion_Ferreux, lm, data_mi, data = data2)
+```
+
+# Imputations Comparison with Générargues' rainfall datas
+
+```{r}
+gen <- read.table('Generargues_v3.csv', dec = '.', sep = " ", header = TRUE)
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$Dates <- gen$Dates %m+% months(4)
+
+gen_data <- gen %>%
+  inner_join(data2)
+
+gen_mean <- gen %>%
+  inner_join(data_mean)
+
+gen_nmv_dist <- gen %>%
+  inner_join(data_nmv_dist)
+
+gen_hd <- gen %>%
+  inner_join(data_hd)
+```
+
+```{r}
+index_with_na <- unique(c(which(is.na(gen_data$Temperature)), which(is.na(gen_data$O2)), 
+                   which(is.na(gen_data$Arsenic_Total)), which(is.na(gen_data$Ion_Ferreux))))
+
+data_with_na <- gen_data[index_with_na,]
+data_without_na <- gen_data[-index_with_na,]
+
+set.seed(9204)
+data_cal <- rbind(
+  data_without_na %>% sample_n(38),
+  data_with_na
+  )
+data_test <- gen_data %>% anti_join(data_cal)
+```
+
+```{r}
+gen_mean_with_na <- gen_mean[index_with_na,]
+gen_mean_without_na <- gen_mean[-index_with_na,]
+
+set.seed(9204)
+gen_mean_cal <- rbind(
+  gen_mean_without_na %>% sample_n(38),
+  gen_mean_with_na
+  )
+gen_mean_test <- gen_mean %>% anti_join(gen_mean_cal)
+```
+
+```{r}
+gen_nmv_with_na <- gen_nmv_dist[index_with_na,]
+gen_nmv_without_na <- gen_nmv_dist[-index_with_na,]
+
+set.seed(9204)
+gen_nmv_cal <- rbind(
+  gen_nmv_without_na %>% sample_n(38),
+  gen_nmv_with_na
+  )
+gen_nmv_test <- gen_nmv_dist %>% anti_join(gen_nmv_cal)
+```
+
+```{r}
+gen_hd_with_na <- gen_hd[index_with_na,]
+gen_hd_without_na <- gen_hd[-index_with_na,]
+
+set.seed(9204)
+gen_hd_cal <- rbind(
+  gen_hd_without_na %>% sample_n(38),
+  gen_hd_with_na
+  )
+gen_hd_test <- gen_hd %>% anti_join(gen_hd_cal)
+```
+
+```{r}
+fit_mean <- lm(Temperature ~ monthly_rainfall + O2 + pH + Eh + Plomb, data = gen_mean_cal)
+summary(fit_mean)
+```
+
+```{r}
+fit_nmv <- lm(Temperature ~ monthly_rainfall + O2 + pH + Eh + Plomb, data = gen_nmv_cal)
+summary(fit_nmv)
+```
+
+```{r}
+fit_hd <- lm(Temperature ~ monthly_rainfall + O2 + pH + Eh + Plomb, data = gen_hd_cal)
+summary(fit_hd)
+```
+```{r}
+pred_mean <- predict(fit_mean, gen_mean_test)
+pred_nmv <- predict(fit_nmv, gen_nmv_test)
+pred_hd <- predict(fit_hd, gen_hd_test)
+pred_mean ; pred_nmv ; pred_hd ; data_test$Temperature
+```
+```{r}
+RMSE_mean <- sqrt( (mean( (pred_mean - data_test$Temperature)^2 )) )
+RMSE_nmv <- sqrt( (mean( (pred_nmv - data_test$Temperature)^2 )) )
+RMSE_hd <- sqrt( (mean( (pred_hd - data_test$Temperature)^2 )) )
+RMSE_mean ; RMSE_nmv ; RMSE_hd
+```
+Best RMSE: Non-Missing Values' Distance Method
+Best $R^2$ and $R^2_a$: Hot-Deck Method
+Best p-value for Fisher's test: Mean Method
+Higher number of most significant coefficients: Non-Missing Values' Distance Method
+Best residual standard error: Mean Method
+
+We chose Non-Missing Values' Distance Imputation:
+```{r}
+write_delim(gen_nmv_dist, "Generargues_S1.csv")
+```
+
+All the above has been updated after trying different combination formula in the following function:
+```{r}
+library(autoReg)
+formula <-  Temperature ~ monthly_rainfall * O2 * pH * Eh * Plomb
+autoReg( lm( formula = formula, data = gen_nmv_cal ) )
+```
+This seems to show that the variable `monthly_rainfall` is never relevant. Is it due to a 4 months delay?
+
+# 4 months delay
+
+```{r}
+gen <- read.table('Generargues_v3.csv', dec = '.', sep = " ", header = TRUE)
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+
+gen_delay <- gen %>%
+  mutate(monthly_rainfall_delayed = lag(monthly_rainfall, 4))
+
+gen_delay <- gen_delay %>%
+  inner_join(data_nmv_dist, join_by(Dates))
+
+data_delay_with_na <- gen_delay[index_with_na,]
+data_delay_without_na <- gen_delay[-index_with_na,]
+
+set.seed(9204)
+data_delay_cal <- rbind(
+  data_delay_without_na %>% sample_n(38),
+  data_delay_with_na
+  )
+data_delay_test <- gen_delay %>% anti_join(data_delay_cal)
+```
+
+```{r}
+formula <-  Temperature ~ monthly_rainfall_delayed* O2 * pH * Eh * Plomb
+autoReg( lm( formula = formula, data = data_delay_cal ) )
+```
+There doesn't seem to be any delay.
+
+# Analysis with discharge 
+
+```{r}
+flow <- read.table("Debit Digue.csv", sep = ';', dec = ',', header = TRUE)[1:2]
+
+flow$Date.Heure <- as.Date(flow$Date.Heure, format="%m/%d/%y")
+
+all_months <- seq(
+  from = as.Date(format(min(flow$Date.Heure), "%Y-%m-01")),
+  to   = as.Date(format(max(flow$Date.Heure), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Date.Heure = all_months)
+
+flow$MonthDate <- as.Date(format(flow$Date.Heure, "%Y-%m-01"))
+flow <- all_months_df %>%
+  left_join(flow, by = c("Date.Heure" = "MonthDate"))
+
+flow <- flow[order(flow$Date.Heure), ] %>%
+  select(-Date.Heure.y) %>%
+  mutate(
+    month = month(as.POSIXlt(Date.Heure, format="%Y-%m-%d")), 
+    year = year(as.POSIXlt(Date.Heure, format="%Y-%m-%d"))
+  )  
+
+flow_sum <- flow %>%
+  group_by(month, year) %>%
+  summarise(monthly_discharge = sum(Debit.journalier..l.s.))
+
+flow <- flow %>% 
+  left_join(flow_sum) %>%
+  select(-c(Debit.journalier..l.s., month, year)) %>%
+  distinct()
+
+write_delim(flow, "Discharge_S1.csv")
+```
+
+```{r}
+new_mean <- gen_mean %>%
+  inner_join(flow, join_by("Dates" == "Date.Heure"))
+
+new_nmv <- gen_nmv_dist %>%
+  inner_join(flow, join_by("Dates" == "Date.Heure"))
+
+new_hd <- gen_hd %>%
+  inner_join(flow, join_by("Dates" == "Date.Heure"))
+```
+
+```{r}
+fit1 <- lm(monthly_discharge ~ Temperature + monthly_rainfall + O2 + Eh + pH + Arsenic_Total, data = new_mean)
+summary(fit1)
+```
+
+```{r}
+fit2 <- lm(monthly_discharge ~ Temperature + monthly_rainfall + O2 + Eh + pH + Arsenic_Total, data = new_nmv)
+summary(fit2)
+```
+
+```{r}
+fit3 <- lm(monthly_discharge ~ Temperature + monthly_rainfall + O2 + Eh + pH + Arsenic_Total, data = new_hd)
+summary(fit3)
+```
+This short analysis seems to confirm the choice of the Non-Missing Values' Distance method of data imputation but this will need further comparison later.
+
+```{r}
+write_delim(new_nmv, "Generargues_S1_flow.csv")
+```
+
+# New way to impute data for time series using Anduze rainfalls
+
+```{r}
+data <- read.table('Source_S1_v2.csv', dec = c(',','.') , sep = ";", header = TRUE) 
+#data2 <- data %>% 
+#  select(-Dates) %>%
+#  mutate_all(function(x) as.numeric(as.character(x)))
+
+#data <- cbind(data$Dates, data2)
+#names(data)[names(data) == 'data$Dates'] <- 'Dates'
+#data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
+
+#data <- data %>% select(which(colSums(is.na(data))<116))
+```
+
+```{r}
+and <- read.table('Anduze_v2.csv', dec = '.', sep = " ", header = TRUE)
+and$Dates <- as.Date(and$Dates, format="%Y-%m-%d")
+
+and_data <- and %>%
+  inner_join(data)
+
+index_with_na <- unique(c(which(is.na(and_data$Temperature)), which(is.na(and_data$O2)), 
+                   which(is.na(and_data$Arsenic_Total)), which(is.na(and_data$Ion_Ferreux))))
+
+data_with_na <- and_data[index_with_na,]
+data_without_na <- and_data[-index_with_na,]
+
+set.seed(9204)
+data_cal <- rbind(
+  data_without_na %>% sample_n(38),
+  data_with_na
+  )
+data_test <- and_data %>% anti_join(data_cal)
+```
+```{r}
+data_nmv_dist <- and_data
+
+for(col in 2:ncol(and_data)) {
+  for(row in 1:nrow(data_nmv_dist)) {
+    if(is.na(data_nmv_dist[[col]][row])) {
+      
+      row_start <- row
+      row_end <- row
+      
+      while(row_end <= nrow(data_nmv_dist) && is.na(data_nmv_dist[[col]][row_end])) {
+        row_end <- row_end + 1
+      }
+      row_end <- row_end - 1
+      
+      if(row_start > 1 && row_end < nrow(data_nmv_dist)) {
+        prev_row <- data_nmv_dist[[col]][row_start - 1]
+        next_row <- data_nmv_dist[[col]][row_end + 1]
+        
+        for(i in row_start:row_end) {
+          coeff <- (i - row_start + 1) / (row_end - row_start + 2)
+          data_nmv_dist[[col]][i] <- prev_row + coeff * (next_row - prev_row)
+        }
+      }
+    }
+  }
+}
+```
+
+```{r}
+write_delim(data_nmv_dist, "Anduze_S1.csv", delim = ";")
+#library(imputeTS)
+```
+
+
+
+

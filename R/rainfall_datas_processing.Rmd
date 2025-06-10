@@ -1,0 +1,120 @@
+---
+title: "Rainfall datas processing"
+author: "CLETZ Laura"
+date: "04/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(lubridate)
+library(data.table)
+```
+
+# Générargues
+
+These are rainfall datas from January 1st of 2003 to July 29th of 2010:
+```{r}
+gen <- read.table('Generargues.csv', dec = ',', sep = ";", header = TRUE)[1:2]
+```
+
+We cut at the beginning of our other datas which is November 2004.
+```{r}
+gen <- gen %>%
+  mutate(
+    month = month(as.POSIXlt(Date.Heure, format="%m/%d/%y")), 
+    year = year(as.POSIXlt(Date.Heure, format="%m/%d/%y"))
+  ) 
+gen <- data.table(gen)
+gen$Date.Heure <- as.Date(gen$Date.Heure, format="%m/%d/%y")
+```
+
+```{r}
+index <- grep('---', gen$Pluviometrie.1h..mm.)
+gen$Pluviometrie.1h..mm. <- replace(gen$Pluviometrie.1h..mm., index, '0')
+
+write_delim(gen, "Generargues_v2.csv")
+```
+
+```{r}
+all_months <- seq(
+  from = as.Date(format(min(gen$Date.Heure), "%Y-%m-01")),
+  to   = as.Date(format(max(gen$Date.Heure), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+gen2 <- read.table('Generargues_v2.csv', dec = c(',') , sep = " ", header = TRUE)
+
+gen2$MonthDate <- as.Date(format(gen$Date.Heure, "%Y-%m-01"))
+gen2 <- all_months_df %>%
+  left_join(gen2, by = c("Dates" = "MonthDate"))
+
+gen_sum <- gen2 %>%
+  group_by(month, year) %>%
+  summarise(monthly_rainfall = sum(Pluviometrie.1h..mm.))
+
+gen2 <- gen2 %>% 
+  left_join(gen_sum) %>%
+  select(-c(Date.Heure, Pluviometrie.1h..mm., month, year)) %>%
+  distinct()
+
+write_delim(gen2, "Generargues_v3.csv")
+```
+
+# Anduze
+
+These are rainfall datas from January 1st of 2004 to April 30th of 2025:
+```{r}
+and <- read.table('Pluvio-Anduze.csv', dec = ',', sep = ";", header = TRUE)[1:2]
+```
+
+```{r}
+and <- and %>%
+  mutate(
+    month = month(as.POSIXlt(Date..TU., format="%Y-%m-%d")), 
+    year = year(as.POSIXlt(Date..TU., format="%Y-%m-%d"))
+  ) 
+and <- data.table(and)
+and$Date..TU. <- as.Date(and$Date..TU., format="%Y-%m-%d")
+```
+
+```{r}
+all_months <- seq(
+  from = as.Date(format(min(and$Date..TU.), "%Y-%m-01")),
+  to   = as.Date(format(max(and$Date..TU.), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+and$MonthDate <- as.Date(format(and$Date..TU., "%Y-%m-01"))
+and <- all_months_df %>%
+  left_join(and, by = c("Dates" = "MonthDate"))
+
+and_sum <- and %>%
+  group_by(month, year) %>%
+  summarise(monthly_rainfall = sum(Valeur..en.mm.))
+
+and2 <- and %>% 
+  left_join(and_sum) %>%
+  select(-c(Date..TU., Valeur..en.mm., month, year)) %>%
+  distinct()
+
+write_delim(and2, "Anduze_v2.csv")
+```
+
+# Comparison
+
+```{r}
+comp <- gen2 %>%
+  inner_join(and2, join_by("Dates")) %>%
+  mutate(
+    close = as.logical(monthly_rainfall.x -5 <= monthly_rainfall.y & monthly_rainfall.y <= monthly_rainfall.x +5)
+  ) 
+comp %>% count(close)
+```
+The datas are really different...
