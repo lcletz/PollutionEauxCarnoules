@@ -1,0 +1,38 @@
+---
+title: "Weather report after 2017"
+author: "CLETZ Laura"
+date: "10/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(readr)
+library(dplyr)
+library(tidyverse)
+here::i_am("R/tidy_datas.Rmd")
+library(here)
+```
+
+```{r, warning=FALSE}
+files <- list.files(here("raw_data","Météo Carnoulès sept 2017 à oct 2019"), pattern = "Tableau mensuel*", full.names = TRUE)
+data <- data.frame()
+year <- 2016
+for(file in files){
+  file <- read_delim(file, na = c("", "NA"), col_names = FALSE, show_col_types = FALSE)[-c(1,2,3,16),1:8]
+  colnames(file) <- c("Dates", "Précipitations (mm)", "Evapotranspiration (mm)", "Humidité relative (%)", "Rayonnement solaire (W/m2)", "Température moyenne (°C)", "Température maximale (°C)", "Température minimale (°C)")
+  
+  file$Dates <- paste0(file$Dates,"-",year)
+  data <- rbind(data, file)
+  year <- year + 1
+}
+data <- data[-13,]
+```
+
+
+
+

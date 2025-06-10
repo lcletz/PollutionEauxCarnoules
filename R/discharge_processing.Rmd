@@ -1,0 +1,164 @@
+---
+title: "Discharges Processing and Comparison"
+author: "CLETZ Laura"
+date: "10/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(readr)
+library(dplyr)
+library(tidyverse)
+here::i_am("R/tidy_datas.Rmd")
+library(here)
+```
+
+# Processing
+
+Piezometer at station S5 from 2006 to 2015:
+```{r, warning=FALSE}
+data1 <- read.table(here("raw_data","S5_continu","PIEZOMETRIC_LEVEL-Tableau 1.csv"), sep = ";", 
+                    dec = ",", header = TRUE)[1:2]
+data1 <- data1[grep("12:30", data1$Date.Heure),]
+```
+
+```{r}
+data1$Date.Heure <- gsub("12:30", "", data1$Date.Heure)
+data1$Date.Heure <- as.Date(data1$Date.Heure, format = "%m/%d/%y")
+
+data1$Date.Heure <- as.Date(substr(data1$Date.Heure, 1, 10))
+all_months <- seq(
+  from = as.Date(format(min(data1$Date.Heure), "%Y-%m-01")),
+  to   = as.Date(format(max(data1$Date.Heure), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+data1$Dates <- as.Date(format(data1$Date.Heure, "%Y-%m-01"))
+
+data1 <- data1 %>%
+  group_by(Dates) %>%
+  summarise(monthly_piezometer = mean(Niveau.Piezometrique..m.)) 
+
+write_delim(data1, here("processed","S5_piezo.csv"), delim = ';')
+```
+
+Discharge at station S1 from 2007 to 2012:
+```{r, warning=FALSE}
+data2 <- read.table(here("raw_data","Debit Digue.csv"), sep = ";", 
+                    dec = ",", header = TRUE)[1:2]
+```
+
+```{r}
+data2$Date.Heure <- as.Date(data2$Date.Heure, format = "%m/%d/%y")
+
+data2$Date.Heure <- as.Date(substr(data2$Date.Heure, 1, 10))
+all_months <- seq(
+  from = as.Date(format(min(data2$Date.Heure), "%Y-%m-01")),
+  to   = as.Date(format(max(data2$Date.Heure), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+data2$Dates <- as.Date(format(data2$Date.Heure, "%Y-%m-01"))
+
+data2 <- data2 %>%
+  group_by(Dates) %>%
+  summarise(monthly_discharge = mean(Debit.journalier..l.s.)) 
+
+write_delim(data2, here("processed","S1_discharge.csv"), delim = ';')
+```
+
+
+Piezometer and discharge at station PZ1 from 2020 to 2022:
+```{r, warning=FALSE}
+data3 <- read.table(here("raw_data","Chronique débit et Pz1.csv"), sep = ";", 
+                    dec = ",", header = TRUE)[c(1:2,8)]
+```
+
+```{r}
+data3$Date <- as.Date(data3$Date, format = "%m/%d/%Y")
+
+data3$Date <- as.Date(substr(data3$Date, 1, 10))
+all_months <- seq(
+  from = as.Date(format(min(data3$Date), "%Y-%m-01")),
+  to   = as.Date(format(max(data3$Date), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+data3$Dates <- as.Date(format(data3$Date, "%Y-%m-01"))
+
+data3 <- data3 %>%
+  group_by(Dates) %>%
+  summarise(monthly_discharge = mean(Débit.instantané.déduit.par.ultrason..L.s., na.rm=TRUE),
+            monthly_piezometer = mean(Hauteur.nappe.Pz1, na.rm=TRUE)) 
+
+write_delim(data3, here("processed","PZ1.csv"), delim = ';')
+```
+
+Random observations in ESU (?):
+```{r, warning=FALSE}
+data4 <- read.table(here("raw_data","Synthese qualité et débit ESU au 12_2024.csv"), sep = ";", 
+                    dec = c(","))[8:49,c(1,28)]
+colnames(data4) <- c("Dates", "monthly_discharge")
+data4$Dates <- gsub("janv.","1", data4$Dates)
+data4$Dates <- gsub("févr.","2", data4$Dates)
+data4$Dates <- gsub("mars","3", data4$Dates)
+data4$Dates <- gsub("avr.","4", data4$Dates)
+data4$Dates <- gsub("mai","5", data4$Dates)
+data4$Dates <- gsub("juin","6", data4$Dates)
+data4$Dates <- gsub("juil.","7", data4$Dates)
+data4$Dates <- gsub("août","8", data4$Dates)
+data4$Dates <- gsub("sept.","9", data4$Dates)
+data4$Dates <- gsub("oct.","10", data4$Dates)
+data4$Dates <- gsub("nov.","11", data4$Dates)
+data4$Dates <- gsub("déc.","12", data4$Dates)
+data4$Dates <- paste0("1-", data4$Dates)
+data4$Dates <- as.Date(data4$Dates, format = "%d-%m-%y")
+write_delim(data4, here("processed","discharge_ESU.csv"), delim = ';')
+```
+
+```{r}
+data4 <- read.table(here("processed","discharge_ESU.csv"), sep = ";", 
+                    dec = c(","), header = TRUE)
+data4$Dates <- as.Date(data4$Dates, format = "%Y-%m-%d")
+data4$monthly_discharge <- as.numeric(data4$monthly_discharge)
+```
+
+# Comparison
+
+```{r}
+y_range <- range(c(data1$monthly_piezometer, data3$monthly_piezometer), na.rm=TRUE)
+plot.ts(ts(rep(NA, 204), start=c(2006,9), end=c(2022,7), frequency=12),
+        ylab="Piezometer (in m)", xlab="Time", ylim=y_range, xaxt = 'n')
+grid()
+lines(ts(data1$monthly_piezometer, start=c(2006,9), end=c(2015,2), frequency=12))
+lines(ts(data3$monthly_piezometer, start=c(2020,11), end=c(2022,7), frequency=12), col='red')
+legend("topright", legend=c("Données de 2006 à 2015", "Données de 2020 à 2022"),
+       col=c("black", "red"), lty=c(1,1))
+axis(1, at = seq(2006, 2023, by = 1), las=2)
+```
+Between 9 and 13 for the first dataset, high occurences in 2007, late-2011 and 2014, low occurences in 2009 and 2010. Betwen 2 and 4.5 for the second dataset, high occurences in the beginning of 2021 and 2022, low occurences in late-2021.
+
+```{r}
+y_range <- range(c(data2$monthly_discharge, data3$monthly_discharge, 
+                   data4$monthly_discharge), na.rm=TRUE)
+plot.ts(ts(rep(NA, 204), start=c(2006,9), end=c(2022,7), frequency=12),
+        ylab="Discharge (in L/s)", xlab="Time", ylim=y_range, xaxt = 'n')
+grid()
+lines(ts(data2$monthly_discharge, start=c(2007,11), end=c(2012,1), frequency=12))
+lines(ts(data3$monthly_discharge, start=c(2020,11), end=c(2022,7), frequency=12), col='red')
+lines(ts(data4$monthly_discharge, start=c(2018,1), end=c(2024,12), frequency=12), col='blue')
+legend("topleft", legend=c("Données de 2007 à 2012", "Données de 2020 à 2022", "Données de 2018 à 2024"),
+       col=c("black", "red", "blue"), lty=c(1,1,1))
+axis(1, at = seq(2007, 2023, by = 1), las=2)
+```
+In average. For the first dataset, between 0 and 1.5, high occurences in the beginning of 2009 and 2011, low occurences in 2010 and late-2011. For the second dataset, between 1 and 2.5, high occurences in mid-2021 and start of 2022. For the last dataset, between 0.2 and 3, high occurences in 2018, right before 2021 and near the end of 2021, low occurences in 2019-2020, start of 2021 and after mid-2022.
+
+The last graph seems to justify the use of the last dataset (in blue) as the continuity of the datas from the COWG and Source S1 stations.
