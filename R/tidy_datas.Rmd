@@ -14,10 +14,12 @@ Packages needed:
 library(readr)
 library(dplyr)
 library(tidyverse)
+here::i_am("R/tidy_datas.Rmd")
+library(here)
 ```
 Each .csv file from the folder `/tables` corresponds with one exported sheet from the .xlsm file:
 ```{r, warning=FALSE}
-files <- list.files("tables", pattern = "\\.csv$", full.names = TRUE)
+files <- list.files(here("raw_data","tables"), pattern = "\\.csv$", full.names = TRUE)
 data <- data.frame()
 for(file in files){
   file <- read_delim(file, na = c("", "NA"), col_names = FALSE, show_col_types = FALSE)
@@ -651,6 +653,7 @@ Source_S1 <- data.frame(
   pH = pH$S1,
   Eh = Eh$S1,
   O2 = O2$S1,
+  Conductivité = Conductivité$S1,
   Plomb = Plomb$S1,
   Aluminium = Aluminium$S1,
   Antimoine = Antimoine$S1,
@@ -700,6 +703,7 @@ S5 <- data.frame(
   pH = pH$S5,
   Eh = Eh$S5,
   O2 = O2$S5,
+  Conductivité = Conductivité$S5,
   Plomb = Plomb$S5,
   Aluminium = Aluminium$S5,
   Antimoine = Antimoine$S5,
@@ -749,6 +753,7 @@ COWG <- data.frame(
   pH = pH$COWG,
   Eh = Eh$COWG,
   O2 = O2$COWG,
+  Conductivité = Conductivité$COWG,
   Plomb = Plomb$COWG,
   Aluminium = Aluminium$COWG,
   Antimoine = Antimoine$COWG,
@@ -798,6 +803,7 @@ GAL <- data.frame(
   pH = pH$GAL,
   Eh = Eh$GAL,
   O2 = O2$GAL,
+  Conductivité = Conductivité$GAL,
   Plomb = Plomb$GAL,
   Aluminium = Aluminium$GAL,
   Antimoine = Antimoine$GAL,
@@ -847,6 +853,7 @@ Confluence <- data.frame(
   pH = pH$Confluence,
   Eh = Eh$Confluence,
   O2 = O2$Confluence,
+  Conductivité = Conductivité$Confluence,
   Plomb = Plomb$Confluence,
   Aluminium = Aluminium$Confluence,
   Antimoine = Antimoine$Confluence,
@@ -896,6 +903,7 @@ Amous1200 <- data.frame(
   pH = pH$Amous,
   Eh = Eh$Amous,
   O2 = O2$Amous,
+  Conductivité = Conductivité$Amous,
   Fer_Total = Fer_Total$Amous,
   Plomb = Plomb$Amous,
   Aluminium = Aluminium$Amous,
@@ -939,10 +947,10 @@ Amous1200 <- data.frame(
 ```
 
 ```{r}
-write_delim(Source_S1, "Source_S1.csv", delim = ';')
-write_delim(S5, "S5.csv", delim = ';')
-write_delim(COWG, "COWG.csv", delim = ';')
-write_delim(GAL, "GAL.csv", delim = ';')
-write_delim(Confluence, "Confluence.csv", delim = ';')
-write_delim(Amous1200, "Amous_1200.csv", delim = ';')
+write_delim(Source_S1, here("processed","Source_S1.csv"), delim = ';')
+write_delim(S5, here("processed","S5.csv"), delim = ';')
+write_delim(COWG, here("processed","COWG.csv"), delim = ';')
+write_delim(GAL, here("processed","GAL.csv"), delim = ';')
+write_delim(Confluence, here("processed","Confluence.csv"), delim = ';')
+write_delim(Amous1200, here("processed","Amous_1200.csv"), delim = ';')
 ```
