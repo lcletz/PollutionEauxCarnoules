@@ -85,14 +85,27 @@ write_delim(COWG, here("processed","recent_COWG_daily.csv"), delim = ";")
 ```
 
 ```{r}
-monthly_COWG <- COWG %>%
+all_months <- seq(
+  from = as.Date(format(min(COWG$Dates), "%Y-%m-01")),
+  to   = as.Date(format(max(COWG$Dates), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+COWG$MonthDate <- as.Date(format(COWG$Dates, "%Y-%m-01"))
+COWG <- all_months_df %>%
+  left_join(COWG, by = c("Dates" = "MonthDate"))
+```
+
+```{r}
+mean_COWG <- COWG %>%
   mutate(
     month = month(as.POSIXlt(Dates, format="%Y-%m-%d")),
     year = year(as.POSIXlt(Dates, format="%Y-%m-%d"))
   ) %>%
   group_by(month, year) %>%
   summarise(Temperature = mean(Temperature),
-            pH = mean(Temperature),
+            pH = mean(pH),
             Eh = mean(Eh),
             Conductivité = mean(Conductivité),
             O2 = mean(O2),
@@ -126,8 +139,22 @@ monthly_COWG <- COWG %>%
             Lithium = mean(Lithium),
             Potassium = mean(Potassium),
             Silicium = mean(Silicium)
-            )
+            ) %>%
+  mutate(MonthDate = as.Date(paste(year, month, "01", sep = "-")))
 ```
+
+```{r, warning=FALSE}
+monthly_COWG <- COWG %>%
+  mutate(
+    month = month(Dates),
+    year = year(Dates)
+  ) %>%
+  left_join(mean_COWG, by = c("month", "year")) %>%
+  select(-c(Dates.y, ends_with(".x"), month, year, MonthDate)) %>% 
+  distinct() %>%
+  rename_with(~ gsub("\\.y$", "", .x))
+```
+
 ```{r}
 write_delim(monthly_COWG, here("processed","recent_COWG.csv"), delim = ";")
 ```
