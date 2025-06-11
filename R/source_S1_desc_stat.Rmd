@@ -1,7 +1,7 @@
 ---
-title: "Descriptive Statistics on Source S1 with Generargues meteo"
+title: "Descriptive Statistics on Source S1 with Anduze meteo"
 author: "CLETZ Laura"
-date: "05/06/2025"
+date: "11/06/2025"
 output: pdf_document
 ---
 
@@ -15,54 +15,16 @@ library(data.table)
 library(dplyr)
 library(tidyverse)
 library(lubridate)
+library(imputeTS)
+here::i_am("R/new_md_imputation.Rmd")
+library(here)
 ```
-
-# Analysis with rainfall
 
 ```{r}
-data <- read.table('Anduze_S1.csv', dec = '.', sep = ";", header = TRUE)
+data <- read.table(here("processed","S1_ts.csv"), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:26, function(x) as.numeric(as.character(x)))
 data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
-summary(data)
 ```
-
-The temperature of the water is on average 14,69 °C. Usually, the temperature of the water at the exit of a phreatic table is around 10 °C. 
-
-The pH of the water here is on average 3.302, which implies the water is acidic. At maximum, the pH is 5.8 and that is still acidic but nearer the normal value that is around 7,5.
-
-The Eh is on average 284.5 V, that is really high but we don't know which component are interacting.
-
-The quantity of dissolved oxygen in the water is on average 2.7675 ppm and at maximum 9.12 ppm while the usual value observed in phreatic table is around 7.5 ppm (this information is not certain) but this might be due to the high Eh.
-
-The concentration in lead is on average 1531.3 ppb, the expected concentration should be around 10 ppb.
-It's 153 times above.
-
-The concentration in aluminium is on average 46607 ppb but the maximum acceptable concentration in drinkable water is 2900 ppb. It's almost 16 times above.
-
-The concentration in antimony is on average 50.257 ppb but the maximum acceptable concentration in drinkable water is 5 ppb. It's 10 times above.
-
-The concentration in arsenic (both arsenite or arseniate) is on average 141973 ppb but the maximum acceptable concentration in drinkable water is 10 ppb. It's almost 14198 times above.
-
-The concentration in baryum is on average 210.407 ppb, the expected concentration should be around 95 ppb.
-
-The concentration in strontium is on average 224.02 ppb, it's below the observed value in most underground water that is around 370 ppb.
-
-The concentration in sulfate is on average 3507 ppm, the expected concentration should be around 250 ppm. It's 15 times above.
-
-The concentration in thallium is on average 353.9 ppb, the expected concentration should be around 2 ppb. It's 188 times above.
-
-The concentration in zinc is on average 21990 ppb, the maximum concentration that has been observed in water table is 1000 ppb. It's almost 219 times above.
-
-The concentration in cadmium is on average 93.702 ppb but the maximum acceptable concentration in drinkable water is 5 ppb. It's 18 times above.
-
-The concentration in chrome is on average 117.52 pbb, the expected concentration should be around 2,4 ppb. It's 65 times above.
-
-The concentration in cobalt is on average 309.4 ppb but the maximum acceptable concentration in drinkable water is 2 ppb. It's 170 times above.
-
-The concentration in copper is on average 583.29 ppb but the maximum acceptable concentration in drinkable water is 2 ppb. It's 291 times above.
-
-The concentration in nickel is on average 712.0 ppb, the maximum concentration that has been observed in water table is 10 ppb. It's 71 times above.
-
-The concentration in ferrous ion is on average 1181.5 ppb, the maximum concentration that has been observed in water table is 50 ppb. It's almost 24 times above.
 
 # Monthly rainfall time series 
 
@@ -71,160 +33,248 @@ rain <- ts(data$monthly_rainfall, start = c(2004,11), end = c(2018,6), frequency
 plot.ts(rain, xlab='Time', ylab="Precipitations (in mm)")
 # mm = L/m^2
 ```
-We can clearly observe the floods from January 2006, from February 2009 and September 2014 but also see the different Cevennes' rainfalls from November 2004 to June 2018.
 
 ```{r, echo=FALSE}
 fit_rain <- decompose(rain)
 plot(fit_rain)
 ```
-The trend is not linear, the 3 floods show. There seems to have 3 episodes in a year: a lot of rain in the beginning of the year, almost none until after the summer, and just a bit more until the end of the year.
 
 ```{r}
 monthplot(rain, ylab = "Precipitations (in mm)")
 ```
-Most rainfall seem to occur in September, October, November, maybe December and March.
 
 ```{r, echo=FALSE}
 par(mfrow=c(1,2))
 acf(rain, type="correlation", main='')
 acf(rain, type="partial", main='')
 ```
-The first autocorrelogram shows a second out-of-critical-region value but it will not be counted. The second one has a notable value at the third lag.
 
 # Temperature time series 
 
 ```{r}
 temp <- ts(data$Temperature, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(temp, xlab='Time', ylab="Temperature (in °C)")
+plot.ts(temp, xlab='Time')
 ```
-We can observe that the water was at its hottest in mid-year of 2005, it could be due to the important heatwave fromMay to August this particular year, and the water was at its coldest around December 2007. The trend is not linear but we can see a yearly or 2-yearly pattern. After 2017, the temperature keeps increasing.
 
 ```{r, echo=FALSE}
 fit_temp <- decompose(temp)
 plot(fit_temp)
 ```
-The trend is decreasing. It might finally be linear or polynomial of a degree 2.. There is a seasonal wave of heat mid-year.
 
 ```{r}
-monthplot(temp, ylab = "Temperature (in °C")
+monthplot(temp)
 ```
-There is no notable seasonality but the water is hotter in the summer and colder in winter, which makes sense.
 
 ```{r, echo=FALSE}
 par(mfrow=c(1,2))
 acf(temp, type="correlation", main='')
 acf(temp, type="partial", main='')
 ```
-The time series isn't stationary. There are 6 values in the first autocorrelogram that are out of the critical region and 2 in the second one. The decreasing drop-shots may show a seasonal pattern. We could approximate this time series with SARIMA processes.
 
-# pH time series
+# pH time series 
 
 ```{r}
-ph <- ts(data$pH, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(ph, xlab='Time', ylab="")
+pH <- ts(data$pH, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(pH, xlab='Time')
 ```
-The trend seems to decrease from 2004 to 2009, increase quickly from 2009 to 2013, then decrease until stagnation, the water had a high pH around the end of 2006 and right before 2013 but also a really low pH right after this period. Two other low points show during 2008.
 
 ```{r, echo=FALSE}
-fit_ph <- decompose(ph)
-plot(fit_ph)
+fit_pH <- decompose(pH)
+plot(fit_pH)
 ```
 
 ```{r}
-monthplot(ph, ylab = "")
+monthplot(pH)
 ```
-The pH has a low range of variability most of the year but in November the pH has had higher values.
 
 ```{r, echo=FALSE}
 par(mfrow=c(1,2))
-acf(ph, type="correlation", main='')
-acf(ph, type="partial", main='')
+acf(pH, type="correlation", main='')
+acf(pH, type="partial", main='')
 ```
-The time series isn't stationary. There are 6 values in the first autocorrelogram that are out of the critical region and 2 in the second one. We could approximate this time series with SARIMA processes.
 
-# Eh time series
+# Eh time series 
 
 ```{r}
-eh <- ts(data$Eh, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(eh, xlab='Time', ylab="RedOx (in V)")
+Eh <- ts(data$Eh, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(Eh, xlab='Time')
 ```
-Between mid-2005 and mid-2007, the values were probably missing and imputated because this looks too smooth. 
 
 ```{r, echo=FALSE}
-fit_eh <- decompose(eh)
-plot(fit_eh)
-```
-The trend is increasing then decreasing various times throughout the years.
-
-```{r}
-monthplot(eh, ylab = "RedOx (in V)")
-```
-```{r, echo=FALSE}
-par(mfrow=c(1,2))
-acf(eh, type="correlation", main='')
-acf(eh, type="partial", main='')
-```
-The time series isn't stationary. There are 8 values in the first autocorrelogram that are out of the critical region and maybe 2 in the second one. We could approximate this time series with SARIMA processes.
-
-# O2 time series
-
-```{r}
-o2 <- ts(data$O2, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(o2, xlab='Time', ylab="")
-```
-The trend is mostly constant, then it increases after 2012. There are two high occurences in the end of 2005 and in the beginning of 2007, but the hightest ones are in 2013, late-2015 and 2018.
-
-```{r, echo=FALSE}
-fit_o2 <- decompose(o2)
-plot(fit_o2)
+fit_Eh <- decompose(Eh)
+plot(fit_Eh)
 ```
 
 ```{r}
-monthplot(o2, ylab = "")
+monthplot(Eh)
 ```
-We could consider a seasonality.
 
 ```{r, echo=FALSE}
 par(mfrow=c(1,2))
-acf(o2, type="correlation", main='', lag.max = 40)
-acf(o2, type="partial", main='', lag.max = 40)
+acf(Eh, type="correlation", main='')
+acf(Eh, type="partial", main='')
 ```
-The time series need to be differenciated, we count around 40 values in the first autocorrelogramm. 
-**We will delete the trend first, then maybe the seasonality if needed.**
 
-# Lead time series
+# O2 time series 
+
+```{r}
+O2 <- ts(data$O2, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(O2, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_O2 <- decompose(O2)
+plot(fit_O2)
+```
+
+```{r}
+monthplot(O2)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(O2, type="correlation", main='')
+acf(O2, type="partial", main='')
+```
+
+# Conductivity time series 
+
+```{r}
+cond <- ts(data$Conductivité, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(cond, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_cond <- decompose(cond)
+plot(fit_cond)
+```
+
+```{r}
+monthplot(cond)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(cond, type="correlation", main='')
+acf(cond, type="partial", main='')
+```
+
+# Lead time series 
 
 ```{r}
 lead <- ts(data$Plomb, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(lead, xlab='Time', ylab="Concentration in lead (in ppb)")
+plot.ts(lead, xlab='Time')
 ```
-The trend may be constant. We can see a rather high value mid-2005, the lowest point right before 2008, another high point mid-2008, then a yearly pattern.
 
 ```{r, echo=FALSE}
 fit_lead <- decompose(lead)
 plot(fit_lead)
 ```
-The trend is not that constant, maybe polynomial or linear by parts.
 
 ```{r}
-monthplot(lead, ylab = "Concentration in lead (in ppb)")
+monthplot(lead)
 ```
-The range of concentration in lead is wider in October and narrower from January to March.
 
 ```{r, echo=FALSE}
 par(mfrow=c(1,2))
 acf(lead, type="correlation", main='')
 acf(lead, type="partial", main='')
 ```
-The time series isn't stationary. There are 4 values twice in the first autocorrelogram that are out of the critical region and maybe 2 or 3 in the second one. We need to differenciate at least once to suppress the trend. We could approximate this time series with (S)ARIMA processes.
 
-# Total of arsenic time series
+# Aluminium time series 
+
+```{r}
+alu <- ts(data$Aluminium, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(alu, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_alu <- decompose(alu)
+plot(fit_alu)
+```
+
+```{r}
+monthplot(alu)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(alu, type="correlation", main='')
+acf(alu, type="partial", main='')
+```
+
+# Antimoine time series 
+
+```{r}
+antimoine <- ts(data$Antimoine, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(antimoine, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_antimoine <- decompose(antimoine)
+plot(fit_antimoine)
+```
+
+```{r}
+monthplot(antimoine)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(antimoine, type="correlation", main='')
+acf(antimoine, type="partial", main='')
+```
+
+# Arséniate time series 
+
+```{r}
+arseniate <- ts(data$Arséniate, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(arseniate, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_arseniate <- decompose(arseniate)
+plot(fit_arseniate)
+```
+
+```{r}
+monthplot(arseniate)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(arseniate, type="correlation", main='')
+acf(arseniate, type="partial", main='')
+```
+
+# Arsénite time series 
+
+```{r}
+arsenite <- ts(data$Arsénite, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(arsenite, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_arsenite <- decompose(arsenite)
+plot(fit_arsenite)
+```
+
+```{r}
+monthplot(arsenite)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(arsenite, type="correlation", main='')
+acf(arsenite, type="partial", main='')
+```
+
+# Total Arsenic time series 
 
 ```{r}
 arsenic <- ts(data$Arsenic_Total, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(arsenic, xlab='Time', ylab="Concentration in arsenic (in ppb)")
+plot.ts(arsenic, xlab='Time')
 ```
-The concentration in arsenic is quite high, the range of values also, the trend doesn't seem linear. There is a yearly seasonal component. The decreasing values after 2014 are possibly imputed NAs.
 
 ```{r, echo=FALSE}
 fit_arsenic <- decompose(arsenic)
@@ -232,22 +282,109 @@ plot(fit_arsenic)
 ```
 
 ```{r}
-monthplot(arsenic, ylab = "Concentration in arsenic (in ppb)")
+monthplot(arsenic)
 ```
+
 ```{r, echo=FALSE}
 par(mfrow=c(1,2))
 acf(arsenic, type="correlation", main='')
 acf(arsenic, type="partial", main='')
 ```
-The time series isn't stationary. There are 4 values twice in the first autocorrelogram that are out of the critical region, maybe 1 in the second one. We could approximate this time series with ARIMA processes.
 
-# Zinc time series
+# Baryum time series 
+
+```{r}
+baryum <- ts(data$Baryum, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(baryum, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_baryum <- decompose(baryum)
+plot(fit_baryum)
+```
+
+```{r}
+monthplot(baryum)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(baryum, type="correlation", main='')
+acf(baryum, type="partial", main='')
+```
+
+# Strontium time series 
+
+```{r}
+strontium <- ts(data$Strontium, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(strontium, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_strontium <- decompose(strontium)
+plot(fit_strontium)
+```
+
+```{r}
+monthplot(strontium)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(strontium, type="correlation", main='')
+acf(strontium, type="partial", main='')
+```
+
+# Sulfate time series 
+
+```{r}
+sulfate <- ts(data$Sulfate, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(sulfate, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_sulfate <- decompose(sulfate)
+plot(fit_sulfate)
+```
+
+```{r}
+monthplot(sulfate)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(sulfate, type="correlation", main='')
+acf(sulfate, type="partial", main='')
+```
+
+# Thallium time series 
+
+```{r}
+thallium <- ts(data$Thallium, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(thallium, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_thallium <- decompose(thallium)
+plot(fit_thallium)
+```
+
+```{r}
+monthplot(thallium)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(thallium, type="correlation", main='')
+acf(thallium, type="partial", main='')
+```
+
+# Zinc time series 
 
 ```{r}
 zinc <- ts(data$Zinc, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(zinc, xlab='Time', ylab="Concentration in ferrous ion (in ppm)")
+plot.ts(zinc, xlab='Time')
 ```
-The trend seems constant, there are high values in 2008, 2009 and mid-2010, and an unusual high point late-2011. The smooth appearance of the linegraph after 2014 may be due to imputed NAs.
 
 ```{r, echo=FALSE}
 fit_zinc <- decompose(zinc)
@@ -255,57 +392,221 @@ plot(fit_zinc)
 ```
 
 ```{r}
-monthplot(zinc, ylab = "Concentration in ferrous ion (in ppm)")
+monthplot(zinc)
 ```
-There is a seasonality, the irregular high values from July to October breaks the pattern. Are they linked to Cevennes' episodes ?
 
 ```{r, echo=FALSE}
 par(mfrow=c(1,2))
 acf(zinc, type="correlation", main='')
 acf(zinc, type="partial", main='')
 ```
-The seasonality shows in the autocorrelograms, we should remove it and try again.
 
-# Ferrous ion time series
+# Cadmium time series 
 
 ```{r}
-fer <- ts(data$Ion_Ferreux, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(fer, xlab='Time', ylab="Concentration in ferrous ion (in ppm)")
+cadmium <- ts(data$Cadmium, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(cadmium, xlab='Time')
 ```
-The trend might be constant, there are two relatively high values: in mid-late-2007 and the highest ones around the beginning of 2010, and the lowest point is in 2013. This could be related to the rainfall with little less than a one-year delay.
 
 ```{r, echo=FALSE}
-fit_fer <- decompose(fer)
-plot(fit_fer)
+fit_cadmium <- decompose(cadmium)
+plot(fit_cadmium)
 ```
 
 ```{r}
-monthplot(fer, ylab = "Concentration in ferrous ion (in ppm)")
+monthplot(cadmium)
 ```
-There could almost be a seasonal factor.
 
 ```{r, echo=FALSE}
 par(mfrow=c(1,2))
-acf(fer, type="correlation", main='')
-acf(fer, type="partial", main='')
+acf(cadmium, type="correlation", main='')
+acf(cadmium, type="partial", main='')
 ```
 
-The time series isn't stationary. There are 6-to-7 values in the first autocorrelogram that are out of the critical region and maybe 1 in the second one. We could approximate this time series with ARIMA processes.
+# Chrome time series 
 
-# Report graphs
+```{r}
+chrome <- ts(data$Chrome, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(chrome, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_chrome <- decompose(chrome)
+plot(fit_chrome)
+```
+
+```{r}
+monthplot(chrome)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(chrome, type="correlation", main='')
+acf(chrome, type="partial", main='')
+```
+
+# Fer_Total time series 
+
+```{r}
+iron <- ts(data$Fer_Total, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(iron, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_iron <- decompose(iron)
+plot(fit_iron)
+```
+
+```{r}
+monthplot(iron)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(iron, type="correlation", main='')
+acf(iron, type="partial", main='')
+```
+
+# Rubidium time series 
+
+```{r}
+rub <- ts(data$Rubidium, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(rub, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_rub <- decompose(rub)
+plot(fit_rub)
+```
+
+```{r}
+monthplot(rub)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(rub, type="correlation", main='')
+acf(rub, type="partial", main='')
+```
+
+# Cobalt time series 
+
+```{r}
+cobalt <- ts(data$Cobalt, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(cobalt, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_cobalt <- decompose(cobalt)
+plot(fit_cobalt)
+```
+
+```{r}
+monthplot(cobalt)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(cobalt, type="correlation", main='')
+acf(cobalt, type="partial", main='')
+```
+
+# Copper time series 
+
+```{r}
+copper <- ts(data$Cuivre, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(copper, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_copper <- decompose(copper)
+plot(fit_copper)
+```
+
+```{r}
+monthplot(copper)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(copper, type="correlation", main='')
+acf(copper, type="partial", main='')
+```
+
+# Nickel time series 
+
+```{r}
+nickel <- ts(data$Nickel, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(nickel, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_nickel <- decompose(nickel)
+plot(fit_nickel)
+```
+
+```{r}
+monthplot(nickel)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(nickel, type="correlation", main='')
+acf(nickel, type="partial", main='')
+```
+
+# Ferrous Ion time series 
+
+```{r}
+ion <- ts(data$Ion_Ferreux, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(ion, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_ion <- decompose(ion)
+plot(fit_ion)
+```
+
+```{r}
+monthplot(ion)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(ion, type="correlation", main='')
+acf(ion, type="partial", main='')
+```
+
+# General study
 
 ```{r}
 fit <- data.frame(
   Dates = data$Dates,
-  Rain = as.numeric(fit_rain$trend),
+  Aluminium = as.numeric(fit_alu$trend),
+  Antimoine = as.numeric(fit_antimoine$trend),
+  Arséniate = as.numeric(fit_arseniate$trend),
+  Arsénite = as.numeric(fit_arsenite$trend),
+  Arsenic_Total = as.numeric(fit_arsenic$trend),
+  Baryum = as.numeric(fit_baryum$trend),
+  Cadmium = as.numeric(fit_cadmium$trend),
+  Chrome = as.numeric(fit_chrome$trend),
+  Cobalt = as.numeric(fit_cobalt$trend),
+  Conductivité = as.numeric(fit_cond$trend),
+  Cuivre = as.numeric(fit_copper$trend),
+  Eh = as.numeric(fit_Eh$trend),
+  Ion_Ferreux = as.numeric(fit_ion$trend),
+  Fer_Total = as.numeric(fit_iron$trend),
+  Plomb = as.numeric(fit_lead$trend),
+  Nickel = as.numeric(fit_nickel$trend),
+  O2 = as.numeric(fit_O2$trend),
+  pH = as.numeric(fit_pH$trend), 
+  Pluie = as.numeric(fit_rain$trend),
+  Rubidium = as.numeric(fit_rub$trend),
+  Strontium = as.numeric(fit_strontium$trend),
+  Sulfate = as.numeric(fit_sulfate$trend),
   Temperature = as.numeric(fit_temp$trend),
-  pH = as.numeric(fit_ph$trend), 
-  Eh = as.numeric(fit_eh$trend),
-  O2 = as.numeric(fit_o2$trend),
-  Lead = as.numeric(fit_lead$trend),
-  Arsenic = as.numeric(fit_arsenic$trend),
-  Zinc = as.numeric(fit_zinc$trend),
-  FeII = as.numeric(fit_fer$trend)
+  Thallium = as.numeric(fit_thallium$trend),
+  Zinc = as.numeric(fit_zinc$trend)
 )
 ```
 
@@ -314,29 +615,50 @@ library(ggplot2)
 library(scales)
 
 fit_scaled <- fit %>%
-  mutate(Rain = rescale(Rain),
-         Temperature = rescale(Temperature),
-         pH = rescale(pH),
-         Eh = rescale(Eh),
-         O2 = rescale(O2),
-         Lead = rescale(Lead),
-         Arsenic = rescale(Arsenic),
-         Zinc = rescale(Zinc),
-         FeII = rescale(FeII))
-
-ggplot(fit_scaled, aes(x = Dates)) + 
-  geom_line(aes(y = Rain, color = "Rain")) + 
-  #geom_line(aes(y = Temperature, color = "Temperature")) +
-  geom_line(aes(y = pH, color = "pH")) +
-  #geom_line(aes(y = Eh, color = "Eh")) +
-  #geom_line(aes(y = O2, color = "O2")) +
-  geom_line(aes(y = Lead, color = "Lead")) +
-  #geom_line(aes(y = Arsenic, color = "Arsenic")) +
-  #geom_line(aes(y = Zinc, color = "Zinc")) +
-  #geom_line(aes(y = FeII, color = "FeII")) +
-  scale_x_date(breaks = date_breaks("years"), labels = date_format("%Y")) +
-  labs(y = "Scaled Values", color = "Variables") +
-  theme_minimal()
+  mutate_at(names(fit[2:26]),
+            function(x) rescale(x))
 ```
 
+```{r}
+library(plotly)
+p <- ggplot(fit_scaled, aes(x = Dates)) + 
+  geom_line(aes(y = Aluminium, color = "Aluminium")) + 
+  geom_line(aes(y = Antimoine, color = "Antimoine")) + 
+  geom_line(aes(y = Arséniate, color = "As V")) + 
+  geom_line(aes(y = Arsénite, color = "As III")) + 
+  geom_line(aes(y = Arsenic_Total, color = "Arsenic Total")) + 
+  geom_line(aes(y = Baryum, color = "Baryum")) + 
+  geom_line(aes(y = Cadmium, color = "Cadmium")) + 
+  geom_line(aes(y = Chrome, color = "Chrome")) + 
+  geom_line(aes(y = Cobalt, color = "Cobalt")) + 
+  geom_line(aes(y = Conductivité, color = "Conductivité")) + 
+  geom_line(aes(y = Cuivre, color = "Cuivre")) + 
+  geom_line(aes(y = Eh, color = "Eh")) + 
+  geom_line(aes(y = Ion_Ferreux, color = "FeII")) + 
+  geom_line(aes(y = Fer_Total, color = "Fer Total")) +
+  geom_line(aes(y = Nickel, color = "Nickel")) + 
+  geom_line(aes(y = O2, color = "O2")) + 
+  geom_line(aes(y = pH, color = "pH")) + 
+  geom_line(aes(y = Pluie, color = "Pluie")) + 
+  geom_line(aes(y = Rubidium, color = "Rubidium")) + 
+  geom_line(aes(y = Strontium, color = "Strontium")) + 
+  geom_line(aes(y = Plomb, color = "Plomb")) +
+  geom_line(aes(y = Sulfate, color = "Sulfate")) + 
+  geom_line(aes(y = Temperature, color = "Température")) + 
+  geom_line(aes(y = Thallium, color = "Thallium")) + 
+  geom_line(aes(y = Zinc, color = "Zinc")) + 
+  scale_x_date(breaks = date_breaks("years"), labels = date_format("%Y")) +
+  labs(y = "Scaled Values", color = "Variables") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+g <- ggplotly(p) %>% 
+  layout(hovermode = "x unified")
+g
+```
+
+```{r}
+library(htmlwidgets)
+saveWidget(g, here("Réunions","S1_interactive_plot.html"), selfcontained = TRUE)
+```
 
