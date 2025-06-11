@@ -15,11 +15,13 @@ library(data.table)
 library(dplyr)
 library(tidyverse)
 library(lubridate)
+here::i_am("R/missing_datas_imputation.Rmd")
+library(here)
 ```
 
 Informations about the datas:
 ```{r}
-data <- read.table('Source_S1.csv', dec = ',', sep = ";", header = TRUE)[-c(15, 17, 23, 31, 40, 41,
+data <- read.table(here('processed','Source_S1.csv'), dec = ',', sep = ";", header = TRUE)[-c(15, 17, 23, 31, 40, 41,
                                                                             47, 48, 49, 78, 79, 
                                                                             82, 90, 101, 103),]
 rownames(data) <- 1:nrow(data)
@@ -83,7 +85,7 @@ for(col in 1:ncol(data)) {
     data[ld_rows, col] <- NA
   }
 }
-write_delim(data, "Source_S1_v2.csv", delim = ";")
+write_delim(data, here("processed","Source_S1_v2.csv"), delim = ";")
 ```
 
 ```{r}

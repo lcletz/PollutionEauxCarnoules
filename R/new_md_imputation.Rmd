@@ -1,0 +1,1203 @@
+---
+title: "New ways to impute missing values in Source_S1.csv and COWG.csv"
+author: "CLETZ Laura"
+date: "10/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+here::i_am("R/new_md_imputation.Rmd")
+library(here)
+```
+
+```{r}
+S1 <- read.table(here('processed','Source_S1_v2.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:44, function(x) as.numeric(as.character(x)))
+S1$Dates <- as.Date(S1$Dates, format="%Y-%m-%d")
+
+S1 <- S1 %>% select(which(colSums(is.na(S1))<116))
+```
+
+```{r}
+and <- read.table(here('processed','Anduze_v2.csv'), dec = '.', sep = " ", header = TRUE)
+and$Dates <- as.Date(and$Dates, format="%Y-%m-%d")
+
+S1 <- and %>%
+  inner_join(S1)
+```
+
+# Generalized Additive Mixed Models (GAMMs)
+
+```{r}
+library(mgcv)
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+```
+
+Temperature imputation:
+```{r}
+gam <- bam(Temperature ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(pH, by=ordered(!mpH)) +
+           s(Eh, by=ordered(!mEh)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Temperature))],
+  pH = S1_gam$pH[which(is.na(S1$Temperature))],
+  Eh = S1_gam$Eh[which(is.na(S1$Temperature))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Temperature))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Temperature))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Temperature))],
+  mpH = S1_gam$mpH[which(is.na(S1$Temperature))],
+  mEh = S1_gam$mEh[which(is.na(S1$Temperature))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Temperature))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Temperature))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Temperature[i])){
+    S1$Temperature[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+pH imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(pH ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(Eh, by=ordered(!mEh)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$pH))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$pH))],
+  Eh = S1_gam$Eh[which(is.na(S1$pH))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$pH))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$pH))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$pH))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$pH))],
+  mEh = S1_gam$mEh[which(is.na(S1$pH))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$pH))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$pH))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$pH[i])){
+    S1$pH[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Eh imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Eh ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Eh))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Eh))],
+  O2 = S1_gam$O2[which(is.na(S1$Eh))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Eh))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Eh))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Eh))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Eh))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Eh))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Eh))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Eh))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Eh[i])){
+    S1$Eh[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+O2 imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(O2 ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(Eh, by=ordered(!mEh)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$O2))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$O2))],
+  Eh = S1_gam$Eh[which(is.na(S1$O2))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$O2))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$O2))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$O2))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$O2))],
+  mEh = S1_gam$mEh[which(is.na(S1$O2))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$O2))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$O2))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$O2[i])){
+    S1$O2[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Conductivité imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Conductivité ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Eh, by=ordered(!mEh)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Conductivité))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Conductivité))],
+  O2 = S1_gam$O2[which(is.na(S1$Conductivité))],
+  Eh = S1_gam$Eh[which(is.na(S1$Conductivité))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Conductivité))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Conductivité))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Conductivité))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Conductivité))],
+  mEh = S1_gam$mEh[which(is.na(S1$Conductivité))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Conductivité))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Conductivité[i])){
+    S1$Conductivité[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Lead imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Plomb ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Arsenic_Total), by=ordered(!mArsenic_Total),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Plomb))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Plomb))],
+  O2 = S1_gam$O2[which(is.na(S1$Plomb))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Plomb))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Plomb))],
+  Arsenic_Total = S1_gam$Arsenic_Total[which(is.na(S1$Plomb))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Plomb))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Plomb))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Plomb))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Plomb))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Plomb))],
+  mArsenic_Total = S1_gam$mArsenic_Total[which(is.na(S1$Plomb))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Plomb[i])){
+    S1$Plomb[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Aluminium imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Aluminium ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Arsenic_Total), by=ordered(!mArsenic_Total),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Aluminium))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Aluminium))],
+  O2 = S1_gam$O2[which(is.na(S1$Aluminium))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Aluminium))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Aluminium))],
+  Arsenic_Total = S1_gam$Arsenic_Total[which(is.na(S1$Aluminium))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Aluminium))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Aluminium))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Aluminium))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Aluminium))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Aluminium))],
+  mArsenic_Total = S1_gam$mArsenic_Total[which(is.na(S1$Aluminium))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Aluminium[i])){
+    S1$Aluminium[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Antimoine imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Antimoine ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Arsenic_Total), by=ordered(!mArsenic_Total),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Antimoine))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Antimoine))],
+  O2 = S1_gam$O2[which(is.na(S1$Antimoine))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Antimoine))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Antimoine))],
+  Arsenic_Total = S1_gam$Arsenic_Total[which(is.na(S1$Antimoine))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Antimoine))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Antimoine))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Antimoine))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Antimoine))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Antimoine))],
+  mArsenic_Total = S1_gam$mArsenic_Total[which(is.na(S1$Antimoine))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Antimoine[i])){
+    S1$Antimoine[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Arséniate imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Arséniate ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Arsenic_Total), by=ordered(!mArsenic_Total),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Arséniate))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Arséniate))],
+  O2 = S1_gam$O2[which(is.na(S1$Arséniate))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Arséniate))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Arséniate))],
+  Arsenic_Total = S1_gam$Arsenic_Total[which(is.na(S1$Arséniate))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Arséniate))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Arséniate))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Arséniate))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Arséniate))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Arséniate))],
+  mArsenic_Total = S1_gam$mArsenic_Total[which(is.na(S1$Arséniate))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Arséniate[i])){
+    S1$Arséniate[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Arsénite imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Arsénite ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Arsenic_Total), by=ordered(!mArsenic_Total),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Arsénite))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Arsénite))],
+  O2 = S1_gam$O2[which(is.na(S1$Arsénite))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Arsénite))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Arsénite))],
+  Arsenic_Total = S1_gam$Arsenic_Total[which(is.na(S1$Arsénite))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Arsénite))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Arsénite))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Arsénite))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Arsénite))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Arsénite))],
+  mArsenic_Total = S1_gam$mArsenic_Total[which(is.na(S1$Arsénite))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Arsénite[i])){
+    S1$Arsénite[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Arsenic_Total imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Arsenic_Total ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Arsenic_Total))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Arsenic_Total))],
+  O2 = S1_gam$O2[which(is.na(S1$Arsenic_Total))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Arsenic_Total))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Arsenic_Total))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Arsenic_Total))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Arsenic_Total))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Arsenic_Total))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Arsenic_Total))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Arsenic_Total))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Arsenic_Total))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Arsenic_Total))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Arsenic_Total[i])){
+    S1$Arsenic_Total[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Baryum imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Baryum ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Baryum))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Baryum))],
+  O2 = S1_gam$O2[which(is.na(S1$Baryum))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Baryum))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Baryum))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Baryum))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Baryum))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Baryum))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Baryum))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Baryum))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Baryum))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Baryum))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Baryum[i])){
+    S1$Baryum[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Rubidium imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Rubidium ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Rubidium))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Rubidium))],
+  O2 = S1_gam$O2[which(is.na(S1$Rubidium))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Rubidium))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Rubidium))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Rubidium))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Rubidium))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Rubidium))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Rubidium))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Rubidium))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Rubidium))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Rubidium))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Rubidium[i])){
+    S1$Rubidium[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Strontium imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Strontium ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Strontium))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Strontium))],
+  O2 = S1_gam$O2[which(is.na(S1$Strontium))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Strontium))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Strontium))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Strontium))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Strontium))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Strontium))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Strontium))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Strontium))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Strontium))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Strontium))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Strontium[i])){
+    S1$Strontium[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Sulfate imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Sulfate ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Sulfate))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Sulfate))],
+  O2 = S1_gam$O2[which(is.na(S1$Sulfate))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Sulfate))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Sulfate))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Sulfate))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Sulfate))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Sulfate))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Sulfate))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Sulfate))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Sulfate))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Sulfate))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Sulfate[i])){
+    S1$Sulfate[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Thallium imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Thallium ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Thallium))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Thallium))],
+  O2 = S1_gam$O2[which(is.na(S1$Thallium))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Thallium))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Thallium))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Thallium))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Thallium))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Thallium))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Thallium))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Thallium))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Thallium))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Thallium))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Thallium[i])){
+    S1$Thallium[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Zinc imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Zinc ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Zinc))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Zinc))],
+  O2 = S1_gam$O2[which(is.na(S1$Zinc))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Zinc))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Zinc))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Zinc))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Zinc))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Zinc))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Zinc))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Zinc))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Zinc))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Zinc))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Zinc[i])){
+    S1$Zinc[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Cadmium imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Cadmium ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Cadmium))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Cadmium))],
+  O2 = S1_gam$O2[which(is.na(S1$Cadmium))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Cadmium))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Cadmium))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Cadmium))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Cadmium))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Cadmium))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Cadmium))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Cadmium))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Cadmium))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Cadmium))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Cadmium[i])){
+    S1$Cadmium[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Chrome imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Chrome ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Chrome))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Chrome))],
+  O2 = S1_gam$O2[which(is.na(S1$Chrome))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Chrome))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Chrome))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Chrome))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Chrome))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Chrome))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Chrome))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Chrome))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Chrome))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Chrome))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Chrome[i])){
+    S1$Chrome[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Cobalt imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Cobalt ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Cobalt))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Cobalt))],
+  O2 = S1_gam$O2[which(is.na(S1$Cobalt))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Cobalt))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Cobalt))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Cobalt))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Cobalt))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Cobalt))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Cobalt))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Cobalt))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Cobalt))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Cobalt))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Cobalt[i])){
+    S1$Cobalt[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Copper imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Cuivre ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Cuivre))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Cuivre))],
+  O2 = S1_gam$O2[which(is.na(S1$Cuivre))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Cuivre))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Cuivre))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Cuivre))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Cuivre))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Cuivre))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Cuivre))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Cuivre))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Cuivre))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Cuivre))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Cuivre[i])){
+    S1$Cuivre[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Fer_Total imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Fer_Total ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Fer_Total))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Fer_Total))],
+  O2 = S1_gam$O2[which(is.na(S1$Fer_Total))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Fer_Total))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Fer_Total))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Fer_Total))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Fer_Total))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Fer_Total))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Fer_Total))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Fer_Total))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Fer_Total))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Fer_Total))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Fer_Total[i])){
+    S1$Fer_Total[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Nickel imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Nickel ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Ion_Ferreux, by=ordered(!mIon_Ferreux)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Nickel))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Nickel))],
+  O2 = S1_gam$O2[which(is.na(S1$Nickel))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Nickel))],
+  Ion_Ferreux = S1_gam$Ion_Ferreux[which(is.na(S1$Nickel))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Nickel))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Nickel))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Nickel))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Nickel))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Nickel))],
+  mIon_Ferreux = S1_gam$mIon_Ferreux[which(is.na(S1$Nickel))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Nickel))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Nickel[i])){
+    S1$Nickel[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+Ion_Ferreux imputation:
+```{r}
+dname <- names(S1)[2:26]
+S1_gam <- S1
+for (i in 1:25) {
+  by.name <- paste("m",dname[i],sep="") 
+  S1_gam[[by.name]] <- is.na(S1_gam[[dname[i]]])
+  S1_gam[[dname[i]]][S1_gam[[by.name]]] <- mean(S1_gam[[dname[i]]],na.rm=TRUE)
+  lev <- rep(1,nrow(S1))
+  lev[S1_gam[[by.name]]] <- 1:sum(S1_gam[[by.name]])
+  S1_gam[[by.name]] <- as.numeric(S1_gam[[by.name]])
+}
+
+gam <- bam(Ion_Ferreux ~ s(monthly_rainfall, by=ordered(!mmonthly_rainfall)) +
+           s(Temperature, by=ordered(!mTemperature)) +
+           s(O2, by=ordered(!mO2)) +
+           s(Conductivité, by=ordered(!mConductivité)) +
+           s(Eh, by=ordered(!mEh)) +
+           s(Plomb), by=ordered(!mPlomb),
+         data=S1_gam)
+
+newd <- data.frame(
+  monthly_rainfall = S1_gam$monthly_rainfall[which(is.na(S1$Ion_Ferreux))],
+  Temperature = S1_gam$Temperature[which(is.na(S1$Ion_Ferreux))],
+  O2 = S1_gam$O2[which(is.na(S1$Ion_Ferreux))],
+  Conductivité = S1_gam$Conductivité[which(is.na(S1$Ion_Ferreux))],
+  Eh = S1_gam$Eh[which(is.na(S1$Ion_Ferreux))],
+  Plomb = S1_gam$Plomb[which(is.na(S1$Ion_Ferreux))],
+  mmonthly_rainfall = S1_gam$mmonthly_rainfall[which(is.na(S1$Ion_Ferreux))],
+  mTemperature = S1_gam$mTemperature[which(is.na(S1$Ion_Ferreux))],
+  mO2 = S1_gam$mO2[which(is.na(S1$Ion_Ferreux))],
+  mConductivité = S1_gam$mConductivité[which(is.na(S1$Ion_Ferreux))],
+  mEh = S1_gam$mEh[which(is.na(S1$Ion_Ferreux))],
+  mPlomb = S1_gam$mPlomb[which(is.na(S1$Ion_Ferreux))]
+)
+
+pred <- predict.gam(gam, newd)
+
+na_count <- 1
+for(i in 1:nrow(S1)){
+  if(is.na(S1$Ion_Ferreux[i])){
+    S1$Ion_Ferreux[i] <- pred[na_count]
+    na_count <- na_count + 1
+  }
+}
+```
+
+```{r}
+write_delim(S1, here("processed", "gam_S1.csv"), delim = ";")
+```
+
+# imputeTS
+
+```{r}
+library(imputeTS)
+S1 <- read.table(here('processed','Source_S1_v2.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:44, function(x) as.numeric(as.character(x)))
+S1$Dates <- as.Date(S1$Dates, format="%Y-%m-%d")
+
+S1 <- S1 %>% select(which(colSums(is.na(S1))<116))
+
+and <- read.table(here('processed','Anduze_v2.csv'), dec = '.', sep = " ", header = TRUE)
+and$Dates <- as.Date(and$Dates, format="%Y-%m-%d")
+
+S1 <- and %>%
+  inner_join(S1)
+```
+
+```{r}
+S1_ts <- S1 %>%
+  mutate_at(2:26, function(x) ts(x, start=c(2004,11), end=c(2018,6), frequency = 12))
+S1_complete <- S1_ts %>%
+  na_kalman(model = "auto.arima")
+
+par(mfrow=c(4,1))
+ggplot_na_imputations(S1_ts$Temperature, S1_complete$Temperature)
+ggplot_na_imputations(S1_ts$pH, S1_complete$pH)
+ggplot_na_imputations(S1_ts$O2, S1_complete$O2)
+ggplot_na_imputations(S1_ts$Arsenic_Total, S1_complete$Arsenic_Total)
+```
+# Imputation Comparison
+
+```{r}
+S1_gam_ts <- S1_gam %>%
+  mutate_at(2:26, function(x) ts(x, start=c(2004,11), end=c(2018,6), frequency = 12))
+
+par(mfrow=c(2,1))
+ggplot_na_imputations(S1_ts$Temperature, S1_complete$Temperature)
+plot.ts(S1_ts$Temperature)
+points(S1_gam_ts$Temperature[which(is.na(S1_ts$Temperature))])
+```
+imputeTS gives instantly the best results!
+
+```{r}
+write_delim(S1_complete, here("processed","S1_ts.csv"), delim = ";")
+```
