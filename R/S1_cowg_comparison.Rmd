@@ -1,0 +1,53 @@
+---
+title: "COWG and S1 comparison"
+author: "CLETZ Laura"
+date: "11/06/2025"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+here::i_am("R/new_md_imputation.Rmd")
+library(here)
+```
+
+```{r}
+cowg <- read.table(here('processed','COWG_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:27, function(x) as.numeric(as.character(gsub(',','.', x))))
+cowg$Dates <- as.Date(cowg$Dates, format="%Y-%m-%d")
+cowg <- cowg[-27]
+```
+
+```{r}
+S1 <- read.table(here('processed','S1_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:26, function(x) as.numeric(as.character(gsub(',','.', x))))
+S1$Dates <- as.Date(S1$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+data <- S1 %>%
+  left_join(cowg, by="Dates") %>%
+  relocate(40, .before = 50)
+```
+
+```{r}
+eval <- data.frame(data$Dates)
+
+for(i in 2:26){
+  col <- data[[i+25]] / data[[i]]
+  eval <- eval %>% bind_cols(col)
+}
+colnames(eval) <- names(S1)
+```
+
+```{r}
+summary(eval)
+```
+The station's datas aren't quite corresponding. We could use the median or the mean as a linear coefficient but that would be biased...
