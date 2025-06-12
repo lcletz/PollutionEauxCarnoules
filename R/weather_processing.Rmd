@@ -14,7 +14,7 @@ Packages needed:
 library(readr)
 library(dplyr)
 library(tidyverse)
-here::i_am("R/tidy_datas.Rmd")
+here::i_am("R/weather_processing.Rmd")
 library(here)
 ```
 
@@ -33,6 +33,24 @@ for(file in files){
 data <- data[-13,]
 ```
 
+```{r}
+data$Dates <- gsub("Janvier","1", data$Dates)
+data$Dates <- gsub(" Février","2", data$Dates)
+data$Dates <- gsub("Mars","3", data$Dates)
+data$Dates <- gsub("Avril","4", data$Dates)
+data$Dates <- gsub("Mai","5", data$Dates)
+data$Dates <- gsub("Juin","6", data$Dates)
+data$Dates <- gsub("Juillet","7", data$Dates)
+data$Dates <- gsub("Août","8", data$Dates)
+data$Dates <- gsub("Septembre","9", data$Dates)
+data$Dates <- gsub("Octobre","10", data$Dates)
+data$Dates <- gsub("Novembre","11", data$Dates)
+data$Dates <- gsub("Décembre","12", data$Dates)
+data$Dates <- paste0("1-", data$Dates)
+data$Dates <- as.Date(data$Dates, format = "%d-%m-%Y")
+
+write_delim(data, here("processed","weather.csv"), delim = ';')
+```
 
 
 
