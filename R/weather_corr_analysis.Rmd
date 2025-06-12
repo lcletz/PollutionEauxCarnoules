@@ -1,0 +1,46 @@
+---
+title: "Weather and chemicals correlation analysis"
+author: "CLETZ Laura"
+date: "12/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(dplyr)
+library(tidyverse)
+here::i_am("R/weather_corr_analysis.Rmd")
+library(here)
+```
+
+
+```{r, warning=FALSE}
+cowg <- read.table(here('processed','COWG_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:27, function(x) as.numeric(as.character(gsub(',','.', x))))
+cowg$Dates <- as.Date(cowg$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+weather <- read.table(here("processed", "weather.csv"), dec = c(",","."), sep = ";", header = TRUE) %>% 
+  mutate_at(2:8, function(x) as.numeric(as.character(gsub(',','.', x))))
+weather$Dates <- as.Date(weather$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+data <- weather %>%
+  left_join(cowg, by="Dates")
+data[,c(2,9)]
+```
+
+We can see that when it doesn't rain too much, the data are similar. But when it does, since Anduze is downstream compared to Carnoules' site, the precipitation there are much higher.
+
+```{r}
+data[,c(6,10)]
+```
+
+There might be a link between air temperature and water temperature. It's more visible the days of heatwaves.
+
