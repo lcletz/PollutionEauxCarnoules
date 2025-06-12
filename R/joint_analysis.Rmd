@@ -1,0 +1,240 @@
+---
+title: "Joint analysis"
+author: "CLETZ Laura"
+date: "12/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(imputeTS)
+here::i_am("R/new_md_imputation.Rmd")
+library(here)
+```
+
+```{r, warning=FALSE}
+cowg <- read.table(here('processed','COWG_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:27, function(x) as.numeric(as.character(gsub(',','.', x))))
+cowg$Dates <- as.Date(cowg$Dates, format="%Y-%m-%d")
+```
+
+```{r, warning=FALSE}
+S1 <- read.table(here('processed','S1_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:26, function(x) as.numeric(as.character(gsub(',','.', x))))
+S1$Dates <- as.Date(S1$Dates, format="%Y-%m-%d")
+```
+
+```{r, warning=FALSE}
+S5 <- read.table(here('processed','S5_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:26, function(x) as.numeric(as.character(gsub(',','.', x))))
+S5$Dates <- as.Date(S5$Dates, format="%Y-%m-%d")
+```
+
+```{r, warning=FALSE}
+conf <- read.table(here('processed','conf_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:18, function(x) as.numeric(as.character(gsub(',','.', x))))
+conf$Dates <- as.Date(conf$Dates, format="%Y-%m-%d")
+```
+
+```{r, warning=FALSE}
+amous <- read.table(here('processed','amous_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:25, function(x) as.numeric(as.character(gsub(',','.', x))))
+amous$Dates <- as.Date(amous$Dates, format="%Y-%m-%d")
+```
+
+```{r, warning=FALSE}
+gal <- read.table(here('processed','GAL_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:24, function(x) as.numeric(as.character(gsub(',','.', x))))
+gal$Dates <- as.Date(gal$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+var <- c("Dates","Temperature","pH","arsenic","Arsenic_Total")
+data <- S1[var] %>%
+  left_join(cowg[var], by="Dates") %>%
+  left_join(conf[var], by="Dates") %>%
+  left_join(amous[var], by="Dates") %>%
+  left_join(S5[var], by="Dates") %>%
+  left_join(gal[var], by="Dates")
+```
+
+# Temperature joint analysis
+
+```{r}
+library(tidyselect)
+temp <- data.frame("Dates" = data$Dates)
+for(i in grep("Temp", names(data))){
+  col <- ts(data[[i]], start=c(2004,11), end=c(2018,6), frequency = 12)
+  temp <- temp %>% bind_cols(col)
+}
+fit_temp1 <- decompose(temp$...2)
+fit_temp2 <- decompose(temp$...3)
+fit_temp3 <- decompose(temp$...4)
+fit_temp4 <- decompose(temp$...5)
+fit_temp5 <- decompose(temp$...6)
+fit_temp6 <- decompose(temp$...7)
+fit_temp <- data.frame(
+  Dates = data$Dates,
+  S1 = as.numeric(fit_temp1$trend),
+  COWG = as.numeric(fit_temp2$trend),
+  Confluence = as.numeric(fit_temp3$trend),
+  Amous1200 = as.numeric(fit_temp4$trend),
+  S5 = as.numeric(fit_temp5$trend),
+  GAL = as.numeric(fit_temp6$trend)
+)
+```
+```{r, warning=FALSE}
+library(ggplot2)
+library(plotly)
+ggplot(fit_temp, aes(x = Dates)) + 
+  geom_line(aes(y = S1, color = "S1")) + 
+  geom_line(aes(y = COWG, color = "COWG")) + 
+  geom_line(aes(y = Confluence, color = "Confluence")) + 
+  geom_line(aes(y = Amous1200, color = "Amous +1200")) + 
+  geom_line(aes(y = S5, color = "S5")) + 
+  geom_line(aes(y = GAL, color = "GAL")) + 
+  scale_x_date(breaks = date_breaks("years"), labels = date_format("%Y")) +
+  labs(y = "Température", color = "Stations") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+# pH joint analysis
+
+```{r}
+pH <- data.frame("Dates" = data$Dates)
+for(i in grep("pH", names(data))){
+  col <- ts(data[[i]], start=c(2004,11), end=c(2018,6), frequency = 12)
+  pH <- pH %>% bind_cols(col)
+}
+fit_pH1 <- decompose(pH$...2)
+fit_pH2 <- decompose(pH$...3)
+fit_pH3 <- decompose(pH$...4)
+fit_pH4 <- decompose(pH$...5)
+fit_pH5 <- decompose(pH$...6)
+fit_pH6 <- decompose(pH$...7)
+fit_pH <- data.frame(
+  Dates = data$Dates,
+  S1 = as.numeric(fit_pH1$trend),
+  COWG = as.numeric(fit_pH2$trend),
+  Confluence = as.numeric(fit_pH3$trend),
+  Amous1200 = as.numeric(fit_pH4$trend),
+  S5 = as.numeric(fit_pH5$trend),
+  GAL = as.numeric(fit_pH6$trend)
+)
+```
+
+```{r, warning=FALSE}
+ggplot(fit_pH, aes(x = Dates)) + 
+  geom_line(aes(y = S1, color = "S1")) + 
+  geom_line(aes(y = COWG, color = "COWG")) + 
+  geom_line(aes(y = Confluence, color = "Confluence")) + 
+  geom_line(aes(y = Amous1200, color = "Amous +1200")) + 
+  geom_line(aes(y = S5, color = "S5")) + 
+  geom_line(aes(y = GAL, color = "GAL")) + 
+  scale_x_date(breaks = date_breaks("years"), labels = date_format("%Y")) +
+  labs(y = "pH", color = "Stations") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+# O2 joint analysis
+
+```{r}
+O2 <- data.frame("Dates" = data$Dates)
+for(i in grep("O2", names(data))){
+  col <- ts(data[[i]], start=c(2004,11), end=c(2018,6), frequency = 12)
+  O2 <- O2 %>% bind_cols(col)
+}
+fit_O21 <- decompose(O2$...2)
+fit_O22 <- decompose(O2$...3)
+fit_O23 <- decompose(O2$...4)
+fit_O24 <- decompose(O2$...5)
+fit_O25 <- decompose(O2$...6)
+fit_O26 <- decompose(O2$...7)
+fit_O2 <- data.frame(
+  Dates = data$Dates,
+  S1 = as.numeric(fit_O21$trend),
+  COWG = as.numeric(fit_O22$trend),
+  Confluence = as.numeric(fit_O23$trend),
+  Amous1200 = as.numeric(fit_O24$trend),
+  S5 = as.numeric(fit_O25$trend),
+  GAL = as.numeric(fit_O26$trend)
+)
+```
+
+```{r, warning=FALSE}
+ggplot(fit_O2, aes(x = Dates)) + 
+  geom_line(aes(y = S1, color = "S1")) + 
+  geom_line(aes(y = COWG, color = "COWG")) + 
+  geom_line(aes(y = Confluence, color = "Confluence")) + 
+  geom_line(aes(y = Amous1200, color = "Amous +1200")) + 
+  geom_line(aes(y = S5, color = "S5")) + 
+  geom_line(aes(y = GAL, color = "GAL")) + 
+  scale_x_date(breaks = date_breaks("years"), labels = date_format("%Y")) +
+  labs(y = "O2", color = "Stations") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+Zoom after 2009:
+```{r, warning=FALSE}
+ggplot(fit_O2[51:164,], aes(x = Dates)) + 
+  geom_line(aes(y = S1, color = "S1")) + 
+  geom_line(aes(y = COWG, color = "COWG")) + 
+  geom_line(aes(y = Confluence, color = "Confluence")) + 
+  geom_line(aes(y = Amous1200, color = "Amous +1200")) + 
+  geom_line(aes(y = S5, color = "S5")) + 
+  geom_line(aes(y = GAL, color = "GAL")) + 
+  scale_x_date(breaks = date_breaks("years"), labels = date_format("%Y")) +
+  labs(y = "O2", color = "Stations") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+# Total Arsenic joint analysis
+
+```{r}
+arsenic <- data.frame("Dates" = data$Dates)
+for(i in grep("Arsenic", names(data))){
+  col <- ts(data[[i]], start=c(2004,11), end=c(2018,6), frequency = 12)
+  arsenic <- arsenic %>% bind_cols(col)
+}
+fit_arsenic1 <- decompose(arsenic$...2)
+fit_arsenic2 <- decompose(arsenic$...3)
+fit_arsenic3 <- decompose(arsenic$...4)
+fit_arsenic4 <- decompose(arsenic$...5)
+fit_arsenic5 <- decompose(arsenic$...6)
+fit_arsenic6 <- decompose(arsenic$...7)
+fit_arsenic <- data.frame(
+  Dates = data$Dates,
+  S1 = as.numeric(fit_arsenic1$trend),
+  COWG = as.numeric(fit_arsenic2$trend),
+  Confluence = as.numeric(fit_arsenic3$trend),
+  Amous1200 = as.numeric(fit_arsenic4$trend),
+  S5 = as.numeric(fit_arsenic5$trend),
+  GAL = as.numeric(fit_arsenic6$trend)
+)
+```
+
+```{r, warning=FALSE}
+ggplot(fit_arsenic, aes(x = Dates)) + 
+  geom_line(aes(y = S1, color = "S1")) + 
+  geom_line(aes(y = COWG, color = "COWG")) + 
+  geom_line(aes(y = Confluence, color = "Confluence")) + 
+  geom_line(aes(y = Amous1200, color = "Amous +1200")) + 
+  geom_line(aes(y = S5, color = "S5")) + 
+  geom_line(aes(y = GAL, color = "GAL")) + 
+  scale_x_date(breaks = date_breaks("years"), labels = date_format("%Y")) +
+  labs(y = "Arsenic Total", color = "Stations") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
