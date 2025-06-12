@@ -1,0 +1,531 @@
+---
+title: "Descriptive Statistics on Confluence with Anduze weather"
+author: "CLETZ Laura"
+date: "2025-06-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(imputeTS)
+here::i_am("R/new_md_imputation.Rmd")
+library(here)
+```
+
+# Confluence MD imputation
+
+```{r, warning=FALSE}
+conf <- read.table(here('processed','Confluence.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:45, function(x) as.numeric(as.character(gsub(',','.', x))))
+conf$Dates <- as.Date(conf$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+conf$Dates <- as.Date(substr(conf$Dates, 1, 10))
+all_months <- seq(
+  from = as.Date(format(min(conf$Dates), "%Y-%m-01")),
+  to   = as.Date(format(max(conf$Dates), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+conf$MonthDate <- as.Date(format(conf$Dates, "%Y-%m-01"))
+conf <- all_months_df %>%
+  left_join(conf, by = c("Dates" = "MonthDate")) %>%
+  select(-Dates.y)
+
+conf <- conf %>% select(which(colSums(is.na(conf))<120))
+```
+
+```{r}
+and <- read.table(here('processed','Anduze_v2.csv'), dec = '.', sep = " ", header = TRUE)
+and$Dates <- as.Date(and$Dates, format="%Y-%m-%d")
+
+conf <- and %>%
+  inner_join(conf)
+```
+
+```{r}
+dis <- read.table(here('processed','S1_discharge.csv'), dec = c(',','.'), sep = ";", header = TRUE)
+dis$Dates <- as.Date(dis$Dates, format="%Y-%m-%d")
+dis$monthly_discharge <- as.numeric(dis$monthly_discharge)
+
+dis2 <- read.table(here('processed','discharge_ESU.csv'), dec = c(',','.'), sep = ";", header = TRUE)
+dis2$Dates <- as.Date(dis2$Dates, format="%Y-%m-%d")
+
+dis3 <- dis %>%
+  bind_rows(dis2)
+
+conf <- conf %>%
+  left_join(dis3) %>% 
+  distinct(Dates, .keep_all = TRUE)
+```
+
+```{r}
+conf_ts <- conf %>%
+  mutate_at(2:18, function(x) ts(x, start=c(2004,11), end=c(2019,1), frequency = 12))
+complete_conf <- conf_ts %>%
+  na_kalman(model = "auto.arima")
+```
+
+```{r}
+ggplot_na_imputations(conf_ts$Temperature, complete_conf$Temperature)
+```
+
+```{r}
+write_delim(complete_conf, here("processed", "conf_ts.csv"), delim = ";")
+```
+
+# Monthly rainfall time series 
+
+```{r}
+data <- complete_conf
+rain <- ts(data$monthly_rainfall, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(rain, xlab='Time', ylab="Precipitations (in mm)")
+# mm = L/m^2
+```
+
+```{r, echo=FALSE}
+fit_rain <- decompose(rain)
+plot(fit_rain)
+```
+
+```{r}
+monthplot(rain, ylab = "Precipitations (in mm)")
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(rain, type="correlation", main='')
+acf(rain, type="partial", main='')
+```
+
+# Temperature time series 
+
+```{r}
+temp <- ts(data$Temperature, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(temp, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_temp <- decompose(temp)
+plot(fit_temp)
+```
+
+```{r}
+monthplot(temp)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(temp, type="correlation", main='')
+acf(temp, type="partial", main='')
+```
+
+# pH time series 
+
+```{r}
+pH <- ts(data$pH, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(pH, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_pH <- decompose(pH)
+plot(fit_pH)
+```
+
+```{r}
+monthplot(pH)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(pH, type="correlation", main='')
+acf(pH, type="partial", main='')
+```
+
+# Eh time series 
+
+```{r}
+Eh <- ts(data$Eh, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(Eh, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_Eh <- decompose(Eh)
+plot(fit_Eh)
+```
+
+```{r}
+monthplot(Eh)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(Eh, type="correlation", main='')
+acf(Eh, type="partial", main='')
+```
+
+# O2 time series 
+
+```{r}
+O2 <- ts(data$O2, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(O2, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_O2 <- decompose(O2)
+plot(fit_O2)
+```
+
+```{r}
+monthplot(O2)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(O2, type="correlation", main='')
+acf(O2, type="partial", main='')
+```
+
+# Conductivity time series 
+
+```{r}
+cond <- ts(data$Conductivité, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(cond, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_cond <- decompose(cond)
+plot(fit_cond)
+```
+
+```{r}
+monthplot(cond)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(cond, type="correlation", main='')
+acf(cond, type="partial", main='')
+```
+
+# Lead time series 
+
+```{r}
+lead <- ts(data$Plomb, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(lead, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_lead <- decompose(lead)
+plot(fit_lead)
+```
+
+```{r}
+monthplot(lead)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(lead, type="correlation", main='')
+acf(lead, type="partial", main='')
+```
+
+# Aluminium time series 
+
+```{r}
+alu <- ts(data$Aluminium, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(alu, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_alu <- decompose(alu)
+plot(fit_alu)
+```
+
+```{r}
+monthplot(alu)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(alu, type="correlation", main='')
+acf(alu, type="partial", main='')
+```
+
+# Arséniate time series 
+
+```{r}
+arseniate <- ts(data$Arséniate, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(arseniate, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_arseniate <- decompose(arseniate)
+plot(fit_arseniate)
+```
+
+```{r}
+monthplot(arseniate)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(arseniate, type="correlation", main='')
+acf(arseniate, type="partial", main='')
+```
+
+# Arsénite time series 
+
+```{r}
+arsenite <- ts(data$Arsénite, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(arsenite, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_arsenite <- decompose(arsenite)
+plot(fit_arsenite)
+```
+
+```{r}
+monthplot(arsenite)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(arsenite, type="correlation", main='')
+acf(arsenite, type="partial", main='')
+```
+
+# Total Arsenic time series 
+
+```{r}
+arsenic <- ts(data$Arsenic_Total, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(arsenic, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_arsenic <- decompose(arsenic)
+plot(fit_arsenic)
+```
+
+```{r}
+monthplot(arsenic)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(arsenic, type="correlation", main='')
+acf(arsenic, type="partial", main='')
+```
+
+# Baryum time series 
+
+```{r}
+baryum <- ts(data$Baryum, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(baryum, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_baryum <- decompose(baryum)
+plot(fit_baryum)
+```
+
+```{r}
+monthplot(baryum)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(baryum, type="correlation", main='')
+acf(baryum, type="partial", main='')
+```
+
+# Sulfate time series 
+
+```{r}
+sulfate <- ts(data$Sulfate, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(sulfate, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_sulfate <- decompose(sulfate)
+plot(fit_sulfate)
+```
+
+```{r}
+monthplot(sulfate)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(sulfate, type="correlation", main='')
+acf(sulfate, type="partial", main='')
+```
+
+# Zinc time series 
+
+```{r}
+zinc <- ts(data$Zinc, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(zinc, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_zinc <- decompose(zinc)
+plot(fit_zinc)
+```
+
+```{r}
+monthplot(zinc)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(zinc, type="correlation", main='')
+acf(zinc, type="partial", main='')
+```
+
+# Cobalt time series 
+
+```{r}
+cobalt <- ts(data$Cobalt, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(cobalt, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_cobalt <- decompose(cobalt)
+plot(fit_cobalt)
+```
+
+```{r}
+monthplot(cobalt)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(cobalt, type="correlation", main='')
+acf(cobalt, type="partial", main='')
+```
+
+# Ferrous Ion time series 
+
+```{r}
+ion <- ts(data$Ion_Ferreux, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(ion, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_ion <- decompose(ion)
+plot(fit_ion)
+```
+
+```{r}
+monthplot(ion)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(ion, type="correlation", main='')
+acf(ion, type="partial", main='')
+```
+
+# Discharge time series 
+
+```{r}
+dis <- ts(data$monthly_discharge, start = c(2004,11), end = c(2019,1), frequency = 12)
+plot.ts(dis, xlab='Time')
+```
+
+```{r, echo=FALSE}
+fit_dis <- decompose(dis)
+plot(fit_dis)
+```
+
+```{r}
+monthplot(dis)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+acf(dis, type="correlation", main='')
+acf(dis, type="partial", main='')
+```
+
+# General study
+
+```{r}
+fit <- data.frame(
+  Dates = data$Dates,
+  Aluminium = as.numeric(fit_alu$trend),
+  Arséniate = as.numeric(fit_arseniate$trend),
+  Arsénite = as.numeric(fit_arsenite$trend),
+  Arsenic_Total = as.numeric(fit_arsenic$trend),
+  Baryum = as.numeric(fit_baryum$trend),
+  Cobalt = as.numeric(fit_cobalt$trend),
+  Conductivité = as.numeric(fit_cond$trend),
+  Débit = as.numeric(fit_dis$trend),
+  Eh = as.numeric(fit_Eh$trend),
+  Ion_Ferreux = as.numeric(fit_ion$trend),
+  Plomb = as.numeric(fit_lead$trend),
+  O2 = as.numeric(fit_O2$trend),
+  pH = as.numeric(fit_pH$trend), 
+  Pluie = as.numeric(fit_rain$trend),
+  Sulfate = as.numeric(fit_sulfate$trend),
+  Temperature = as.numeric(fit_temp$trend),
+  Zinc = as.numeric(fit_zinc$trend)
+)
+```
+
+```{r, warning=FALSE}
+library(ggplot2)
+library(scales)
+
+fit_scaled <- fit %>%
+  mutate_at(names(fit[2:18]),
+            function(x) rescale(x))
+```
+
+```{r}
+library(plotly)
+p <- ggplot(fit_scaled, aes(x = Dates)) + 
+  geom_line(aes(y = Aluminium, color = "Aluminium")) + 
+  geom_line(aes(y = Arséniate, color = "As V")) + 
+  geom_line(aes(y = Arsénite, color = "As III")) + 
+  geom_line(aes(y = Arsenic_Total, color = "Arsenic Total")) + 
+  geom_line(aes(y = Baryum, color = "Baryum")) + 
+  geom_line(aes(y = Cobalt, color = "Cobalt")) + 
+  geom_line(aes(y = Conductivité, color = "Conductivité")) + 
+  geom_line(aes(y = Débit, color = "Débit")) + 
+  geom_line(aes(y = Eh, color = "Eh")) + 
+  geom_line(aes(y = Ion_Ferreux, color = "FeII")) + 
+  geom_line(aes(y = O2, color = "O2")) + 
+  geom_line(aes(y = pH, color = "pH")) + 
+  geom_line(aes(y = Pluie, color = "Pluie")) + 
+  geom_line(aes(y = Plomb, color = "Plomb")) +
+  geom_line(aes(y = Sulfate, color = "Sulfate")) + 
+  geom_line(aes(y = Temperature, color = "Température")) + 
+  geom_line(aes(y = Zinc, color = "Zinc")) + 
+  scale_x_date(breaks = date_breaks("years"), labels = date_format("%Y")) +
+  labs(y = "Scaled Values", color = "Variables") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+g <- ggplotly(p) %>% 
+  layout(hovermode = "x unified")
+g
+```
+
+```{r}
+library(htmlwidgets)
+saveWidget(g, here("Réunions","conf_interactive_plot.html"), selfcontained = TRUE)
+```
+
