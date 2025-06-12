@@ -1,5 +1,5 @@
 ---
-title: "Descriptive Statistics on Confluence with Anduze weather"
+title: "Descriptive Statistics on Confluence with Generargues weather"
 author: "CLETZ Laura"
 date: "2025-06-12"
 output: html_document
@@ -16,7 +16,7 @@ library(dplyr)
 library(tidyverse)
 library(lubridate)
 library(imputeTS)
-here::i_am("R/new_md_imputation.Rmd")
+here::i_am("R/Confluence_desc_stat.Rmd")
 library(here)
 ```
 
@@ -46,11 +46,12 @@ conf <- conf %>% select(which(colSums(is.na(conf))<120))
 ```
 
 ```{r}
-and <- read.table(here('processed','Anduze_v2.csv'), dec = '.', sep = " ", header = TRUE)
-and$Dates <- as.Date(and$Dates, format="%Y-%m-%d")
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
 
-conf <- and %>%
-  inner_join(conf)
+conf <- gen %>%
+  inner_join(conf, by="Dates")
 ```
 
 ```{r}
@@ -89,8 +90,7 @@ write_delim(complete_conf, here("processed", "conf_ts.csv"), delim = ";")
 ```{r}
 data <- complete_conf
 rain <- ts(data$monthly_rainfall, start = c(2004,11), end = c(2019,1), frequency = 12)
-plot.ts(rain, xlab='Time', ylab="Precipitations (in mm)")
-# mm = L/m^2
+plot.ts(rain, xlab='Time')
 ```
 
 ```{r, echo=FALSE}

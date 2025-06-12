@@ -1,5 +1,5 @@
 ---
-title: "Descriptive Statistics on COWG with Anduze weather"
+title: "Descriptive Statistics on COWG with Generargues weather"
 author: "CLETZ Laura"
 date: "11/06/2025"
 output: pdf_document
@@ -16,7 +16,7 @@ library(dplyr)
 library(tidyverse)
 library(lubridate)
 library(imputeTS)
-here::i_am("R/new_md_imputation.Rmd")
+here::i_am("R/COWG_desc_stat.Rmd")
 library(here)
 ```
 # COWG MD imputation
@@ -55,11 +55,12 @@ na_cowg <- na_cowg %>% select(which(colSums(is.na(na_cowg))<173))
 ```
 
 ```{r}
-and <- read.table(here('processed','Anduze_v2.csv'), dec = '.', sep = " ", header = TRUE)
-and$Dates <- as.Date(and$Dates, format="%Y-%m-%d")
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
 
-na_cowg <- and %>%
-  inner_join(na_cowg)
+na_cowg <- gen %>%
+  inner_join(na_cowg, by="Dates")
 ```
 
 ```{r}

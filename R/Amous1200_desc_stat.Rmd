@@ -1,5 +1,5 @@
 ---
-title: "Descriptive Statistics on Amous +1200 with Anduze weather"
+title: "Descriptive Statistics on Amous +1200 with Generargues weather"
 author: "CLETZ Laura"
 date: "12/06/2025"
 output: pdf_document
@@ -16,7 +16,7 @@ library(dplyr)
 library(tidyverse)
 library(lubridate)
 library(imputeTS)
-here::i_am("R/new_md_imputation.Rmd")
+here::i_am("R/Amous1200_desc_stat.Rmd")
 library(here)
 ```
 
@@ -45,13 +45,16 @@ amous <- all_months_df %>%
 amous <- amous %>% select(which(colSums(is.na(amous))<115))
 ```
 
-```{r}
-and <- read.table(here('processed','Anduze_v2.csv'), dec = '.', sep = " ", header = TRUE)
-and$Dates <- as.Date(and$Dates, format="%Y-%m-%d")
 
-amous <- and %>%
-  inner_join(amous)
+```{r}
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
+
+amous <- gen %>%
+  inner_join(amous, by="Dates")
 ```
+
 
 ```{r}
 dis <- read.table(here('processed','S1_discharge.csv'), dec = c(',','.'), sep = ";", header = TRUE)

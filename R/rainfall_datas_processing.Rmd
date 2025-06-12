@@ -13,16 +13,16 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(lubridate)
 library(data.table)
+library(here)
 ```
 
 # Générargues
 
 These are rainfall datas from January 1st of 2003 to July 29th of 2010:
 ```{r}
-gen <- read.table('Generargues.csv', dec = ',', sep = ";", header = TRUE)[1:2]
+gen <- read.table(here('processed','Generargues.csv'), dec = ',', sep = ";", header = TRUE)[1:2]
 ```
 
-We cut at the beginning of our other datas which is November 2004.
 ```{r}
 gen <- gen %>%
   mutate(
@@ -37,7 +37,7 @@ gen$Date.Heure <- as.Date(gen$Date.Heure, format="%m/%d/%y")
 index <- grep('---', gen$Pluviometrie.1h..mm.)
 gen$Pluviometrie.1h..mm. <- replace(gen$Pluviometrie.1h..mm., index, '0')
 
-write_delim(gen, "Generargues_v2.csv")
+write_delim(gen, here('processed',"Generargues_v2.csv"), delim = ";")
 ```
 
 ```{r}
@@ -48,7 +48,7 @@ all_months <- seq(
 )
 all_months_df <- data.frame(Dates = all_months)
 
-gen2 <- read.table('Generargues_v2.csv', dec = c(',') , sep = " ", header = TRUE)
+gen2 <- read.table(here('processed','Generargues_v2.csv'), dec = c(',') , sep = ";", header = TRUE)
 
 gen2$MonthDate <- as.Date(format(gen$Date.Heure, "%Y-%m-01"))
 gen2 <- all_months_df %>%
@@ -63,14 +63,101 @@ gen2 <- gen2 %>%
   select(-c(Date.Heure, Pluviometrie.1h..mm., month, year)) %>%
   distinct()
 
-write_delim(gen2, "Generargues_v3.csv")
+write_delim(gen2, here("processed","Generargues_2003_2010.csv"), delim = ";")
+```
+
+```{r}
+gen_rec <- read.table(here('raw_data', 'Pluie generargues', '2010-2019-Tableau 1.csv'),
+                     dec = ',', sep = ";", header = TRUE)[c(10,12)]
+
+gen_rec <- gen_rec %>%
+  mutate(
+    X.3 = as.Date(X.3, format = "%m/%d/%y"),
+    month = month(X.3), 
+    year = year(X.3),
+    MonthDate = as.Date(format(X.3, "%Y-%m-01"))
+  )
+
+all_months_df <- data.frame(
+  MonthDate = seq(
+    from = as.Date(format(min(gen_rec$MonthDate), "%Y-%m-01")),
+    to = as.Date(format(max(gen_rec$MonthDate), "%Y-%m-01")),
+    by = "month"
+  )
+)
+
+gen_rec <- all_months_df %>%
+  left_join(gen_rec, by = "MonthDate")
+
+gen_sum <- gen_rec %>%
+  group_by(MonthDate, month, year) %>%
+  summarise(monthly_rainfall = sum(RR1, na.rm = TRUE), .groups = "drop")
+
+gen_rec <- gen_rec %>% 
+  left_join(gen_sum, by = c("MonthDate", "month", "year")) %>%
+  select(-c(X.3, RR1, month, year)) %>%
+  distinct()
+
+write_delim(gen_rec, here("processed","Generargues_2010_2019.csv"), delim = ";")
+```
+
+```{r}
+gen_rec <- read.table(here('raw_data', 'Pluie generargues', '2020-2023-Tableau 1.csv'),
+                     dec = ',', sep = ";", header = TRUE)[c(10,12)]
+
+gen_rec <- gen_rec %>%
+  mutate(
+    Date = as.Date(Date, format = "%m/%d/%y"),
+    month = month(Date), 
+    year = year(Date),
+    MonthDate = as.Date(format(Date, "%Y-%m-01"))
+  )
+
+all_months_df <- data.frame(
+  MonthDate = seq(
+    from = as.Date(format(min(gen_rec$MonthDate), "%Y-%m-01")),
+    to = as.Date(format(max(gen_rec$MonthDate), "%Y-%m-01")),
+    by = "month"
+  )
+)
+
+gen_rec <- all_months_df %>%
+  left_join(gen_rec, by = "MonthDate")
+
+gen_sum <- gen_rec %>%
+  group_by(MonthDate, month, year) %>%
+  summarise(monthly_rainfall = sum(RR1, na.rm = TRUE), .groups = "drop")
+
+gen_rec <- gen_rec %>% 
+  left_join(gen_sum, by = c("MonthDate", "month", "year")) %>%
+  select(-c(Date, RR1, month, year)) %>%
+  distinct()
+
+write_delim(gen_rec, here("processed","Generargues_2020_2023.csv"), delim = ";")
+```
+
+```{r}
+gen1 <- read.table(here('processed','Generargues_2003_2010.csv'),
+                     dec = ',', sep = ";", header = TRUE)
+gen2 <- read.table(here('processed','Generargues_2010_2019.csv'),
+                     dec = ',', sep = ";", header = TRUE)
+gen3 <- read.table(here('processed','Generargues_2020_2023.csv'),
+                     dec = ',', sep = ";", header = TRUE)
+gen1 <- gen1[-(85:91),]
+
+colnames(gen2) <- colnames(gen1)
+colnames(gen3) <- colnames(gen1)
+
+gen <- gen1 %>% bind_rows(gen2) %>% bind_rows(gen3)
+
+write_delim(gen, here("processed","Generargues_complete.csv"), delim = ";")
 ```
 
 # Anduze
 
 These are rainfall datas from January 1st of 2004 to April 30th of 2025:
 ```{r}
-and <- read.table('Pluvio-Anduze.csv', dec = ',', sep = ";", header = TRUE)[1:2]
+and <- read.table('Pluvio-Anduze.csv', dec = c(',','.'), sep = ";", header = TRUE)[1:2]
 ```
 
 ```{r}

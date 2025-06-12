@@ -1,5 +1,5 @@
 ---
-title: "Descriptive Statistics on gal with Anduze weather"
+title: "Descriptive Statistics on gal with Generargues weather"
 author: "CLETZ Laura"
 date: "12/06/2025"
 output: pdf_document
@@ -16,7 +16,7 @@ library(dplyr)
 library(tidyverse)
 library(lubridate)
 library(imputeTS)
-here::i_am("R/new_md_imputation.Rmd")
+here::i_am("R/GAL_desc_stat.Rmd")
 library(here)
 ```
 # GAL MD imputation
@@ -45,11 +45,12 @@ gal <- gal %>% select(which(colSums(is.na(gal))<121))
 ```
 
 ```{r}
-and <- read.table(here('processed','Anduze_v2.csv'), dec = '.', sep = " ", header = TRUE)
-and$Dates <- as.Date(and$Dates, format="%Y-%m-%d")
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
 
-gal <- and %>%
-  inner_join(gal)
+gal <- gen %>%
+  inner_join(gal, by="Dates")
 ```
 
 ```{r}
