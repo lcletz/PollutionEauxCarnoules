@@ -1,5 +1,5 @@
 ---
-title: "Descriptive Statistics on Source S1 with Anduze meteo"
+title: "Descriptive Statistics on Source S1 with Anduze weather"
 author: "CLETZ Laura"
 date: "11/06/2025"
 output: pdf_document
