@@ -36,11 +36,29 @@ data <- weather %>%
 data[,c(2,9)]
 ```
 
-We can see that when it doesn't rain too much, the data are similar. But when it does, since Anduze is downstream compared to Carnoules' site, the precipitation there are much higher.
+The measures for Generargues' rainfall from ADEME and from Meteo-France are similar but there are observations where the gap is too wide.
 
 ```{r}
 data[,c(6,10)]
 ```
 
 There might be a link between air temperature and water temperature. It's more visible the days of heatwaves.
+
+```{r, warning = FALSE}
+temp_air <- ts(data[,6], start = c(2016,1), end = c(2019,12), frequency = 12)
+temp_water <- ts(data[,10], start = c(2016,1), end = c(2019,12), frequency = 12)
+fit_air <- decompose(temp_air)
+fit_water <- decompose(temp_water)
+fit <- data.frame(
+  Dates = data$Dates,
+  Temp_Air = as.numeric(fit_air$trend),
+  Temp_Water = as.numeric(fit_water$trend)
+)
+ggplot(fit, aes(x = Dates)) +
+  geom_line(aes(y = Temp_Air, color = "Température de l'air")) +
+  geom_line(aes(y = Temp_Water, color = "Température de l'eau")) +
+  theme_minimal() 
+```
+
+Apparently not. Inconclusive.
 
