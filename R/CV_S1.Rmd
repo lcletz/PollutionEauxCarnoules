@@ -1,0 +1,281 @@
+---
+title: "Cross-Validation on a small piece of S1 data"
+author: "CLETZ Laura"
+date: "13/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(imputeTS)
+library(mgcv)
+library(VIM)
+here::i_am("R/CV_S1.Rmd")
+library(here)
+```
+
+```{r, warning=FALSE}
+data <- read.table(here('processed','Source_S1_v2.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:45, function(x) as.numeric(as.character(gsub(',','.', x))))
+data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
+
+data <- gen %>%
+  inner_join(data, by="Dates")
+```
+
+```{r}
+dis <- read.table(here('processed','S1_discharge.csv'), dec = c(',','.'), sep = ";", header = TRUE)
+dis$Dates <- as.Date(dis$Dates, format="%Y-%m-%d")
+dis$monthly_discharge <- as.numeric(dis$monthly_discharge)
+
+dis2 <- read.table(here('processed','discharge_ESU.csv'), dec = c(',','.'), sep = ";", header = TRUE)
+dis2$Dates <- as.Date(dis2$Dates, format="%Y-%m-%d")
+
+dis3 <- dis %>%
+  bind_rows(dis2)
+
+data <- data %>%
+  left_join(dis3) %>% 
+  distinct(Dates, .keep_all = TRUE)
+```
+
+```{r}
+test <- data[(1:49),]
+test <- test[which(colSums(is.na(test))*100/nrow(test)<=15)]
+length(data) ; length(test) ; names(test)
+```
+
+# imputeTS imputation
+
+```{r}
+data_ts <- test %>%
+  mutate_at(2:22, function(x) ts(x, start=c(2004,11), end=c(2008,11), frequency = 12)) %>%
+  na_kalman(model = "auto.arima")
+```
+
+# GAMMs imputation
+
+## AR(1)
+
+```{r}
+data_gamm_ar1 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+                      correlation = corARMA(form = ~ 1, p = 1), data = test)
+# form = ~ 1 because the observations are already ordered by dates
+summary(data_gamm_ar1$gam)
+```
+
+## AR(2)
+
+```{r}
+data_gamm_ar2 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+                      correlation = corARMA(form = ~ 1, p = 2), data = test)
+summary(data_gamm_ar2$gam)
+```
+
+## AR(3)
+
+```{r}
+data_gamm_ar3 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+                      correlation = corARMA(form = ~ 1, p = 3), data = test)
+summary(data_gamm_ar3$gam)
+```
+
+## MA(1)
+
+```{r}
+data_gamm_ma1 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+                      correlation = corARMA(form = ~ 1, q = 1), data = test)
+# form = ~ 1 because the observations are already ordered by dates
+summary(data_gamm_ma1$gam)
+```
+
+## MA(2)
+
+```{r}
+data_gamm_ma2 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+                      correlation = corARMA(form = ~ 1, q = 2), data = test)
+summary(data_gamm_ma2$gam)
+```
+
+## ARMA(1,1)
+
+```{r}
+data_gamm_arma11 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+                      correlation = corARMA(form = ~ 1, p = 1, q = 1), data = test)
+summary(data_gamm_arma11$gam)
+```
+
+## ARMA(1,2)
+
+```{r}
+#data_gamm_arma12 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+#                      correlation = corARMA(form = ~ 1, p = 1, q = 2), data = test)
+#summary(data_gamm_arma12$gam)
+```
+
+## ARMA(2,1)
+
+```{r}
+data_gamm_arma21 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+                      correlation = corARMA(form = ~ 1, p = 2, q = 1), data = test)
+summary(data_gamm_arma21$gam)
+```
+
+## ARMA(2,2)
+
+```{r}
+data_gamm_arma22 <- gamm(Arsenic_Total ~ s(monthly_rainfall) + s(Conductivité), 
+                      correlation = corARMA(form = ~ 1, p = 2, q = 2), data = test)
+summary(data_gamm_arma22$gam)
+```
+
+## Comparison
+
+```{r}
+AIC(data_gamm_ar1$lme)
+AIC(data_gamm_ar2$lme)
+AIC(data_gamm_ar3$lme)
+AIC(data_gamm_ma1$lme)
+AIC(data_gamm_ma2$lme)
+AIC(data_gamm_arma11$lme)
+#AIC(data_gamm_arma12$lme)
+AIC(data_gamm_arma21$lme)
+AIC(data_gamm_arma22$lme)
+```
+ARMA(1,1) wins.
+
+```{r}
+data_gamm <- test
+newd <- data.frame(
+  monthly_rainfall = data_gamm$monthly_rainfall[which(is.na(data_gamm$Arsenic_Total))],
+  Conductivité = data_gamm$Conductivité[which(is.na(data_gamm$Arsenic_Total))]
+)
+data_gamm$Arsenic_Total[which(is.na(data_gamm$Arsenic_Total))] <- predict.gam(data_gamm_arma11$gam, newd)
+```
+
+## Imputation function for GAMMs method
+
+```{r}
+impute_GAMMs <- function(df){
+  control <- lmeControl(msMaxIter = 200, 
+                       msMaxEval = 200,
+                       tolerance = 1e-4,
+                       niterEM = 50,
+                       opt = "optim")
+  
+  # Check if there is any columns without NAs where we need to impute values
+  for( col in (2:ncol(df)) ){ # 2 since the first column is supposed to be Dates
+    index_with_na <- which(is.na(df[col]))
+    
+    if(length(index_with_na) == 0) {
+      next
+    } 
+    
+    else {
+    newdf <- data.frame( df[[1]][index_with_na] )
+    formula <- paste0( names(df[col]), "~")
+    
+    for( i in (2:ncol(df)) ){
+      
+       if( names(df[i]) == names(df[col]) ){      
+          next
+         }
+      
+      if( sum( is.na( df[[i]][index_with_na] )) > 0 ){
+         next
+        }
+      
+      else {
+        formula <- paste0( formula, "s(", names(df[i]), ")+" )
+        newdf <- cbind(newdf, df[[i]][index_with_na] )
+        colnames(newdf)[length(newdf)] <- names(df[i])
+          
+        if( ncol(newdf) == 6){
+          next
+        }
+      }
+    }
+    formula <- formula( gsub('.{1}$', '', formula) ) # last '+' removed and conversion to class 'formula'
+    
+    # Test of different ARMA options
+    for(p in (0:2)){
+      for(q in (0:1)){
+        
+        if(p == 0 & q == 0) {
+          gamm_best <- gamm(formula, correlation = corARMA(form = ~ 1, p = 1), data = df, control = control)
+        }
+        
+        else {
+          gamm_test <- gamm(formula, correlation = corARMA(form = ~ 1, p = p, q = q), data = df, control = control)
+          
+          if( AIC(gamm_test$lme) < AIC(gamm_best$lme) ){
+            gamm_best <- gamm_test
+          }
+        }
+      }
+    }
+    
+    # Predict the NAs
+    df[[col]][index_with_na] <- predict.gam(gamm_best$gam, newdf[-1])
+    }
+  }
+}
+```
+
+```{r}
+#data_gamm <- impute_GAMMs(test)
+```
+
+# RMSE
+
+```{r}
+set.seed(9204)
+index_without_na <- which(!is.na(data$Temperature))
+rand_index <- sample(index_without_na, 5)
+val_test <- data$Temperature[rand_index]
+```
+
+```{r}
+library(forecast)
+fit <- auto.arima(data_ts$Temperature)
+val_cal_ts <- KalmanForecast(n.ahead = 164-49, fit$model)
+new_index <- rand_index-49
+val_cal_ts <- val_cal_ts$pred[new_index]
+```
+
+```{r}
+gam <- gamm(Temperature ~ s(monthly_rainfall) + s(Conductivité) + s(Arsenic_Total) +
+              s(O2) + s(Plomb) + s(Ion_Ferreux), 
+                      correlation = corARMA(form = ~ 1, p = 1, q = 1), data = test)
+new_data <- data.frame(
+  monthly_rainfall = data$monthly_rainfall[rand_index],
+  Conductivité = data$Conductivité[rand_index],
+  Arsenic_Total = data$Arsenic_Total[rand_index],
+  O2 = data$O2[rand_index],
+  Plomb = data$Plomb[rand_index],
+  Ion_Ferreux = data$Ion_Ferreux[rand_index]
+  )
+val_cal_gamm <- predict.gam(gam$gam, newdata = new_data)
+```
+
+```{r}
+RMSE_ts <- sqrt( (mean( (val_cal_ts - val_test)^2 )) )
+RMSE_gamm <- sqrt( (mean( (val_cal_gamm - val_test)^2 )) )
+RMSE_ts ; RMSE_gamm
+```
+
+imputeTS wins again.
