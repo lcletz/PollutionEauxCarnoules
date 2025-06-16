@@ -212,15 +212,19 @@ impute_GAMMs <- function(df){
     formula <- formula( gsub('.{1}$', '', formula) ) # last '+' removed and conversion to class 'formula'
     
     # Test of different ARMA options
-    for(p in (0:2)){
-      for(q in (0:1)){
+    for(p in (0:1)){
+      for(q in (0:p)){
         
         if(p == 0 & q == 0) {
           gamm_best <- gamm(formula, correlation = corARMA(form = ~ 1, p = 1), data = df, control = control)
         }
         
         else {
-          gamm_test <- gamm(formula, correlation = corARMA(form = ~ 1, p = p, q = q), data = df, control = control)
+          gamm_test <- try(gamm(formula, correlation = corARMA(form = ~ 1, p = p, q = q), data = df, control = control), silent = TRUE)
+
+            if (inherits(gamm_test, "try-error")) {
+              next
+            }
           
           if( AIC(gamm_test$lme) < AIC(gamm_best$lme) ){
             gamm_best <- gamm_test
@@ -233,15 +237,15 @@ impute_GAMMs <- function(df){
     df[[col]][index_with_na] <- predict.gam(gamm_best$gam, newdf[-1])
     }
   }
+  return(df)
 }
 ```
 
 ```{r}
-#data_gamm <- impute_GAMMs(test)
+data_gamm <- impute_GAMMs(test)
 ```
 
 # RMSE
-
 
 ```{r}
 fit <- auto.arima(data_ts$Temperature)
@@ -281,3 +285,34 @@ RMSE_complete
 ```
 
 GAMMs win this time.
+
+# Graphs
+
+```{r}
+raw_data <- ts(data$Temperature, start = c(2004,11), end = c(2018,6), frequency = 12)
+plot.ts(raw_data, type='l', xlab='Temps', ylab="Température (C°)", lwd = 3)
+points(ts(data_ts_complete$Temperature, start = c(2004,11), end = c(2018,6), frequency = 12),
+       type='l', col = "red")
+points(ts(data_ts$Temperature, start = c(2004,11), end = c(2008,11), frequency = 12), 
+       type='l', col="blue")
+points(ts(data_gamm$Temperature, start = c(2004,11), end = c(2008,11), frequency = 12),
+       type='l', col="green")
+
+lissage <- HoltWinters(ts(data_gamm$Temperature, start = c(2004,11), end = c(2008,11), frequency = 12),
+                       alpha=0.2, beta=0.2, gamma=0.2, seasonal=c('additive'))
+points(lissage$fitted, type='l', col='yellow')
+
+h <- (1:210)
+a <- lissage$fitted[37,2]
+b <- lissage$fitted[37,3]
+s <- lissage$fitted[c(26:37),4]
+pred <- a+b*h+s
+points(ts(pred, start=c(2008,11), frequency=12), type='l', col='violet')
+
+legend("topleft", c("Série originale", "Série entièrement imputée par imputeTS", "Série partiellement imputée par imputeTS", "Série partiellement imputée par GAMMs","Lissage à horizon 1", "Lissage à horizon 1:210"),
+       col = c('black','red','blue','green','yellow','violet'), lty=c(1,1,1,1,1,1), 
+       cex=0.4, lwd=c(3,1,1,1,1,1))
+```
+
+
+
