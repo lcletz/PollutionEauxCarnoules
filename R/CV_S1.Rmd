@@ -242,40 +242,42 @@ impute_GAMMs <- function(df){
 
 # RMSE
 
-```{r}
-set.seed(9204)
-index_without_na <- which(!is.na(data$Temperature))
-rand_index <- sample(index_without_na, 5)
-val_test <- data$Temperature[rand_index]
-```
 
 ```{r}
-library(forecast)
 fit <- auto.arima(data_ts$Temperature)
-val_cal_ts <- KalmanForecast(n.ahead = 164-49, fit$model)
-new_index <- rand_index-49
-val_cal_ts <- val_cal_ts$pred[new_index]
+val_cal_ts <- KalmanForecast(n.ahead = 210, fit$model)
+val_cal_ts <- val_cal_ts$pred[210]
 ```
 
 ```{r}
-gam <- gamm(Temperature ~ s(monthly_rainfall) + s(Conductivité) + s(Arsenic_Total) +
-              s(O2) + s(Plomb) + s(Ion_Ferreux), 
+gam <- gamm(Temperature ~ s(monthly_rainfall) + s(Conductivité) + s(pH) + s(O2), 
                       correlation = corARMA(form = ~ 1, p = 1, q = 1), data = test)
 new_data <- data.frame(
-  monthly_rainfall = data$monthly_rainfall[rand_index],
-  Conductivité = data$Conductivité[rand_index],
-  Arsenic_Total = data$Arsenic_Total[rand_index],
-  O2 = data$O2[rand_index],
-  Plomb = data$Plomb[rand_index],
-  Ion_Ferreux = data$Ion_Ferreux[rand_index]
+  Temperature = 16.8,
+  monthly_rainfall = 115,2,
+  Conductivité = 4560,
+  pH = 2.97,
+  O2 = 2.86
   )
 val_cal_gamm <- predict.gam(gam$gam, newdata = new_data)
 ```
 
 ```{r}
-RMSE_ts <- sqrt( (mean( (val_cal_ts - val_test)^2 )) )
-RMSE_gamm <- sqrt( (mean( (val_cal_gamm - val_test)^2 )) )
+RMSE_ts <- sqrt( (mean( (val_cal_ts - new_data$Temperature)^2 )) )
+RMSE_gamm <- sqrt( (mean( (val_cal_gamm - new_data$Temperature)^2 )) )
 RMSE_ts ; RMSE_gamm
 ```
 
-imputeTS wins again.
+```{r}
+data_ts_complete <- read.table(here("processed","S1_ts.csv"), sep = ";", dec = c(",","."), header = TRUE) %>% 
+   mutate_at(2:27, function(x) as.numeric(as.character(gsub(',','.', x))))
+data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
+
+fit <- arima(data_ts_complete$Temperature, order=c(1,1,1), seasonal = c(1,1,1))
+val_cal_complete <- KalmanForecast(n.ahead = 86, fit$model)
+val_cal_complete <- val_cal_complete$pred[86]
+RMSE_complete <- sqrt( (mean( (val_cal_complete - new_data$Temperature)^2 )) )
+RMSE_complete
+```
+
+GAMMs win this time.
