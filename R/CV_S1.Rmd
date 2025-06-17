@@ -17,6 +17,7 @@ library(tidyverse)
 library(lubridate)
 library(imputeTS)
 library(mgcv)
+library(forecast)
 library(VIM)
 here::i_am("R/CV_S1.Rmd")
 library(here)
@@ -257,6 +258,7 @@ val_cal_ts <- val_cal_ts$pred[210]
 gam <- gamm(Temperature ~ s(monthly_rainfall) + s(Conductivité) + s(pH) + s(O2), 
                       correlation = corARMA(form = ~ 1, p = 1, q = 1), data = test)
 new_data <- data.frame(
+  Dates = as.Date("2025-04-01", format = "%Y-%m-%d"),
   Temperature = 16.8,
   monthly_rainfall = 115,2,
   Conductivité = 4560,
@@ -279,8 +281,8 @@ data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
 
 fit <- arima(data_ts_complete$Temperature, order=c(1,1,1), seasonal = c(1,1,1))
 val_cal_complete <- KalmanForecast(n.ahead = 86, fit$model)
-val_cal_complete <- val_cal_complete$pred[86]
-RMSE_complete <- sqrt( (mean( (val_cal_complete - new_data$Temperature)^2 )) )
+val_cal_complete_pred <- val_cal_complete$pred[86]
+RMSE_complete <- sqrt( (mean( (val_cal_complete_pred - new_data$Temperature)^2 )) )
 RMSE_complete
 ```
 
@@ -290,7 +292,8 @@ GAMMs win this time.
 
 ```{r}
 raw_data <- ts(data$Temperature, start = c(2004,11), end = c(2018,6), frequency = 12)
-plot.ts(raw_data, type='l', xlab='Temps', ylab="Température (C°)", lwd = 3)
+plot.ts(raw_data, type='l', xlab='Temps', ylab="Température (C°)", lwd = 3,
+        xlim = c(2004,2026), xaxt = 'n')
 points(ts(data_ts_complete$Temperature, start = c(2004,11), end = c(2018,6), frequency = 12),
        type='l', col = "red")
 points(ts(data_ts$Temperature, start = c(2004,11), end = c(2008,11), frequency = 12), 
@@ -309,9 +312,86 @@ s <- lissage$fitted[c(26:37),4]
 pred <- a+b*h+s
 points(ts(pred, start=c(2008,11), frequency=12), type='l', col='violet')
 
-legend("topleft", c("Série originale", "Série entièrement imputée par imputeTS", "Série partiellement imputée par imputeTS", "Série partiellement imputée par GAMMs","Lissage à horizon 1", "Lissage à horizon 1:210"),
-       col = c('black','red','blue','green','yellow','violet'), lty=c(1,1,1,1,1,1), 
-       cex=0.4, lwd=c(3,1,1,1,1,1))
+lissage_ts <- HoltWinters(ts(data_ts_complete$Temperature, start = c(2004,11), end = c(2018,6), frequency = 12),
+                       alpha=0.2, beta=0.2, gamma=0.2, seasonal=c('additive'))
+h <- (1:86)
+a <- lissage_ts$fitted[152,2]
+b <- lissage_ts$fitted[152,3]
+s <- lissage_ts$fitted[c(141:152),4]
+pred_ts <- a+b*h+s
+points(ts(pred_ts, start=c(2018,6), frequency=12), type='l', col='darkred')
+
+points(2025.33, new_data$Temperature, col="purple", pch=19)
+
+axis(1, at = seq(2004, 2026, by = 0.5), las = 2)
+legend("topleft", c("Série originale", "Série entièrement imputée par imputeTS", "Série partiellement imputée par imputeTS", "Série partiellement imputée par GAMMs", "Lissage à horizon 1", "Lissage à horizon 1:210", " Lissage à horizon 1:86", "Nouveau point"),
+       col = c('black','red','blue','green','yellow','violet','darkred','purple'), lty=c(1,1,1,1,1,1,1,NA), pch=c(NA, NA, NA, NA, NA, NA, NA, 19),
+       cex=0.4, lwd=c(3,1,1,1,1,1,1))
+```
+The smoothing on GAMM-imputed data wins.
+
+# K-fold Cross-Validation
+
+```{r}
+library(mgcv)
+library(caret)
+
+trainGAMM <- function(x, y, correlation = corAR1(form = ~1 | Group), ...){
+  require(mgcv)
+
+  formula <- as.formula(paste("y ~", paste(names(x), collapse = " + s("), ")", sep = "s("))
+
+  model <- gamm(formula, data = data.frame(y = y, x), 
+                correlation = correlation, ...)
+
+  return(model)
+}
+
+
+predictGAMM <- function(modelFit, newdata, ...){
+  
+  predictions <- predict(modelFit, newdata = newdata, type = "response", ...)
+  
+  return(predictions)
+}
+
+
+customGAMM <- list(type = "Regression",
+                   library = "mgcv",
+                   loop = NULL,
+                   parameters = data.frame(parameter = c("method", "optimizer"),
+                                           class = c("character", "character"),
+                                           label = c("method", "optimizer")),
+                   grid = function(x, y, len = NULL) {
+                     data.frame(method = "REML",
+                                optimizer = "outer",
+                                stringsAsFactors = FALSE)
+                   },
+                   fit = function(x, y, wts, param, lev, last, classProbs, ...){
+                     trainGAMM(x, y, method = param$method, optimizer = param$optimizer)
+                   },
+                   predict = function(modelFit, newdata, submodels = NULL, ...){
+                     predictGAMM(modelFit, newdata)
+                   },
+                   prob = function(modelFit, newdata, submodels = NULL, ...){
+                     NULL
+                   },
+                   sort = function(x) x[order(x[, 1]), ],
+                   levels = function(x) x$levels
+)
+
+
+set.seed(9204)
+control <- trainControl(method = "cv", number = 5)
+#model <- train(Temperature ~ ., data = test,
+#               method = customGAMM,
+#               trControl = control,
+#               na.action = na.omit)
+#print(model)
+```
+
+```{r}
+write_delim(data_gamm, here("processed","S1_gamm.csv"), delim =";")
 ```
 
 
