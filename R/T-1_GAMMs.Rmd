@@ -1,0 +1,184 @@
+---
+title: "T-1, T-2 GAMM imputation"
+author: "CLETZ Laura"
+date: "17/06/2025"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(mgcv)
+here::i_am("R/T-1_GAMMs.Rmd")
+library(here)
+```
+
+```{r, warning=FALSE}
+data <- read.table(here('processed','Source_S1_v2.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:45, function(x) as.numeric(as.character(gsub(',','.', x))))
+data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
+
+data <- gen %>%
+  inner_join(data, by="Dates")
+```
+
+```{r}
+dis <- read.table(here('processed','S1_discharge.csv'), dec = c(',','.'), sep = ";", header = TRUE)
+dis$Dates <- as.Date(dis$Dates, format="%Y-%m-%d")
+dis$monthly_discharge <- as.numeric(dis$monthly_discharge)
+
+dis2 <- read.table(here('processed','discharge_ESU.csv'), dec = c(',','.'), sep = ";", header = TRUE)
+dis2$Dates <- as.Date(dis2$Dates, format="%Y-%m-%d")
+
+dis3 <- dis %>%
+  bind_rows(dis2)
+
+data <- data %>%
+  left_join(dis3) %>% 
+  distinct(Dates, .keep_all = TRUE)
+```
+```{r}
+data_gamm <- read.table(here("processed","S1_gamm.csv"), dec=c(',','.'), sep=';', header=T) %>% 
+  mutate_at(2:22, function(x) as.numeric(as.character(gsub(',','.', x)))) #%>% 
+data_gamm$Dates <- as.Date(data_gamm$Dates, format="%Y-%m-%d")
+
+data <- data %>% select(names(data_gamm))
+```
+
+```{r}
+impute_GAMMs <- function(df){
+  control <- lmeControl(msMaxIter = 200, 
+                       msMaxEval = 200,
+                       tolerance = 1e-4,
+                       niterEM = 50,
+                       opt = "optim")
+  
+  # Check if there is any columns without NAs where we need to impute values
+  for( col in (2:ncol(df)) ){ # 2 since the first column is supposed to be Dates
+    index_with_na <- which(is.na(df[col]))
+    
+    if(length(index_with_na) == 0) {
+      cat("\n La colonne", names(df[col]), "est déjà complète")
+      next
+    } 
+    
+    else {
+    newdf <- data.frame( df[[1]][index_with_na] )
+    formula <- paste0( names(df[col]), "~")
+    
+    for( i in (2:ncol(df)) ){
+      
+       if( names(df[i]) == names(df[col]) ){      
+          next
+         }
+      
+      if( sum( is.na( df[[i]][index_with_na] )) > 0 ){
+         next
+        }
+      
+       else {
+        formula <- paste0( formula, "s(", names(df[i]), ")+" )
+        newdf <- cbind(newdf, df[[i]][index_with_na] )
+        colnames(newdf)[length(newdf)] <- names(df[i])
+          
+        if( ncol(newdf) == 6 ){
+          break
+        }
+      }
+    }
+    formula <- formula( gsub('.{1}$', '', formula) ) # last '+' removed and conversion to class 'formula'
+    cat("\n",as.character(formula))
+    
+    # Test of different ARMA options
+    for(p in (0:1)){
+      for(q in (0:p)){
+        
+        if(p == 0 & q == 0) {
+          gamm_best <- gamm(formula, correlation = corARMA(form = ~ 1, p = 1), data = df, control = control)
+        }
+        
+        else {
+          gamm_test <- try(gamm(formula, correlation = corARMA(form = ~ 1, p = p, q = q), data = df, control = control), silent = TRUE)
+
+            if (inherits(gamm_test, "try-error")) {
+              next
+            }
+          
+          if( AIC(gamm_test$lme) < AIC(gamm_best$lme) ){
+            gamm_best <- gamm_test
+          }
+        }
+      }
+    }
+    
+    # Predict the NAs
+    df[[col]][index_with_na] <- predict.gam(gamm_best$gam, newdf[-1])
+    }
+  }
+  return(df)
+}
+```
+
+```{r}
+impute_byrow <- function(na_df, df){
+  
+  index <- nrow(df)
+  
+  while( index < nrow(na_df) ){
+    
+    cat("\n Il reste", nrow(na_df)-nrow(df), "ligne(s) à compléter")
+    
+    last_date <- df[[1]][nrow(df)]
+    corres_index <- which(na_df[[1]] == as.Date(last_date))
+    
+    if(index + 2 > nrow(na_df)){
+      
+      cat("\n Traitement de la ligne après la date", as.character(last_date))
+    
+      next_rows <- na_df[ corres_index + 1, ]
+    
+      df <- df %>% bind_rows(next_rows)
+      df <- impute_GAMMs(df)
+    
+      cat("\n Imputation de la nouvelle ligne réussie")
+    
+      index <- index + 1
+      
+    } else { 
+      cat("\n Traitement des deux lignes après la date", as.character(last_date))
+    
+      next_rows <- na_df[ c(corres_index + 1, corres_index + 2), ]
+    
+      df <- df %>% bind_rows(next_rows)
+      df <- impute_GAMMs(df)
+    
+      cat("\n Imputation des nouvelles lignes réussie")
+      
+      index <- index + 2 }
+  }
+  
+  return(df)
+}
+```
+
+```{r}
+#test <- data[1:52,]
+#test_co <- impute_byrow(test, data_gamm)
+data_complete <- impute_byrow(data, data_gamm)
+```
+
+```{r}
+write_delim(data_complete, here("processed","S1_gamm_complete.csv"), delim = ";")
+```
