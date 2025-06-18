@@ -1,0 +1,357 @@
+---
+title: "Holt-Winters predictions on GAMM-imputed data"
+author: "CLETZ Laura"
+date: "17/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+here::i_am("R/HW_predictions.Rmd")
+library(here)
+```
+
+```{r, warning=FALSE}
+data <- read.table(here('processed','S1_gamm.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>%
+  mutate_at(2:22, function(x) as.numeric(as.character(gsub(',','.', x))))
+data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
+```
+
+```{r}
+test <- read.table(here('processed','Source_S1_v2.csv'), dec = c(',','.'), sep = ";", header = TRUE) 
+test$Dates <- as.Date(test$Dates, format="%Y-%m-%d")
+test <- gen %>%
+  inner_join(test, by ="Dates") %>%
+  select(names(data)) %>%
+  mutate_at(2:22, function(x) as.numeric(as.character(gsub(',','.',x))))
+```
+
+```{r}
+new_data <- data.frame(
+  Dates = as.Date("2025-04-01", format = "%Y-%m-%d"),
+  Temperature = 16.8,
+  monthly_rainfall = 115.2,
+  Conductivité = 4560,
+  pH = 2.97,
+  O2 = 2.86
+  )
+```
+  
+```{r}
+set.seed(9204)
+test <- test %>%
+  slice_tail(n = 164-49)
+```
+
+# Temperature predictions 
+
+```{r}
+plot.ts(ts(data$Temperature, start = c(2004,11), end = c(2008,11), frequency = 12),
+        type='l', xlab='Temps', ylab="Température (C°)",
+        xlim = c(2004,2026), xaxt = 'n', lwd=3)
+
+lissage <- HoltWinters(ts(data$Temperature, start = c(2004,11), end = c(2008,11), frequency = 12),
+                       alpha=0.2, beta=0.2, gamma=0.2, seasonal=c('additive'))
+
+h <- (1:210)
+a <- lissage$fitted[37,2]
+b <- lissage$fitted[37,3]
+s <- rep(lissage$fitted[c(26:37),4], length.out = length(h))
+pred <- a+b*h+s
+points(ts(pred, start=c(2008,11), frequency=12), type='l', col='violet')
+
+points(2025.33, new_data$Temperature, col="purple", pch=19)
+
+points(ts(test$Temperature, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "purple")
+
+gamm_complete <- read.table(here("processed","S1_gamm_complete.csv"), dec=c(',','.'), sep=";", header=T) %>%
+  mutate_at(2:22, function(x) as.numeric(as.character(gsub(',','.',x))))
+gamm_complete$Dates <- as.Date(gamm_complete$Dates, format="%Y-%m_%d")
+
+points(ts(gamm_complete$Temperature, start=c(2004,11), end=c(2018,6), frequency=12), 
+       type='l', col='green')
+
+lissage2 <- HoltWinters(ts(gamm_complete$Temperature, start = c(2004,11), end = c(2018,6), frequency = 12),
+                       optim.start=c(alpha=0.2, beta=0.2, gamma=0.2), seasonal=c('additive'))
+
+h2 <- (1:90)
+a2 <- lissage2$fitted[152,2]
+b2 <- lissage2$fitted[152,3]
+s2 <- rep(lissage2$fitted[c(141:152),4], length.out = length(h2))
+pred2 <- a2+b2*h2+s2
+points(ts(pred2, start=c(2018,7), frequency=12), type='l', col='red')
+
+axis(1, at = seq(2004, 2026, by = 0.5), las = 2)
+legend("topleft", c("Série partiellement imputée par GAMMs", "Série complètement imputée par GAMMs", "Lissage à horizon 1:210", "Lissage à horizon 1:90", "Nouveaux points"),
+       col = c('black','green','violet','red','purple'), lty=c(1,1,1,1,1,NA), pch=c(NA,NA, NA, NA, NA, 19),
+       cex=0.4, lwd=c(3,1,1,1,1,1))
+```
+
+We can predict the water temperature! 
+
+# pH predictions 
+
+```{r}
+plot.ts(ts(data$pH, start = c(2004,11), end = c(2008,11), frequency = 12),
+        type='l', xlab='Temps', ylab="pH",
+        xlim = c(2004,2026), xaxt = 'n', lwd=3)
+
+lissage <- HoltWinters(ts(data$pH, start = c(2004,11), end = c(2008,11), frequency = 12),
+                       alpha=0.35, beta=0.2, gamma=0.5, seasonal=c('multiplicative'))
+
+h <- (1:210)
+a <- lissage$fitted[37,2]
+b <- lissage$fitted[37,3]
+s <- rep(lissage$fitted[c(26:37),4], length.out = length(h))
+pred <- a+b*h+s
+points(ts(pred, start=c(2008,11), frequency=12), type='l', col='violet')
+
+points(2025.33, new_data$pH, col="purple", pch=19)
+
+points(ts(test$pH, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "purple")
+
+points(ts(gamm_complete$pH, start=c(2004,11), end=c(2018,6), frequency=12), 
+       type='l', col='green')
+
+lissage2 <- HoltWinters(ts(gamm_complete$pH, start = c(2004,11), end = c(2018,6), frequency = 12),
+                       optim.start=c(alpha=0.2, beta=0.2, gamma=0.2), seasonal=c('additive'))
+
+h2 <- (1:90)
+a2 <- lissage2$fitted[152,2]
+b2 <- lissage2$fitted[152,3]
+s2 <- rep(lissage2$fitted[c(141:152),4], length.out = length(h2))
+pred2 <- a2+b2*h2+s2
+points(ts(pred2, start=c(2018,7), frequency=12), type='l', col='red')
+
+axis(1, at = seq(2004, 2026, by = 0.5), las = 2)
+legend("topleft", c("Série partiellement imputée par GAMMs", "Série complètement imputée par GAMMs", "Lissage à horizon 1:210", "Lissage à horizon 1:90", "Nouveaux points"),
+       col = c('black','green','violet','red','purple'), lty=c(1,1,1,1,1,NA), pch=c(NA,NA, NA, NA, NA, 19),
+       cex=0.4, lwd=c(3,1,1,1,1,1))
+```
+
+```{r}
+ph <- ts(data$pH, start = c(2004,11), end = c(2008,11), frequency = 12)
+plot.ts(ph, type='l', xlab='Temps', ylab="pH",
+        xlim = c(2004,2026), xaxt = 'n')
+
+fit <- auto.arima(ph, max.p = 2, max.q=2, max.P=2, max.Q=2, max.d=1, max.D=1, seasonal=TRUE)
+
+suppressMessages(library(forecast))
+pred <- forecast(fit, h=210)
+points(ts(pred$fitted, start=c(2008,11), frequency=12), type='l', col='violet')
+
+points(2025.33, new_data$pH, col="purple", pch=19)
+
+points(ts(test$pH, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "purple")
+
+axis(1, at = seq(2004, 2026, by = 0.5), las = 2)
+legend("topleft", c("Série partiellement imputée par GAMMs", "Prédiction par ARIMA", "Nouveaux points"),
+       col = c('black','violet','purple'), lty=c(1,1,1,NA), pch=c(NA, NA, NA, 19),
+       cex=0.4)
+```
+
+```{r}
+ph <- ts(data$pH, start = c(2004,11), frequency = 12)
+fit1 <- hw(ph,seasonal="additive", h=210, damped=T)
+fit2 <- hw(ph,seasonal="multiplicative", h=210, damped=T)
+autoplot(ph) +
+  autolayer(fit1, series="HW additive forecasts") +
+  autolayer(fit2, series="HW multiplicative forecasts") +
+  xlab("Year") +
+  ylab("pH") +
+  ggtitle("") +
+  guides(colour=guide_legend(title="Forecast")) +
+  theme_minimal() +
+  annotate("point", x=2025.33, y=2.97) +
+  annotate("point", x=year(test$Dates), y=test$pH, na.rm = TRUE)
+```
+
+# Arsenic_Total predictions 
+
+```{r}
+plot.ts(ts(data$Arsenic_Total, start = c(2004,11), end = c(2008,11), frequency = 12),
+        type='l', xlab='Temps', ylab="Arsenic total (ppb)",
+        xlim = c(2004,2026), xaxt = 'n', lwd=3)
+
+lissage <- HoltWinters(ts(data$Arsenic_Total, start = c(2004,11), end = c(2008,11), frequency = 12),
+                       optim.start = c(alpha=0.6, beta=0.5, gamma=0.4), seasonal=c('additive'))
+
+h <- (1:210)
+a <- lissage$fitted[37,2]
+b <- lissage$fitted[37,3]
+s <- rep(lissage$fitted[c(26:37),4], length.out = length(h))
+pred <- a+b*h+s
+points(ts(pred, start=c(2008,11), frequency=12), type='l', col='violet')
+
+points(2025.33, new_data$Arsenic_Total, col="purple", pch=19)
+
+points(ts(test$Arsenic_Total, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "purple")
+
+
+points(ts(gamm_complete$Arsenic_Total, start=c(2004,11), end=c(2018,6), frequency=12), 
+       type='l', col='green')
+
+lissage2 <- HoltWinters(ts(gamm_complete$Arsenic_Total, start = c(2004,11), end = c(2018,6), frequency = 12),
+                       optim.start=c(alpha=0.2, beta=0.2, gamma=0.2), seasonal=c('additive'))
+
+h2 <- (1:90)
+a2 <- lissage2$fitted[152,2]
+b2 <- lissage2$fitted[152,3]
+s2 <- rep(lissage2$fitted[c(141:152),4], length.out = length(h2))
+pred2 <- a2+b2*h2+s2
+points(ts(pred2, start=c(2018,7), frequency=12), type='l', col='red')
+
+axis(1, at = seq(2004, 2026, by = 0.5), las = 2)
+legend("topleft", c("Série partiellement imputée par GAMMs", "Série complètement imputée par GAMMs", "Lissage à horizon 1:210", "Lissage à horizon 1:90", "Nouveaux points"),
+       col = c('black','green','violet','red','purple'), lty=c(1,1,1,1,1,NA), pch=c(NA,NA, NA, NA, NA, 19),
+       cex=0.4, lwd=c(3,1,1,1,1,1))
+```
+
+```{r}
+ars <- ts(data$Arsenic_Total, start = c(2004,11), frequency = 12)
+fit1 <- hw(ars,seasonal="additive", h=210, damped=T)
+fit2 <- hw(ars,seasonal="multiplicative", h=210, damped=T)
+autoplot(ars) +
+  autolayer(fit1, series="HW additive forecasts") +
+#  autolayer(fit2, series="HW multiplicative forecasts") +
+  xlab("Year") +
+  ylab("Arsenic total (ppm)") +
+  ggtitle("") +
+#  guides(colour=guide_legend(title="Forecast")) +
+  theme_minimal() +
+#  annotate("point", x=2025.33, y=2.97) +
+  annotate("point", x=year(test$Dates), y=test$Arsenic_Total, na.rm = TRUE)
+```
+
+# O2 predictions 
+
+```{r}
+plot.ts(ts(data$O2, start = c(2004,11), end = c(2008,11), frequency = 12),
+        type='l', xlab='Temps', ylab="O2 (ppm)",
+        xlim = c(2004,2026), xaxt = 'n', lwd=3)
+
+lissage <- HoltWinters(ts(data$O2, start = c(2004,11), end = c(2008,11), frequency = 12),
+                       alpha=0.1, beta=0.4, gamma=0.8, seasonal=c('additive'))
+
+h <- (1:210)
+a <- lissage$fitted[37,2]
+b <- lissage$fitted[37,3]
+s <- rep(lissage$fitted[c(26:37),4], length.out = length(h))
+pred <- a+b*h+s
+points(ts(pred, start=c(2008,11), frequency=12), type='l', col='violet')
+
+points(2025.33, new_data$O2, col="purple", pch=19)
+
+points(ts(test$O2, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "purple")
+
+
+points(ts(gamm_complete$O2, start=c(2004,11), end=c(2018,6), frequency=12), 
+       type='l', col='green')
+
+lissage2 <- HoltWinters(ts(gamm_complete$O2, start = c(2004,11), end = c(2018,6), frequency = 12),
+                       optim.start=c(alpha=0.2, beta=0.2, gamma=0.2), seasonal=c('additive'))
+
+h2 <- (1:90)
+a2 <- lissage2$fitted[152,2]
+b2 <- lissage2$fitted[152,3]
+s2 <- rep(lissage2$fitted[c(141:152),4], length.out = length(h2))
+pred2 <- a2+b2*h2+s2
+points(ts(pred2, start=c(2018,7), frequency=12), type='l', col='red')
+
+axis(1, at = seq(2004, 2026, by = 0.5), las = 2)
+legend("topleft", c("Série partiellement imputée par GAMMs", "Série complètement imputée par GAMMs", "Lissage à horizon 1:210", "Lissage à horizon 1:90", "Nouveaux points"),
+       col = c('black','green','violet','red','purple'), lty=c(1,1,1,1,1,NA), pch=c(NA,NA, NA, NA, NA, 19),
+       cex=0.4, lwd=c(3,1,1,1,1,1))
+```
+
+```{r}
+o2 <- ts(data$O2, start = c(2004,11), frequency = 12)
+fit1 <- hw(o2,seasonal="additive", h=210, damped=T)
+fit2 <- hw(o2,seasonal="multiplicative", h=210, damped=T)
+autoplot(o2) +
+  autolayer(fit1, series="HW additive forecasts") +
+  autolayer(fit2, series="HW multiplicative forecasts") +
+  xlab("Year") +
+  ylab("O2") +
+  ggtitle("") +
+  guides(colour=guide_legend(title="Forecast")) +
+  theme_minimal() +
+  annotate("point", x=2025.33, y=2.86) +
+  annotate("point", x=year(test$Dates), y=test$O2, na.rm = TRUE)
+```
+
+# Conductivity predictions 
+
+```{r}
+plot.ts(ts(data$Conductivité, start = c(2004,11), end = c(2008,11), frequency = 12),
+        type='l', xlab='Temps', ylab="Conductivité",
+        xlim = c(2004,2026), xaxt = 'n', lwd=3)
+
+lissage <- HoltWinters(ts(data$Conductivité, start = c(2004,11), end = c(2008,11), frequency = 12),
+                       alpha=0.2, beta=0.8, gamma=0.75, seasonal=c('additive'))
+
+h <- (1:210)
+a <- lissage$fitted[37,2]
+b <- lissage$fitted[37,3]
+s <- rep(lissage$fitted[c(26:37),4], length.out = length(h))
+pred <- a+b*h+s
+points(ts(pred, start=c(2008,11), frequency=12), type='l', col='violet')
+
+points(2025.33, new_data$Conductivité, col="purple", pch=19)
+
+points(ts(test$Conductivité, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "purple")
+
+
+points(ts(gamm_complete$Conductivité, start=c(2004,11), end=c(2018,6), frequency=12), 
+       type='l', col='green')
+
+lissage2 <- HoltWinters(ts(gamm_complete$Conductivité, start = c(2004,11), end = c(2018,6), frequency = 12),
+                       optim.start=c(alpha=0.2, beta=0.2, gamma=0.2), seasonal=c('additive'))
+
+h2 <- (1:90)
+a2 <- lissage2$fitted[152,2]
+b2 <- lissage2$fitted[152,3]
+s2 <- rep(lissage2$fitted[c(141:152),4], length.out = length(h2))
+pred2 <- a2+b2*h2+s2
+points(ts(pred2, start=c(2018,7), frequency=12), type='l', col='red')
+
+axis(1, at = seq(2004, 2026, by = 0.5), las = 2)
+legend("topleft", c("Série partiellement imputée par GAMMs", "Série complètement imputée par GAMMs", "Lissage à horizon 1:210", "Lissage à horizon 1:90", "Nouveaux points"),
+       col = c('black','green','violet','red','purple'), lty=c(1,1,1,1,1,NA), pch=c(NA,NA, NA, NA, NA, 19),
+       cex=0.4, lwd=c(3,1,1,1,1,1))
+```
+
+```{r}
+cond <- ts(data$Conductivité, start = c(2004,11), frequency = 12)
+fit1 <- hw(cond,seasonal="additive", h=210, damped=T)
+fit2 <- hw(cond,seasonal="multiplicative", h=210, damped=T)
+autoplot(cond) +
+  autolayer(fit1, series="HW additive forecasts") +
+  autolayer(fit2, series="HW multiplicative forecasts") +
+  xlab("Year") +
+  ylab("pH") +
+  ggtitle("") +
+  guides(colour=guide_legend(title="Forecast")) +
+  theme_minimal() +
+  annotate("point", x=2025.33, y=4560) +
+  annotate("point", x=year(test$Dates), y=test$Conductivité, na.rm = TRUE)
+```
