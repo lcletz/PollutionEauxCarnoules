@@ -355,3 +355,59 @@ autoplot(cond) +
   annotate("point", x=2025.33, y=4560) +
   annotate("point", x=year(test$Dates), y=test$Conductivité, na.rm = TRUE)
 ```
+
+# New Temperature predictions
+
+```{r}
+temp <- ts(data$Temperature, start = c(2004,11), end = c(2019,1), frequency = 12)
+par(mfrow=c(1,2))
+acf(diff(temp,1), type="correlation", main='')
+acf(diff(temp,1), type="partial", main='')
+```
+
+```{r}
+formula <- "Temperature ~"
+for(col in names(data[-c(1,3)])){
+  formula <- paste0(formula, 's(',names(data[col]), ") +")
+}
+formula <- formula( gsub('.{1}$', '', formula) )
+
+gam1 <- gamm(formula, data = data, correlation = corARMA(form = ~1, p = 1))
+#gam2 <- gamm(formula, data = data, correlation = corARMA(form = ~1, p = 2)) #not invertible
+#gam3 <- gamm(formula, data = data, correlation = corARMA(form = ~1, p = 3)) #not invertible
+gam4 <- gamm(formula, data = data, correlation = corARMA(form = ~1, q = 1))
+gam5 <- gamm(formula, data = data, correlation = corARMA(form = ~1, q = 2))
+gam6 <- gamm(formula, data = data, correlation = corARMA(form = ~1, p = 1, q = 1))
+gam7 <- gamm(formula, data = data, correlation = corARMA(form = ~1, p = 2, q = 1))
+AIC(gam1$lme) ; #AIC(gam2$lme) ; AIC(gam3$lme) ; 
+AIC(gam4$lme) ; AIC(gam5$lme) ;
+AIC(gam6$lme) ; AIC(gam7$lme)
+```
+gam4 wins but had a convergence warning, second place is gam7.
+
+```{r}
+library(gam)
+scope <- gam.scope(data, response = 3, smoother = s)
+step.Gam(gam4$gam, scope = scope, direction="backward")
+```
+
+```{r}
+not_na <- NULL
+for(i in 1:nrow(test)){
+  if( sum(is.na(test[i,])) == 0){
+    not_na <- not_na %>% bind_rows(test[i,])
+  }
+}
+```
+
+```{r}
+pred_temp <- predict(gam4$gam, newdata = not_na, se.fit=T)
+pred_temp$fit ; not_na$Temperature
+```
+
+```{r}
+sqrt(  mean( (pred_temp$fit - not_na$Temperature)^2 ) )
+```
+
+
+

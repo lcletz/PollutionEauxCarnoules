@@ -1,0 +1,155 @@
+---
+title: "Cross-Correlation"
+author: "CLETZ Laura"
+date: "18/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(mgcv)
+here::i_am("R/ccf.Rmd")
+library(here)
+```
+
+```{r}
+data_gamm <- read.table(here("processed","S1_gamm.csv"), dec=c(',','.'), sep=';', header=T) %>% 
+  mutate_at(2:22, function(x) as.numeric(as.character(gsub(',','.', x))))
+data_gamm$Dates <- as.Date(data_gamm$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+ars <- ts(data_gamm$Arsenic_Total, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, ars, lag.max = 20, type = c("correlation"))
+```
+t-1
+
+```{r}
+zn <- ts(data_gamm$Zinc, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, zn, lag.max = 20, type = c("correlation"))
+```
+t-1 / t-10 (too much)
+
+```{r}
+pb <- ts(data_gamm$Plomb, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, pb, lag.max = 20, type = c("correlation"))
+```
+Not useful.
+
+```{r}
+iron <- ts(data_gamm$Ion_Ferreux, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, iron, lag.max = 20, type = c("correlation"))
+```
+t-11 (too much)
+
+```{r}
+ni <- ts(data_gamm$Nickel, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, ni, lag.max = 20, type = c("correlation"))
+```
+None.
+
+```{r}
+cd <- ts(data_gamm$Cadmium, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, cd, lag.max = 20, type = c("correlation"))
+```
+
+t-9 (too much)
+
+```{r}
+sb <- ts(data_gamm$Antimoine, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, sb, lag.max = 20, type = c("correlation"))
+```
+t-1
+
+```{r}
+ph <- ts(data_gamm$pH, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, ph, lag.max = 20, type = c("correlation"))
+```
+t (instant)
+
+```{r}
+o2 <- ts(data_gamm$O2, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, o2, lag.max = 20, type = c("correlation"))
+```
+None (?)
+
+```{r}
+temp <- ts(data_gamm$Temperature, start=c(2004,11), end=c(2008,11), frequency = 12)
+rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
+ccf(rain, temp, lag.max = 20, type = c("correlation"))
+```
+t+3 (t-9) Odd ?
+
+At the S1 station, we see that the rainfalls are correlated to zinc, antimoine and the total of arsenic, at a one month delay and instantly correlated to pH. But don't look linked to dilution (O2) or nickel and seem oddly anticorrelated to the water temperature. We could think that there might be a mediator between rain and O2 or temperature since we intuitively thought they're correlated.
+
+Arsenic following temperature:
+```{r}
+ccf(temp, ars, lag.max = 20, type = c("correlation"))
+```
+t-1
+
+Arsenic following O2:
+```{r}
+ccf(o2, ars, lag.max = 20, type = c("correlation"))
+```
+t / t+5 (O2 affects Arsenic, not the other way around.)
+
+Arsenic following pH:
+```{r}
+ccf(ph, ars, lag.max = 20, type = c("correlation"))
+```
+t / t-9 (too much) 
+Rain affects pH that affects Arsenic. There might be another mediator in-between.
+
+Also, FeII and Lead have not conclusive results. Are there mediators?
+
+Lead following FeII:
+```{r}
+ccf(iron, pb, lag.max = 20, type = c("correlation"))
+```
+
+t+5 (Lead affects FeII after 5 months.)
+
+O2 following FeII:
+```{r}
+ccf(iron, o2, lag.max = 20, type = c("correlation"))
+```
+t+5 (O2 affects FeII after 5 months which is odd since they're obviously correlated by dilution's definition.)
+
+Most of the time, we can look at the `monthly_rainfall` at t-1 to explain other variables.
+
+```{r}
+data_lag <- data_gamm %>%
+  bind_cols(monthly_rainfall_lag1 = lag(data_gamm$monthly_rainfall))
+
+control <- lmeControl(msMaxIter = 200, 
+                       msMaxEval = 200,
+                       tolerance = 1e-4,
+                       niterEM = 50,
+                       opt = "optim")
+
+gm <- gamm(Arsenic_Total ~ s(monthly_rainfall, k=4, bs="re") +
+             s(monthly_rainfall_lag1, k=4, bs="re") + s(pH, k=4, bs="re"), 
+           correlation = corARMA(form = ~1, p=1, q=1), data = data_lag[-1,], control = control)
+summary(gm$gam)
+```
+
+
+
+

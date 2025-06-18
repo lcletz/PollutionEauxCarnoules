@@ -89,7 +89,7 @@ impute_GAMMs <- function(df){
         }
       
        else {
-        formula <- paste0( formula, "s(", names(df[i]), ")+" )
+        formula <- paste0( formula, "s(", names(df[i]), ", k=4) +" )
         newdf <- cbind(newdf, df[[i]][index_with_na] )
         colnames(newdf)[length(newdf)] <- names(df[i])
           
