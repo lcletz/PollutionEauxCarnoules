@@ -1,0 +1,242 @@
+---
+title: "GAMMs Whole Imputation Algorithm"
+author: "CLETZ Laura"
+date: "18/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(mgcv)
+library(tidyselect)
+library(gam)
+here::i_am("R/GAMMS_imputation_algo.Rmd")
+library(here)
+```
+
+```{r, warning=FALSE}
+data <- read.table(here('processed','Source_S1_v2.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
+  mutate_at(2:45, function(x) as.numeric(as.character(gsub(',','.', x))))
+data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
+
+data <- gen %>%
+  inner_join(data, by="Dates")
+```
+
+```{r}
+dis <- read.table(here('processed','S1_discharge.csv'), dec = c(',','.'), sep = ";", header = TRUE)
+dis$Dates <- as.Date(dis$Dates, format="%Y-%m-%d")
+dis$monthly_discharge <- as.numeric(dis$monthly_discharge)
+
+dis2 <- read.table(here('processed','discharge_ESU.csv'), dec = c(',','.'), sep = ";", header = TRUE)
+dis2$Dates <- as.Date(dis2$Dates, format="%Y-%m-%d")
+
+dis3 <- dis %>%
+  bind_rows(dis2)
+
+data <- data %>%
+  left_join(dis3) %>% 
+  distinct(Dates, .keep_all = TRUE)
+
+rm(dis) ; rm(dis2) ; rm(dis3) ; rm(gen)
+```
+
+```{r}
+safe_data <- data[(1:49),]
+safe_data <- safe_data[which(colSums(is.na(safe_data))*100/nrow(safe_data)<=15)]
+```
+
+```{r}
+add_lag <- function(df, nb_lag){
+  
+  init_df <- df
+  
+  for(i in 1:nb_lag){
+    
+    for(col in 2:ncol(init_df)){
+      
+      new_col <- df[[col]]
+      new_col <- new_col[ 1:(length(new_col)-i) ]
+      new_col <- c( rep(as.numeric(NA), i), new_col)
+      
+      name_col <- paste0( names(df[col]), "_lag_", i )
+      df <- df %>%
+        bind_cols( new_col )
+      colnames( df )[ncol(df)] <- name_col
+    }
+  }
+  
+  return(df)
+}
+
+safe_data <- add_lag(safe_data, 1)
+```
+
+```{r}
+choose_GAMMs <- function(df) {
+  control <- lmeControl(msMaxIter = 500,
+                        msMaxEval = 500,
+                        tolerance = 1e-4,
+                        niterEM = 50,
+                        opt = "optim")
+  list_final <- list()
+
+  lil_df <- df %>% select(!contains("lag"))
+
+  # Check if there is any columns without NAs where we need to impute values
+  for (col in (2:ncol(lil_df))) { # 2 since the first column is supposed to be Dates
+    index_with_na <- which(is.na(df[[col]]))
+
+    if (length(index_with_na) == 0) {
+      next
+    }
+
+    newdf <- data.frame(Dates = df[[1]][index_with_na])
+    formula <- paste0(names(df[col]), "~")
+
+    for (i in (2:ncol(df))) {
+      if (names(df[i]) == names(df[col])) {
+        next
+      }
+
+      formula <- paste0(formula, "s(", names(df[i]), ", k=4, bs='re') +")
+      newdf <- cbind(newdf, df[[i]][index_with_na])
+      colnames(newdf)[ncol(newdf)] <- names(df[i])
+    }
+
+    formula <- formula(gsub('.{1}$', '', formula)) # last '+' removed and conversion to class 'formula'
+    cat("\n", as.character(formula))
+
+    # Test of different ARMA options
+    gamm_best <- NULL
+    for (p in (0:1)) {
+      for (q in (0:p)) {
+        if (p == 0 & q == 0) {
+          gamm_best <- try(gamm(formula, correlation = corARMA(form = ~ 1, p = 1),
+                                data = df, control = control, na.action = na.omit, family = gaussian()),
+                           silent = TRUE)
+        } else {
+          gamm_test <- try(gamm(formula, correlation = corARMA(form = ~ 1, p = p, q = q),
+                                data = df, control = control, na.action = na.omit, family = gaussian()),
+                           silent = TRUE)
+
+          if (inherits(gamm_test, "try-error")) {
+            next
+          }
+
+          if (!is.null(gamm_best) && AIC(gamm_test$lme) < AIC(gamm_best$lme)) {
+            gamm_best <- gamm_test
+          } else if (is.null(gamm_best)) {
+            gamm_best <- gamm_test
+          }
+        }
+      }
+    }
+
+    if (!is.null(gamm_best)) {
+      df[[col]][index_with_na] <- predict(gamm_best$gam, newdata = newdf[-1])
+      list_bycol <- list(formula, gamm_best, index_with_na)
+      list_final <- c(list_final, list(list_bycol))
+    }
+  }
+  return(list_final)
+}
+
+```
+
+```{r}
+#test <- choose_GAMMs(safe_data)
+```
+
+```{r}
+step_GAMMs <- function(df){
+  nb_col <- 2:ncol(df)
+  list_final <- list()
+  control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+  
+  lag_index <- grep("lag", names(df))
+  
+  for(resp in 2:ncol( df[-lag_index] )){
+    cat('\nVariable:', names(df[resp]))
+    
+    best_bic <- Inf
+    
+    lag_resp <- grep( names(df[resp]), names(df) )
+    
+    formula <- paste0( names(df[resp]), '~')
+    # Formula including every available variable:
+    for(name in 2:ncol(df)){
+      if( !(name %in% lag_resp) ){
+        formula <- paste0( formula, "s(", names( df[name] ), ", k=4, bs='re') +" )
+      }
+    }
+    formula <- formula(gsub('.{1}$', '', formula))
+    cat('\nFormula:', as.character(formula))
+      
+    # Initialization of best model with all predictors
+    best_model <- gamm(formula, data = df, 
+                    correlation = corARMA(form = ~1, p=1, q=1), 
+                    family = gaussian(), control = control, na.action = na.omit)
+    current_bic <- BIC(best_model$lme)
+    
+    nb_col_av <- nb_col[nb_col != resp]
+    minus_pred_index <- rep(0, ncol(df))
+    
+    while(current_bic < best_bic){
+      
+      fit <- summary(best_model$gam)
+      minus_pred_index[ which( fit$s.pv==max(fit$s.pv) ) +2 ] <- 1 # Keeps the index where is the worst predictor
+            
+      # Formula including every available variable but the worst predictors:
+      formula <- paste0( names(df[resp]), '~')
+      for(name in 2:ncol(df)){
+        if( name != resp & minus_pred_index[name] != 1 ){
+           formula <- paste0( formula, "s(", names( df[name] ), ", k=4, bs='re') +" )
+        }
+      }
+      formula <- formula(gsub('.{1}$', '', formula))
+      cat('\nFormula:', as.character(formula))
+        
+      model <- gamm(formula, data = df, 
+                    correlation = corARMA(form = ~1, p=1),
+                    family = gaussian(), control = control, na.action = na.omit)
+      
+      current_bic <- BIC(model$lme)
+  
+      if (current_bic < best_bic) {
+          best_bic <- current_bic
+          best_model <- model
+          cat('\nA better model has been chosen!')
+      }
+    }
+    list_model <- list(names(df[resp]), best_model)
+    list_final <- c(list_final, list(list_model))
+  }
+  return(list_final)
+}
+```
+
+```{r}
+mini_test <- safe_data[c(1:6,32)]
+l <- step_GAMMs(mini_test)
+#new_safe_data <- safe_data[c(1:9, 12, 15:26, 28, 30, 33, 38, 39)]
+#gam_res <- step_GAMMs(new_safe_data)
+```
+
+
+
+
