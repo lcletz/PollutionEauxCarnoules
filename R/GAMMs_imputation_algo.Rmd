@@ -15,6 +15,7 @@ library(data.table)
 library(dplyr)
 library(tidyverse)
 library(mgcv)
+library(tibble)
 library(tidyselect)
 library(gam)
 here::i_am("R/GAMMS_imputation_algo.Rmd")
@@ -86,96 +87,22 @@ safe_data <- add_lag(safe_data, 1)
 ```
 
 ```{r}
-choose_GAMMs <- function(df) {
-  control <- lmeControl(msMaxIter = 500,
-                        msMaxEval = 500,
-                        tolerance = 1e-4,
-                        niterEM = 50,
-                        opt = "optim")
-  list_final <- list()
-
-  lil_df <- df %>% select(!contains("lag"))
-
-  # Check if there is any columns without NAs where we need to impute values
-  for (col in (2:ncol(lil_df))) { # 2 since the first column is supposed to be Dates
-    index_with_na <- which(is.na(df[[col]]))
-
-    if (length(index_with_na) == 0) {
-      next
-    }
-
-    newdf <- data.frame(Dates = df[[1]][index_with_na])
-    formula <- paste0(names(df[col]), "~")
-
-    for (i in (2:ncol(df))) {
-      if (names(df[i]) == names(df[col])) {
-        next
-      }
-
-      formula <- paste0(formula, "s(", names(df[i]), ", k=4, bs='re') +")
-      newdf <- cbind(newdf, df[[i]][index_with_na])
-      colnames(newdf)[ncol(newdf)] <- names(df[i])
-    }
-
-    formula <- formula(gsub('.{1}$', '', formula)) # last '+' removed and conversion to class 'formula'
-    cat("\n", as.character(formula))
-
-    # Test of different ARMA options
-    gamm_best <- NULL
-    for (p in (0:1)) {
-      for (q in (0:p)) {
-        if (p == 0 & q == 0) {
-          gamm_best <- try(gamm(formula, correlation = corARMA(form = ~ 1, p = 1),
-                                data = df, control = control, na.action = na.omit, family = gaussian()),
-                           silent = TRUE)
-        } else {
-          gamm_test <- try(gamm(formula, correlation = corARMA(form = ~ 1, p = p, q = q),
-                                data = df, control = control, na.action = na.omit, family = gaussian()),
-                           silent = TRUE)
-
-          if (inherits(gamm_test, "try-error")) {
-            next
-          }
-
-          if (!is.null(gamm_best) && AIC(gamm_test$lme) < AIC(gamm_best$lme)) {
-            gamm_best <- gamm_test
-          } else if (is.null(gamm_best)) {
-            gamm_best <- gamm_test
-          }
-        }
-      }
-    }
-
-    if (!is.null(gamm_best)) {
-      df[[col]][index_with_na] <- predict(gamm_best$gam, newdata = newdf[-1])
-      list_bycol <- list(formula, gamm_best, index_with_na)
-      list_final <- c(list_final, list(list_bycol))
-    }
-  }
-  return(list_final)
-}
-
-```
-
-```{r}
-#test <- choose_GAMMs(safe_data)
-```
-
-```{r}
 step_GAMMs <- function(df){
-  nb_col <- 2:ncol(df)
+  
   list_final <- list()
   control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
                         niterEM = 50, opt = "optim")
   
   lag_index <- grep("lag", names(df))
   
+  
   for(resp in 2:ncol( df[-lag_index] )){
-    cat('\nVariable:', names(df[resp]))
+    cat('\nVariable:', names(df[resp]), '\n')
     
     best_bic <- Inf
     
     lag_resp <- grep( names(df[resp]), names(df) )
+    
     
     formula <- paste0( names(df[resp]), '~')
     # Formula including every available variable:
@@ -185,43 +112,82 @@ step_GAMMs <- function(df){
       }
     }
     formula <- formula(gsub('.{1}$', '', formula))
-    cat('\nFormula:', as.character(formula))
+    cat('\nFormula:', as.character(formula), '\n')
       
+    
     # Initialization of best model with all predictors
-    best_model <- gamm(formula, data = df, 
+    best_model <- try(gamm(formula, data = df, 
                     correlation = corARMA(form = ~1, p=1, q=1), 
-                    family = gaussian(), control = control, na.action = na.omit)
+                    family = gaussian(), control = control, na.action = na.omit),
+                    silent = TRUE)
+    if (inherits(best_model, "try-error")) {
+        best_model <- try(gamm(formula, data = df, 
+                        correlation = corARMA(form = ~1, p=1), 
+                        family = gaussian(), control = control, na.action = na.omit),
+                        silent = TRUE)
+      if (inherits(best_model, "try-error")) {
+          best_model <- try(gamm(formula, data = df, 
+                            correlation = corARMA(form = ~1, p=1, q=1), 
+                            family = gaussian(), control = control, na.action = na.omit),
+                            silent = TRUE)
+       }
+     }
+    
     current_bic <- BIC(best_model$lme)
     
-    nb_col_av <- nb_col[nb_col != resp]
-    minus_pred_index <- rep(0, ncol(df))
+    worst_pred <- list()
+    
     
     while(current_bic < best_bic){
       
       fit <- summary(best_model$gam)
-      minus_pred_index[ which( fit$s.pv==max(fit$s.pv) ) +2 ] <- 1 # Keeps the index where is the worst predictor
+      fit <- rownames_to_column( data.frame(fit$s.table) )
+      fit[1] <- lapply(fit[1], function(x) gsub("^.{2}|.{1}$", "", x))
+      
+      minus_pred <- fit$rowname[ which(fit$p.value == max(fit$p.value)) ]    # New worst predictor
+      worst_pred <- append(worst_pred, minus_pred)      # List of worst predictors
             
       # Formula including every available variable but the worst predictors:
       formula <- paste0( names(df[resp]), '~')
       for(name in 2:ncol(df)){
-        if( name != resp & minus_pred_index[name] != 1 ){
+        if( name != resp & !(names(df[name]) %in% worst_pred) ){
            formula <- paste0( formula, "s(", names( df[name] ), ", k=4, bs='re') +" )
         }
       }
       formula <- formula(gsub('.{1}$', '', formula))
-      cat('\nFormula:', as.character(formula))
-        
-      model <- gamm(formula, data = df, 
-                    correlation = corARMA(form = ~1, p=1),
-                    family = gaussian(), control = control, na.action = na.omit)
+      cat('\nNew formula:', as.character(formula), '\n')
+       
+      if ( length(worst_pred) > length(df)-5 ) { # length(df) - Dates - Response - 3 predictors
+        cat('\nThis formula is too small! \n')
+        break
+      } 
+      
+      model <- try(gamm(formula, data = df, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        model <- try(gamm(formula, data = df, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          model <- try(gamm(formula, data = df, 
+                       correlation = corARMA(form = ~1, p=1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
       
       current_bic <- BIC(model$lme)
   
       if (current_bic < best_bic) {
           best_bic <- current_bic
           best_model <- model
-          cat('\nA better model has been chosen!')
+          current_bic <- current_bic - 1
+          cat('\nA better model has been chosen! \n')
       }
+      
     }
     list_model <- list(names(df[resp]), best_model)
     list_final <- c(list_final, list(list_model))
@@ -231,10 +197,236 @@ step_GAMMs <- function(df){
 ```
 
 ```{r}
-mini_test <- safe_data[c(1:6,32)]
-l <- step_GAMMs(mini_test)
-#new_safe_data <- safe_data[c(1:9, 12, 15:26, 28, 30, 33, 38, 39)]
-#gam_res <- step_GAMMs(new_safe_data)
+#mini_test <- safe_data[c(1:9,32)]
+#l <- step_GAMMs(mini_test)
+new_safe_data <- safe_data[c(1:9, 12, 15:26, 28, 30, 33, 38, 39)]
+gam_res <- step_GAMMs(new_safe_data)
+#gam_res <- step_GAMMs(safe_data)
+```
+
+```{r}
+impute_GAMMs <- function(df, model){
+  
+  list_final <- list()
+  lag_index <- grep("lag", names(df))
+  
+  # Check if there is any columns without NAs where we need to impute values
+  for(resp in 2:ncol( df[-lag_index] )){ # 2 since the first column is supposed to be Dates
+    list_na <- list()
+    list_resp <- list()
+    
+    index_with_na <- which(is.na(df[resp]))
+    
+    if(length(index_with_na) == 0) {
+      next
+    } 
+    
+    else {
+      cat("\nImputation of variable", names(df[resp]))
+      
+      newdf <- df[index_with_na,]
+      
+      for (col in names(newdf)) {
+        if( any( is.na( newdf[[col]] ) ) ){
+          newdf[ is.na( newdf[[col]] ), col ] <- mean( df[[col]], na.rm = TRUE)
+        }  
+      }
+        
+      list_na <- append( list_na, list(index_with_na) )
+      list_resp <- append( list_resp, names(df[resp]) )
+      list_final <- append( list_final, list(list_resp, list_na) )
+      
+      index <- 1
+      while( names(df[resp]) != model[[index]][[1]] ){
+        index <- index + 1
+      }
+      
+      formula <- model[[index]][[2]]$gam$formula
+      cat(' using formula:', as.character(formula), '\n')
+      
+      gamm <- model[[index]][[2]]$gam
+    
+    # Predict the NAs
+      df[[resp]][index_with_na] <- predict.gam(gamm, newdf, na.action = na.exclude)
+    }
+  }
+  return( list(df, list_final) )
+}
+```
+
+```{r}
+#ll <- impute_GAMMs(mini_test, l)
+first_impute <- impute_GAMMs(new_safe_data, gam_res)
+```
+
+
+```{r}
+impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
+
+  df <- imputed[[1]]
+  df_old <- df
+  lag_index <- grep("lag", names(df))
+
+  
+  for (iter in 1:max_iter) {
+    cat("\nIteration", iter, "\n")
+
+    for (resp in 3:ncol(df[-lag_index])) {
+
+      
+      names_index <- 1
+      while (names(df[resp]) != imputed[[2]][[names_index]]) {
+        names_index <- names_index + 1
+      }
+      
+      index_with_na <- unlist(imputed[[2]][[names_index + 1]])
+
+      #cat("Imputing variable:", names(df[resp]), "at indices:", index_with_na, "\n")
+      newdf <- df[index_with_na, ]
+      
+      for (col in names(newdf)) {
+        if( any( is.na( newdf[[col]] ) ) ){
+          newdf[ is.na( newdf[[col]] ), col ] <- mean( df[[col]], na.rm = TRUE)
+        }  
+      }
+      
+      
+      gam_index <- 1
+      while (names(df[resp]) != model[[gam_index]][[1]]) {
+        gam_index <- gam_index + 1
+      }
+      gamm <- model[[gam_index]][[2]]$gam
+
+      df[[resp]][index_with_na] <- predict.gam(gamm, newdf, na.action = na.exclude)
+    }
+    
+    threshold <- sum(( df_old[-c(1,lag_index)] - df[-c(1,lag_index)] )^2, na.rm = TRUE)
+    cat("\nPrecision reached:", threshold, "but tolerance's threshold is:", tol, "\n")
+    
+    if ( threshold < tol) {
+      cat("\nConverged at iteration", iter, "\n")
+      break
+    }
+    
+    df_old <- df
+  }
+
+  return(df)
+}
+
+```
+
+```{r}
+#oh <- impute_iter(ll, l, max_iter = 20)
+data_complete <- impute_iter(first_impute, gam_res, max_iter = 200)
+```
+
+```{r}
+write_delim(data_complete, here("processed", "S1_gamm_2004_2008.csv"), delim=";")
+```
+
+```{r}
+impute_byrow <- function(na_df, df, model){
+  
+  index <- nrow(df)
+  list_final <- list()
+  
+  while( index < nrow(na_df) ){
+    
+    cat("\n Il reste", nrow(na_df)-nrow(df), "ligne(s) à compléter")
+    
+    last_date <- df[[1]][nrow(df)]
+    corres_index <- which(na_df[[1]] == as.Date(last_date))
+    
+    if(index + 2 > nrow(na_df)){
+      
+      cat("\n Traitement de la ligne après la date", as.character(last_date))
+    
+      next_rows <- na_df[ corres_index + 1, ]
+    
+      df <- df %>% bind_rows(next_rows)
+      l <- impute_GAMMs(df, model)
+      
+      df <- l[[1]]
+      list_ind <- l[[2]]
+      list_final <- append(list_final, list_ind)
+    
+      cat("\n Imputation de la nouvelle ligne réussie")
+    
+      index <- index + 1
+      
+    } else { 
+      cat("\n Traitement des deux lignes après la date", as.character(last_date))
+    
+      next_rows <- na_df[ c(corres_index + 1, corres_index + 2), ]
+    
+      df <- df %>% bind_rows(next_rows)
+      l <- impute_GAMMs(df, model)
+      
+      df <- l[[1]]
+      list_ind <- l[[2]]
+      list_final <- append(list_final, list_ind)
+    
+      cat("\n Imputation des nouvelles lignes réussie")
+      
+      index <- index + 2 }
+  }
+  
+  return(list(df, list_final))
+}
+```
+
+```{r}
+data <- add_lag(data, 1)
+data <- data %>% select( names(data_complete) )
+```
+
+```{r}
+#test <- data[1:54,]
+#test_co <- impute_byrow(test, data_complete, gam_res)
+data_complete_long <- impute_byrow(data, data_complete, gam_res)
+```
+
+```{r}
+list_var <- list()
+list_na <- list()
+list_final <- list()
+
+n <- length(data_complete_long[[2]])
+
+for (col in 3:ncol(data)) {
+  var <- list()
+
+  for (i in 1:n) {
+    if (names(data[col]) == data_complete_long[[2]][[i]]) {
+      var <- c(var, data_complete_long[[2]][[i + 1]])
+    }
+  }
+
+  var <- unlist(var)
+  list_na <- append(list_na, list(var))
+  list_var <- append(list_var, list(names(data[col])))
+  list_final <- append(list_final, list(list_var, list_na))
+}
+
+list_final <- c( list_final[[49]][1:16], list_final[[50]][1:16] )
+```
+
+```{r}
+new_order <- as.vector(rbind(1:16, 17:32))
+reordered_list <- list_final[new_order]
+
+new_impute <- list(data_complete_long[[1]], reordered_list)
+
+new_impute[[2]] <- lapply( seq_along(new_impute[[2]]), function(i) list( new_impute[[2]][[i]] ) )
+```
+
+```{r}
+attempt <- impute_iter(new_impute, gam_res, max_iter = 1000)
+```
+
+```{r}
+write_delim(attempt, here('processed', 'S1_gamm_2004_2018.csv'), delim=";")
 ```
 
 
