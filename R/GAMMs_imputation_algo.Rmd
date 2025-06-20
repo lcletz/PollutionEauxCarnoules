@@ -138,7 +138,8 @@ step_GAMMs <- function(df){
     worst_pred <- list()
     
     
-    while(current_bic < best_bic){
+    
+    while(current_bic <= best_bic){
       
       fit <- summary(best_model$gam)
       fit <- rownames_to_column( data.frame(fit$s.table) )
