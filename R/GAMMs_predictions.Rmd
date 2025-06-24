@@ -1,0 +1,384 @@
+---
+title: "GAMMs predictions for 2025 (known)"
+author: "CLETZ Laura"
+date: "20/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(dplyr)
+library(mgcv)
+library(gam)
+library(forecast)
+here::i_am("R/GAMMs_predictions.Rmd")
+library(here)
+```
+
+```{r}
+data_small <- read.table(here('processed', 'S1_gamm_2004_2008.csv'), dec = '.', sep = ';', header = T) 
+data_small$Dates <- as.Date(data_small$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+data_complete <- read.table(here('processed', 'S1_gamm_2004_2018.csv'), dec = '.', sep = ';', header = T)
+data_complete$Dates <- as.Date(data_complete$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+new_data <- data.frame(
+  Dates = as.Date("2025-04-01", format = "%Y-%m-%d"),
+  Temperature = 16.8,
+  monthly_rainfall = 115.2,
+  Conductivité = 4560,
+  cond = 2.97,
+  O2 = 2.86
+  )
+```
+
+# Temperature
+
+```{r}
+temp_small <- ts(data_small$Temperature, start = c(2004,11), end = c(2008,11), frequency = 12)
+temp_complete <- ts(data_complete$Temperature, start = c(2004,11), end = c(2018,6), frequency = 12)
+
+fit_temp_small <- auto.arima(temp_small, max.p = 1, max.q = 1, ic = "bic")
+fit_temp_complete <- auto.arima(temp_complete, max.p = 1, max.q = 1, ic = "bic")
+
+pred_temp_small <- predict(fit_temp_small, n.ahead = 210)
+pred_temp_complete <- predict(fit_temp_complete, n.ahead = 90)
+```
+
+```{r}
+plot.ts(temp_complete, type='l', xlab='Temps', ylab="Température (C°)",
+        xlim = c(2004,2026), xaxt = 'n')
+points(temp_small, type='l', col='blue')
+points(2025.33, new_data$Temperature, col="purple", pch=19)
+
+points(pred_temp_small$pred, type='l', col='cyan')
+points(pred_temp_complete$pred, type='l', col='darkred')
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+We can't predict temperature with the completely imputed dataset. Let's just stick to the blue-cyan values.
+
+```{r}
+gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
+gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
+gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
+
+add_lag <- function(df, nb_lag){
+  init_df <- df
+  for(i in 1:nb_lag){
+    for(col in 2:ncol(init_df)){
+      new_col <- df[[col]]
+      new_col <- new_col[ 1:(length(new_col)-i) ]
+      new_col <- c( rep(as.numeric(NA), i), new_col)
+      name_col <- paste0( names(df[col]), "_lag_", i )
+      df <- df %>%
+        bind_cols( new_col )
+      colnames( df )[ncol(df)] <- name_col}}
+  return(df)}
+
+test <- read.table(here('processed','Source_S1_v2.csv'), dec = c(',','.'), sep = ";", header = TRUE)  %>%
+  mutate_at(2:45, function(x) as.numeric(as.character(gsub(',','.',x))))
+test$Dates <- as.Date(test$Dates, format="%Y-%m-%d")
+test <- gen %>%
+  inner_join(test, by ="Dates")
+test <- add_lag(test, 1)
+test <- test %>%
+  slice_tail(n = 164-49)%>%
+  select(names(data_small))
+```
+
+```{r}
+plot.ts(temp_small, type='l', xlab='Temps', ylab="Température (C°)",
+        xlim = c(2004,2026), xaxt = 'n')
+
+x_coords <- c(time(pred_temp_small$pred), rev(time(pred_temp_small$pred)))
+y_coords <- c(pred_temp_small$pred + pred_temp_small$se, rev(pred_temp_small$pred - pred_temp_small$se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(pred_temp_small$pred, type='l', col='blue')
+points(2025.33, new_data$Temperature, col="red", pch=19)
+points(ts(test$Temperature, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+# O2
+
+```{r}
+o2 <- ts(data_small$O2, start = c(2004,11), end = c(2008,11), frequency = 12)
+
+#fit_o2 <- auto.arima(o2, d = 1, max.p = 3, max.q = 3, ic = "aic")
+fit_o2 <- arima(data_small$O2, order = c(1, 1, 3),
+      seasonal = list(order = c(1, 1, 2), period = 12), method = "CSS-ML")
+
+pred_o2 <- predict(fit_o2, n.ahead = 210)
+```
+
+```{r}
+plot.ts(o2, type='l', xlab='Temps', ylab="O2",
+        xlim = c(2004,2026), xaxt = 'n')
+
+ts <- ts(pred_o2$pred, start = c(2008,12), end = c(2018,6), frequency = 12)
+ts_se <- ts(pred_o2$se, start = c(2008,12), end = c(2018,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(2025.33, new_data$O2, col="red", pch=19)
+points(ts(test$O2, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+```{r}
+plot.ts(o2, type='l', xlab='Temps', ylab="O2",
+        xlim = c(2004,2026), xaxt = 'n')
+
+gam_o2 <- gamm(O2 ~ s(Temperature, bs='re', k=4) + s(monthly_rainfall, bs='re', k=4) +
+                 s(Conductivité, bs='re', k=4) + s(pH, bs='re', k=4), data = data_small, 
+               correlation = corARMA(form = ~1, p=1))
+pred_o2_gam <- predict.gam(gam_o2$gam, newdata = new_data, se.fit = TRUE)
+
+points(2025.33, pred_o2_gam$fit, col = 'cyan', pch = 15)
+points(2025.33, new_data$O2, col="red", pch=19)
+
+pred_o2_gam2 <- predict.gam(gam_o2$gam, newdata = test, se.fit = TRUE)
+points(ts(pred_o2_gam2$fit, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 15, col = "cyan3")
+points(ts(test$O2, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+upper <- ts(pred_o2_gam2$fit + pred_o2_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12)
+lower <- ts(pred_o2_gam2$fit - pred_o2_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12)
+points(upper, pch = 3, col = "cyan4")
+points(lower, pch = 3, col = "cyan4")
+
+points(2025.33, pred_o2_gam$fit[2] + pred_o2_gam$se.fit[2], pch = 3, col = "cyan4")
+points(2025.33, pred_o2_gam$fit[2] - pred_o2_gam$se.fit[2], pch = 3, col = "cyan4")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+Having added lags didn't help at all. It's actually worse since it predicted less observations.
+
+# pH
+
+```{r}
+ph <- ts(data_small$pH, start = c(2004,11), end = c(2008,11), frequency = 12)
+
+#fit_ph <- auto.arima(ph, max.p = 3, max.q = 3, ic = "aic")
+fit_ph <- arima(data_small$pH, order = c(2, 1, 2),
+      seasonal = list(order = c(1, 1, 2), period = 12), method = "CSS-ML")
+
+pred_ph <- predict(fit_ph, n.ahead = 210)
+```
+
+```{r}
+plot.ts(ph, type='l', xlab='Temps', ylab="pH",
+        xlim = c(2004,2026), xaxt = 'n')
+
+ts <- ts(pred_ph$pred, start = c(2008,12), end = c(2018,6), frequency = 12)
+ts_se <- ts(pred_ph$se, start = c(2008,12), end = c(2018,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(2025.33, new_data$pH, col="red", pch=19)
+points(ts(test$pH, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+That's odd.
+
+```{r}
+plot.ts(ph, type='l', xlab='Temps', ylab="pH",
+        xlim = c(2004,2026), xaxt = 'n')
+
+gam_ph <- gamm(pH ~ s(Temperature, bs='re', k=4) + s(monthly_rainfall, bs='re', k=4) +
+                 s(Conductivité, bs='re', k=4) + s(O2, bs='re', k=4), data = data_small, 
+               correlation = corARMA(form = ~1, p=1, q=1))
+pred_ph_gam <- predict.gam(gam_ph$gam, newdata = new_data, se.fit = TRUE)
+
+points(2025.33, pred_ph_gam$fit, col = 'cyan', pch = 15)
+points(2025.33, new_data$pH, col="red", pch=19)
+
+pred_ph_gam2 <- predict.gam(gam_ph$gam, newdata = test, se.fit = TRUE)
+
+points(ts(pred_ph_gam2$fit, start = c(2008,11), end = c(2018,6), frequency = 12),
+       pch=19, cex = 0.5, col = "cyan3")
+points(spline(ts(pred_ph_gam2$fit, start = c(2008,11), end = c(2018,6), frequency = 12)),
+       type='l', col = "cyan3")
+points(ts(test$pH, start = c(2008,11), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+upper <- spline(ts(pred_ph_gam2$fit + pred_ph_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12))
+lower <- spline(ts(pred_ph_gam2$fit - pred_ph_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12))
+points(upper, type='l', col = "cyan4")
+points(lower, type='l', col = "cyan4")
+
+points(2025.33, pred_ph_gam$fit + pred_ph_gam$se.fit, pch = 3, col = "cyan4")
+points(2025.33, pred_ph_gam$fit - pred_ph_gam$se.fit, pch = 3, col = "cyan4")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+# Conductivité
+
+```{r}
+cond <- ts(data_small$Conductivité, start = c(2004,11), end = c(2008,11), frequency = 12)
+
+#fit_cond <- auto.arima(cond, max.p = 3, max.q = 3, ic = "aic")
+fit_cond <- arima(cond, order = c(2, 1, 2),
+      seasonal = list(order = c(1, 1, 2), period = 12), method = "CSS-ML")
+
+pred_cond <- predict(fit_cond, n.ahead = 210)
+```
+
+```{r}
+plot.ts(cond, type='l', xlab='Temps', ylab="Conductivité",
+        xlim = c(2004,2026), xaxt = 'n')
+
+ts <- ts(pred_cond$pred, start = c(2008,12), end = c(2018,6), frequency = 12)
+ts_se <- ts(pred_cond$se, start = c(2008,12), end = c(2018,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(2025.33, new_data$Conductivité, col="red", pch=19)
+points(ts(test$Conductivité, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+```{r}
+plot.ts(cond, type='l', xlab='Temps', ylab="Conductivité",
+        xlim = c(2004,2026), xaxt = 'n')
+
+gam_cond <- gamm(Conductivité ~ s(Temperature, bs='re', k=4) + s(monthly_rainfall, bs='re', k=4) +
+                 s(pH, bs='re', k=4) + s(O2, bs='re', k=4), data = data_small, 
+               correlation = corARMA(form = ~1, p=1, q=1))
+pred_cond_gam <- predict.gam(gam_cond$gam, newdata = new_data, se.fit = TRUE)
+
+points(2025.33, pred_cond_gam$fit, col = 'cyan', pch = 15)
+points(2025.33, new_data$Conductivité, col="red", pch=19)
+
+pred_cond_gam2 <- predict.gam(gam_cond$gam, newdata = test, se.fit = TRUE)
+points(ts(pred_cond_gam2$fit, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 15, cex = 0.5, col = "cyan3")
+points(spline(ts(pred_cond_gam2$fit, start = c(2008,12), end = c(2018,6), frequency = 12)),
+       type='l', col = "cyan3")
+points(ts(test$Conductivité, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+upper <- spline(ts(pred_cond_gam2$fit + pred_cond_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12))
+lower <- spline(ts(pred_cond_gam2$fit - pred_cond_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12))
+points(upper, type='l', col = "cyan4")
+points(lower, type='l', col = "cyan4")
+
+points(2025.33, pred_cond_gam$fit + pred_cond_gam$se.fit, pch = 3, col = "cyan4")
+points(2025.33, pred_cond_gam$fit - pred_cond_gam$se.fit, pch = 3, col = "cyan4")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+# Arsenic_Total
+
+```{r}
+ars <- ts(data_small$Arsenic_Total, start = c(2004,11), end = c(2008,11), frequency = 12)
+
+#fit_ars <- auto.arima(ars, max.p = 3, max.q = 3, ic = "aic")
+fit_ars <- arima(ars, order = c(1, 1, 1),
+      seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
+
+pred_ars <- predict(fit_ars, n.ahead = 210)
+```
+
+```{r}
+plot.ts(ars, type='l', xlab='Temps', ylab="Concentration en Arsenic",
+        xlim = c(2004,2026), xaxt = 'n')
+
+ts <- ts(pred_ars$pred, start = c(2008,12), end = c(2018,6), frequency = 12)
+ts_se <- ts(pred_ars$se, start = c(2008,12), end = c(2018,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(ts(test$Arsenic_Total, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+```{r}
+plot.ts(ars, type='l', xlab='Temps', ylab="Concentration en Arsenic",
+        xlim = c(2004,2026), xaxt = 'n')
+
+gam_ars <- gamm(Arsenic_Total ~ s(Temperature, bs='re', k=4) + s(monthly_rainfall, bs='re', k=4) +
+                 s(pH, bs='re', k=4) + s(O2, bs='re', k=4) + s(Conductivité, bs='re', k=4) +
+                 s(monthly_rainfall_lag_1, bs='re', k=4) + s(Plomb, bs='re', k=4), data = data_small, 
+               correlation = corARMA(form = ~1, p=1, q=1))
+
+pred_ars_gam2 <- predict.gam(gam_ars$gam, newdata = test, se.fit = TRUE)
+points(ts(pred_ars_gam2$fit, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 15, cex = 0.5, col = "cyan3")
+points(spline(ts(pred_ars_gam2$fit, start = c(2008,12), end = c(2018,6), frequency = 12)),
+       type='l', col = "cyan3")
+points(ts(test$Arsenic_Total, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+upper <- spline(ts(pred_ars_gam2$fit + pred_ars_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12))
+lower <- spline(ts(pred_ars_gam2$fit - pred_ars_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12))
+points(upper, type='l', col = "cyan4")
+points(lower, type='l', col = "cyan4")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+```{r}
+index_ars <- c(1:49, which(is.na(test$Arsenic_Total)) + 49)
+
+ars_complete <- ts(data_complete$Arsenic_Total[index_ars], start = c(2004,11), end = c(2018,6), frequency = 12)
+
+gam_ars2 <- gamm(Arsenic_Total ~ s(Temperature, bs='re', k=4) + s(monthly_rainfall, bs='re', k=4) +
+                 s(pH, bs='re', k=4) + s(O2, bs='re', k=4) + s(Conductivité, bs='re', k=4) +
+                 s(monthly_rainfall_lag_1, bs='re', k=4) + s(Plomb, bs='re', k=4), data = data_complete[index_ars,], 
+               correlation = corARMA(form = ~1, p=1, q=1))
+```
+
+```{r}
+plot.ts(ars_complete, type='l', xlab='arss', ylab="Concentration en Arsenic",
+        xlim = c(2004,2026), xaxt = 'n')
+
+pred_ars_gam3 <- predict.gam(gam_ars2$gam, newdata = test, se.fit = TRUE)
+points(ts(pred_ars_gam3$fit, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 15, cex = 0.5, col = "cyan3")
+points(spline(ts(pred_ars_gam3$fit, start = c(2008,12), end = c(2018,6), frequency = 12)),
+       type='l', col = "cyan3")
+points(ts(test$Arsenic_Total, start = c(2008,12), end = c(2018,6), frequency = 12),
+       pch = 19, col = "darkred")
+
+upper <- spline(ts(pred_ars_gam3$fit + pred_ars_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12))
+lower <- spline(ts(pred_ars_gam3$fit - pred_ars_gam2$se.fit, start = c(2008,12), end = c(2018,6), frequency = 12))
+points(upper, type='l', col = "cyan4")
+points(lower, type='l', col = "cyan4")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+

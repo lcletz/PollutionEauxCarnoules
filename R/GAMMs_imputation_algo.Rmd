@@ -127,7 +127,7 @@ step_GAMMs <- function(df){
                         silent = TRUE)
       if (inherits(best_model, "try-error")) {
           best_model <- try(gamm(formula, data = df, 
-                            correlation = corARMA(form = ~1, p=1, q=1), 
+                            correlation = corARMA(form = ~1, q=1), 
                             family = gaussian(), control = control, na.action = na.omit),
                             silent = TRUE)
        }
@@ -174,7 +174,7 @@ step_GAMMs <- function(df){
                      silent = TRUE)
        if (inherits(model, "try-error")) {
           model <- try(gamm(formula, data = df, 
-                       correlation = corARMA(form = ~1, p=1, q=1), 
+                       correlation = corARMA(form = ~1, q=1), 
                        family = gaussian(), control = control, na.action = na.omit),
                        silent = TRUE)
         }
