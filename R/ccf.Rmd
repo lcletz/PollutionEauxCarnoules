@@ -20,7 +20,7 @@ library(here)
 ```
 
 ```{r}
-data_gamm <- read.table(here("processed","S1_gamm.csv"), dec=c(',','.'), sep=';', header=T) %>% 
+data_gamm <- read.table(here("processed","S1_gamm_2004_2018.csv"), dec=c(',','.'), sep=';', header=T) %>% 
   mutate_at(2:22, function(x) as.numeric(as.character(gsub(',','.', x))))
 data_gamm$Dates <- as.Date(data_gamm$Dates, format="%Y-%m-%d")
 ```
@@ -73,7 +73,7 @@ sb <- ts(data_gamm$Antimoine, start=c(2004,11), end=c(2008,11), frequency = 12)
 rain <- ts(data_gamm$monthly_rainfall, start=c(2004,11), end=c(2008,11), frequency = 12)
 ccf(rain, sb, lag.max = 20, type = c("correlation"))
 ```
-t-1
+t
 
 ```{r}
 ph <- ts(data_gamm$pH, start=c(2004,11), end=c(2008,11), frequency = 12)
@@ -144,9 +144,9 @@ control <- lmeControl(msMaxIter = 200,
                        niterEM = 50,
                        opt = "optim")
 
-gm <- gamm(Arsenic_Total ~ s(monthly_rainfall, k=4, bs="re") +
+gm <- gamm(Arsenic_Total ~ monthly_rainfall + pH + s(monthly_rainfall, k=4, bs="re") +
              s(monthly_rainfall_lag1, k=4, bs="re") + s(pH, k=4, bs="re"), 
-           correlation = corARMA(form = ~1, p=1, q=1), data = data_lag[-1,], control = control)
+           correlation = corARMA(form = ~1, p=1), data = data_lag[-1,], control = control)
 summary(gm$gam)
 ```
 

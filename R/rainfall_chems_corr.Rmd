@@ -1,0 +1,1373 @@
+---
+title: "Rainfall and chemicals correlations"
+author: "CLETZ Laura"
+date: "23/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(mgcv)
+library(tibble)
+library(tidyselect)
+library(gam)
+here::i_am("R/rainfall_chems_corr.Rmd")
+library(here)
+```
+
+```{r}
+data_complete <- read.table(here('processed', 'S1_gamm_2004_2018.csv'), dec = '.', sep = ';', header = T)
+data_complete$Dates <- as.Date(data_complete$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+best_bic <- Inf
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+lag_resp <- grep( "Arsenic_Total", names(data_complete) )
+    
+    formula <- paste0( "Arsenic_Total", '~')
+    
+    for(name in 2:ncol(data_complete)){
+      if( !(name %in% lag_resp) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+      }
+    }
+    formula <- formula(gsub('.{1}$', '', formula))
+    cat('\nFormula:', as.character(formula), '\n')
+      
+    best_model <- try(gamm(formula, data = data_complete, 
+                    correlation = corARMA(form = ~1, p=1, q=1), 
+                    family = gaussian(), control = control, na.action = na.omit),
+                    silent = TRUE)
+    if (inherits(best_model, "try-error")) {
+        best_model <- try(gamm(formula, data = data_complete, 
+                        correlation = corARMA(form = ~1, p=1), 
+                        family = gaussian(), control = control, na.action = na.omit),
+                        silent = TRUE)
+      if (inherits(best_model, "try-error")) {
+          best_model <- try(gamm(formula, data = data_complete, 
+                            correlation = corARMA(form = ~1, q=1), 
+                            family = gaussian(), control = control, na.action = na.omit),
+                            silent = TRUE)
+       }
+     }
+    
+    current_bic <- BIC(best_model$lme)
+    
+    worst_pred <- list()
+    
+    while(current_bic <= best_bic){
+      
+      fit <- summary(best_model$gam)
+      fit <- rownames_to_column( data.frame(fit$s.table) )
+      fit[1] <- lapply(fit[1], function(x) gsub("^.{2}|.{1}$", "", x))
+      
+      minus_pred <- fit$rowname[ which(fit$p.value == max(fit$p.value)) ] 
+      worst_pred <- append(worst_pred, minus_pred)    
+      
+      formula <- paste0( "Arsenic_Total", '~')
+      for(name in 2:ncol(data_complete)){
+        if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+           formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+        }
+      }
+      formula <- formula(gsub('.{1}$', '', formula))
+      cat('\nNew formula:', as.character(formula), '\n')
+       
+      if ( length(worst_pred) > length(data_complete)-5 ) { # length(data_complete) - Dates - Response - 3 predictors
+        cat('\nThis formula is too small! \n')
+        break
+      } 
+      
+      model <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        model <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          model <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+      
+      current_bic <- BIC(model$lme)
+  
+      if (current_bic < best_bic) {
+          best_bic <- current_bic
+          best_model <- model
+          current_bic <- current_bic - 1
+          cat('\nA better model has been chosen! \n')
+      }
+    }
+```
+
+```{r}
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+```
+```{r}
+worst_pred <- append(worst_pred, c("O2_lag_1","Cobal","Zinc","Temperature","pH","Conductivité"))
+      
+formula <- paste0( "Arsenic_Total", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- current_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) # worse
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Antimoine","pH_lag_1","Cobalt"))
+      
+formula <- paste0( "Arsenic_Total", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- current_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) # worse
+```
+
+```{r}
+worst_pred <- append(worst_pred, "Plomb")    
+      
+formula <- paste0( "Arsenic_Total", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) # still worse, but let's keep going
+```
+
+The most significant predictors are, by increasing order of significance: Cadmium_lag_1, Zinc_lag_1, monthly_rainfall, Antimoine_lag_1, Cadmium, monthly_rainfall_lag_1, Sulfate, Aluminium, O2, Thallium, Ion_Ferreux and Cuivre.
+
+Let's keep in mind that there is indeed a link between rainfall (one month earlier) and arsenic, but also a curious but important link between copper and arsenic, and iron and arsenic.
+
+# Plomb
+
+```{r}
+best_bic <- Inf
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+lag_resp <- grep( "Plomb", names(data_complete) )
+    
+    formula <- paste0( "Plomb", '~')
+    
+    for(name in 2:ncol(data_complete)){
+      if( !(name %in% lag_resp) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+      }
+    }
+    formula <- formula(gsub('.{1}$', '', formula))
+    cat('\nFormula:', as.character(formula), '\n')
+      
+    best_model <- try(gamm(formula, data = data_complete, 
+                    correlation = corARMA(form = ~1, p=1, q=1), 
+                    family = gaussian(), control = control, na.action = na.omit),
+                    silent = TRUE)
+    if (inherits(best_model, "try-error")) {
+        best_model <- try(gamm(formula, data = data_complete, 
+                        correlation = corARMA(form = ~1, p=1), 
+                        family = gaussian(), control = control, na.action = na.omit),
+                        silent = TRUE)
+      if (inherits(best_model, "try-error")) {
+          best_model <- try(gamm(formula, data = data_complete, 
+                            correlation = corARMA(form = ~1, q=1), 
+                            family = gaussian(), control = control, na.action = na.omit),
+                            silent = TRUE)
+       }
+     }
+    
+    current_bic <- BIC(best_model$lme)
+    
+    worst_pred <- list()
+    
+    while(current_bic <= best_bic){
+      
+      fit <- summary(best_model$gam)
+      fit <- rownames_to_column( data.frame(fit$s.table) )
+      fit[1] <- lapply(fit[1], function(x) gsub("^.{2}|.{1}$", "", x))
+      
+      minus_pred <- fit$rowname[ which(fit$p.value == max(fit$p.value)) ] 
+      worst_pred <- append(worst_pred, minus_pred)    
+      
+      formula <- paste0( "Plomb", '~')
+      for(name in 2:ncol(data_complete)){
+        if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+           formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+        }
+      }
+      formula <- formula(gsub('.{1}$', '', formula))
+      cat('\nNew formula:', as.character(formula), '\n')
+       
+      if ( length(worst_pred) > length(data_complete)-5 ) { # length(data_complete) - Dates - Response - 3 predictors
+        cat('\nThis formula is too small! \n')
+        break
+      } 
+      
+      model <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        model <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          model <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+      
+      current_bic <- BIC(model$lme)
+  
+      if (current_bic < best_bic) {
+          best_bic <- current_bic
+          best_model <- model
+          current_bic <- current_bic - 1
+          cat('\nA better model has been chosen! \n')
+      }
+    }
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Conductivité","Arsenic_Total_lag_1","Zinc_lag_1"))    
+      
+formula <- paste0( "Plomb", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(fit, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(fit, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+The most significant predictors are, by increasing order of significance: O2, Zinc, Cuivre, Nickel, Ion_Ferreux, Temperature_lag_1, Arsenic_Total, Sulfate, pH, pH_lag_1, O2_lag_1, Cadmium, Antimoine_lag_1, Thallium, Antimoine and monthly_rainfall.
+
+Let's keep in mind that there is indeed a strong link between rainfall (instant) and lead. The link between lead and O2 is more important after one month of delay.
+
+# Zinc
+
+```{r}
+best_bic <- Inf
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+lag_resp <- grep( "Zinc", names(data_complete) )
+    
+    formula <- paste0( "Zinc", '~')
+    
+    for(name in 2:ncol(data_complete)){
+      if( !(name %in% lag_resp) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+      }
+    }
+    formula <- formula(gsub('.{1}$', '', formula))
+    cat('\nFormula:', as.character(formula), '\n')
+      
+    best_model <- try(gamm(formula, data = data_complete, 
+                    correlation = corARMA(form = ~1, p=1, q=1), 
+                    family = gaussian(), control = control, na.action = na.omit),
+                    silent = TRUE)
+    if (inherits(best_model, "try-error")) {
+        best_model <- try(gamm(formula, data = data_complete, 
+                        correlation = corARMA(form = ~1, p=1), 
+                        family = gaussian(), control = control, na.action = na.omit),
+                        silent = TRUE)
+      if (inherits(best_model, "try-error")) {
+          best_model <- try(gamm(formula, data = data_complete, 
+                            correlation = corARMA(form = ~1, q=1), 
+                            family = gaussian(), control = control, na.action = na.omit),
+                            silent = TRUE)
+       }
+     }
+    
+    current_bic <- BIC(best_model$lme)
+    
+    worst_pred <- list()
+    
+    while(current_bic <= best_bic){
+      
+      fit <- summary(best_model$gam)
+      fit <- rownames_to_column( data.frame(fit$s.table) )
+      fit[1] <- lapply(fit[1], function(x) gsub("^.{2}|.{1}$", "", x))
+      
+      minus_pred <- fit$rowname[ which(fit$p.value == max(fit$p.value)) ] 
+      worst_pred <- append(worst_pred, minus_pred)    
+      
+      formula <- paste0( "Zinc", '~')
+      for(name in 2:ncol(data_complete)){
+        if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+           formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+        }
+      }
+      formula <- formula(gsub('.{1}$', '', formula))
+      cat('\nNew formula:', as.character(formula), '\n')
+       
+      if ( length(worst_pred) > length(data_complete)-5 ) { # length(data_complete) - Dates - Response - 3 predictors
+        cat('\nThis formula is too small! \n')
+        break
+      } 
+      
+      model <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        model <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          model <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+      
+      current_bic <- BIC(model$lme)
+  
+      if (current_bic < best_bic) {
+          best_bic <- current_bic
+          best_model <- model
+          current_bic <- current_bic - 1
+          cat('\nA better model has been chosen! \n')
+      }
+    }
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Temperature","O2","Thallium","monthly_rainfall_lag_1","pH_lag_1","O2_lag_1","Plomb_lag_1","Arsenic_Total_lag_1"))  
+      
+formula <- paste0( "Zinc", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(fit, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(fit, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Cuivre", "Antimoine", "Ion_Ferreux"))    
+      
+formula <- paste0( "Zinc", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Conductivité","Antimoine_lag_1","Nickel"))    
+      
+formula <- paste0( "Zinc", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(fit, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(fit, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("pH"))    
+      
+formula <- paste0( "Zinc", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+The most significant predictors are, by increasing order of significance: Cadmium_lag_1, Sulfate, Temperature_lag_1, Cobalt, Arsenic_Total, Cadmium, Aluminium.
+
+Let's keep in mind that there is no obvious link between rainfall and zinc. There is also a curious but strong link between aluminium and zinc.
+
+# Cuivre
+
+```{r}
+best_bic <- Inf
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+lag_resp <- grep( "Cuivre", names(data_complete) )
+    
+    formula <- paste0( "Cuivre", '~')
+    
+    for(name in 2:ncol(data_complete)){
+      if( !(name %in% lag_resp) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+      }
+    }
+    formula <- formula(gsub('.{1}$', '', formula))
+    cat('\nFormula:', as.character(formula), '\n')
+      
+    best_model <- try(gamm(formula, data = data_complete, 
+                    correlation = corARMA(form = ~1, p=1, q=1), 
+                    family = gaussian(), control = control, na.action = na.omit),
+                    silent = TRUE)
+    if (inherits(best_model, "try-error")) {
+        best_model <- try(gamm(formula, data = data_complete, 
+                        correlation = corARMA(form = ~1, p=1), 
+                        family = gaussian(), control = control, na.action = na.omit),
+                        silent = TRUE)
+      if (inherits(best_model, "try-error")) {
+          best_model <- try(gamm(formula, data = data_complete, 
+                            correlation = corARMA(form = ~1, q=1), 
+                            family = gaussian(), control = control, na.action = na.omit),
+                            silent = TRUE)
+       }
+     }
+    
+    current_bic <- BIC(best_model$lme)
+    
+    worst_pred <- list()
+    
+    while(current_bic <= best_bic){
+      
+      fit <- summary(best_model$gam)
+      fit <- rownames_to_column( data.frame(fit$s.table) )
+      fit[1] <- lapply(fit[1], function(x) gsub("^.{2}|.{1}$", "", x))
+      
+      minus_pred <- fit$rowname[ which(fit$p.value == max(fit$p.value)) ] 
+      worst_pred <- append(worst_pred, minus_pred)    
+      
+      formula <- paste0( "Cuivre", '~')
+      for(name in 2:ncol(data_complete)){
+        if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+           formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+        }
+      }
+      formula <- formula(gsub('.{1}$', '', formula))
+      cat('\nNew formula:', as.character(formula), '\n')
+       
+      if ( length(worst_pred) > length(data_complete)-5 ) { # length(data_complete) - Dates - Response - 3 predictors
+        cat('\nThis formula is too small! \n')
+        break
+      } 
+      
+      model <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        model <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          model <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+      
+      current_bic <- BIC(model$lme)
+  
+      if (current_bic < best_bic) {
+          best_bic <- current_bic
+          best_model <- model
+          current_bic <- current_bic - 1
+          cat('\nA better model has been chosen! \n')
+      }
+    }
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("O2_lag_1","Zinc_lag_1","Thallium","Plomb_lag_1"))    
+      
+formula <- paste0( "Cuivre", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Sulfate","pH_lag_1","Zinc"))    
+      
+formula <- paste0( "Cuivre", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+The most significant predictors are, by increasing order of significance: Cadmium, monthly_rainfall_lag_1, Plomb_lag_1, monthly_rainfall, Temperature, Cobalt, Nickel, Temperature_lag_1, Sulfate, Antimoine_lag_1, Conductivité and Arsenic_Total
+
+Let's keep in mind that there is indeed a link between rainfall at all hour and copper. The link between copper and arsenic appears once more.
+
+# Antimoine
+
+```{r}
+best_bic <- Inf
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+lag_resp <- grep( "Antimoine", names(data_complete) )
+    
+    formula <- paste0( "Antimoine", '~')
+    
+    for(name in 2:ncol(data_complete)){
+      if( !(name %in% lag_resp) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+      }
+    }
+    formula <- formula(gsub('.{1}$', '', formula))
+    cat('\nFormula:', as.character(formula), '\n')
+      
+    best_model <- try(gamm(formula, data = data_complete, 
+                    correlation = corARMA(form = ~1, p=1, q=1), 
+                    family = gaussian(), control = control, na.action = na.omit),
+                    silent = TRUE)
+    if (inherits(best_model, "try-error")) {
+        best_model <- try(gamm(formula, data = data_complete, 
+                        correlation = corARMA(form = ~1, p=1), 
+                        family = gaussian(), control = control, na.action = na.omit),
+                        silent = TRUE)
+      if (inherits(best_model, "try-error")) {
+          best_model <- try(gamm(formula, data = data_complete, 
+                            correlation = corARMA(form = ~1, q=1), 
+                            family = gaussian(), control = control, na.action = na.omit),
+                            silent = TRUE)
+       }
+     }
+    
+    current_bic <- BIC(best_model$lme)
+    
+    worst_pred <- list()
+    
+    while(current_bic <= best_bic){
+      
+      fit <- summary(best_model$gam)
+      fit <- rownames_to_column( data.frame(fit$s.table) )
+      fit[1] <- lapply(fit[1], function(x) gsub("^.{2}|.{1}$", "", x))
+      
+      minus_pred <- fit$rowname[ which(fit$p.value == max(fit$p.value)) ] 
+      worst_pred <- append(worst_pred, minus_pred)    
+      
+      formula <- paste0( "Antimoine", '~')
+      for(name in 2:ncol(data_complete)){
+        if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+           formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+        }
+      }
+      formula <- formula(gsub('.{1}$', '', formula))
+      cat('\nNew formula:', as.character(formula), '\n')
+       
+      if ( length(worst_pred) > length(data_complete)-5 ) { # length(data_complete) - Dates - Response - 3 predictors
+        cat('\nThis formula is too small! \n')
+        break
+      } 
+      
+      model <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        model <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          model <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+      
+      current_bic <- BIC(model$lme)
+  
+      if (current_bic < best_bic) {
+          best_bic <- current_bic
+          best_model <- model
+          current_bic <- current_bic - 1
+          cat('\nA better model has been chosen! \n')
+      }
+    }
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("pH","Aluminium","Thallium","Zinc",
+                                   "Cadmium","Cuivre","Nickel","Ion_Ferreux",
+                                   "monthly_rainfall_lag_1","Temperature_lag_1","pH_lag_1","Cadmium_lag_1"))    
+      
+formula <- paste0( "Antimoine", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Zinc_lag_1","O2_lag_1","Sulfate","Arsenic_Total"))    
+      
+formula <- paste0( "Antimoine", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(fit, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(fit, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+The most significant predictors are, by increasing order of significance: Arsenic_Total_lag_1, monthly_rainfall, O2, Temperature, Plomb, Cobalt.
+
+Let's keep in mind that there is indeed a link between rainfall and antimony at a one-month-delay. 
+
+# monthly_rainfall
+
+Could this help?
+
+```{r}
+best_bic <- Inf
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+lag_resp <- grep( "monthly_rainfall", names(data_complete) )
+    
+    formula <- paste0( "monthly_rainfall", '~')
+    
+    for(name in 2:ncol(data_complete)){
+      if( !(name %in% lag_resp) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+      }
+    }
+    formula <- formula(gsub('.{1}$', '', formula))
+    cat('\nFormula:', as.character(formula), '\n')
+      
+    best_model <- try(gamm(formula, data = data_complete, 
+                    correlation = corARMA(form = ~1, p=1, q=1), 
+                    family = gaussian(), control = control, na.action = na.omit),
+                    silent = TRUE)
+    if (inherits(best_model, "try-error")) {
+        best_model <- try(gamm(formula, data = data_complete, 
+                        correlation = corARMA(form = ~1, p=1), 
+                        family = gaussian(), control = control, na.action = na.omit),
+                        silent = TRUE)
+      if (inherits(best_model, "try-error")) {
+          best_model <- try(gamm(formula, data = data_complete, 
+                            correlation = corARMA(form = ~1, q=1), 
+                            family = gaussian(), control = control, na.action = na.omit),
+                            silent = TRUE)
+       }
+     }
+    
+    current_bic <- BIC(best_model$lme)
+    
+    worst_pred <- list()
+    
+    while(current_bic <= best_bic){
+      
+      fit <- summary(best_model$gam)
+      fit <- rownames_to_column( data.frame(fit$s.table) )
+      fit[1] <- lapply(fit[1], function(x) gsub("^.{2}|.{1}$", "", x))
+      
+      minus_pred <- fit$rowname[ which(fit$p.value == max(fit$p.value)) ] 
+      worst_pred <- append(worst_pred, minus_pred)    
+      
+      formula <- paste0( "monthly_rainfall", '~')
+      for(name in 2:ncol(data_complete)){
+        if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+           formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+        }
+      }
+      formula <- formula(gsub('.{1}$', '', formula))
+      cat('\nNew formula:', as.character(formula), '\n')
+       
+      if ( length(worst_pred) > length(data_complete)-5 ) { # length(data_complete) - Dates - Response - 3 predictors
+        cat('\nThis formula is too small! \n')
+        break
+      } 
+      
+      model <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        model <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          model <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+      
+      current_bic <- BIC(model$lme)
+  
+      if (current_bic < best_bic) {
+          best_bic <- current_bic
+          best_model <- model
+          current_bic <- current_bic - 1
+          cat('\nA better model has been chosen! \n')
+      }
+    }
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Temperature","Conductivité","O2","Sulfate","Nickel",
+                                   "Ion_Ferreux","Temperature_lag_1","Arsenic_Total_lag_1"))    
+      
+formula <- paste0( "monthly_rainfall", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #better
+```
+
+```{r}
+worst_pred <- append(worst_pred, c("Cobalt"))    
+      
+formula <- paste0( "monthly_rainfall", '~')
+for(name in 2:ncol(data_complete)){
+  if(!(name %in% lag_resp) & !(names(data_complete[name]) %in% worst_pred) ){
+        formula <- paste0( formula, "s(", names( data_complete[name] ), ", k=4, bs='cr') +" )
+  }
+}
+formula <- formula(gsub('.{1}$', '', formula))
+```
+
+```{r}
+last_bic <- new_bic
+fit <- try(gamm(formula, data = data_complete, 
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(model, "try-error")) {
+        fit <- try(gamm(formula, data = data_complete, 
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(model, "try-error")) {
+          fit <- try(gamm(formula, data = data_complete, 
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
+        }
+     }
+summary(fit$gam)
+new_bic <- BIC(fit$lme) #worse
+```
+
+The most significant predictors are, by increasing order of significance: O2_lag_1, Aluminium, Zinc, Antimoine, Plomb_lag_1, pH_lag_1, Arsenic_Total, Cadmium_lag_1, Thallium, Cuivre, Cadmium and Plomb. 
+
+Those links are all almost equally significant, this emphasizes the previous observations.
+
+# Conclusion
+
+Rainfall, whether that be at time T or T-1, has a significant impact on chemicals' concentrations. 
+That might still be the case today and, since it seems to be raining more often and in bigger quantity, those chemicals have a high probability of being mor concentrated.
+
+# CCA
+
+```{r}
+library(CCA)
+
+#species <- data_complete[c(7:18,23:27)]
+#env <- data_complete[c(2:6,19:22)]
+species <- as.matrix(abs(data_complete[c(7:18)]))
+env <- as.matrix(data_complete[c(2:6)])
+```
+
+```{r}
+S_sp <- cov(species)
+S_env <- cov(env)
+S_spenv <- cov(species, env)
+```
+
+```{r}
+eigen_sp <- eigen(S_sp)
+Vsp <- eigen_sp$vectors
+S_sp_invsqrt <- Vsp %*% diag( 1/sqrt(eigen_sp$values) ) %*% t(Vsp)
+```
+
+```{r}
+eigen_env <- eigen(S_env)
+Venv <- eigen_env$vectors
+S_env_invsqrt <- Venv %*% diag( 1/sqrt(eigen_env$values) ) %*% t(Venv)
+```
+
+```{r}
+Q_svd <- svd(S_sp_invsqrt %*% S_spenv %*% S_env_invsqrt)
+a1 = S_sp_invsqrt%*% Q_svd$u[,1]
+b1 = S_env_invsqrt%*% Q_svd$v[,1]
+```
+
+```{r}
+SPcent <- sweep(species,2, colMeans(species))
+ENVcent <- sweep(env,2, colMeans(env))
+eta = as.matrix(SPcent)%*%a1
+psi = as.matrix(ENVcent)%*%b1
+```
+
+```{r}
+cca.out <- data.frame(Dates=data_complete$Dates, eta=eta, psi=psi)
+
+ggplot(cca.out, aes(x= eta, y= psi, label=month(Dates), col=year(Dates))) +
+  geom_point() +
+  geom_text(aes(label=month(Dates)), hjust=0, vjust=0, size=4) +
+  theme_minimal()
+```
+
+```{r}
+prem.cca <- cc(species, env)
+prem.cca$cor ; #log(abs(prem.cca$xcoef)) ; log(abs(prem.cca$ycoef))
+prem.cca$xcoef 
+```
+It's confusing since they're all near 0, which means there is no correlation between any of these variables...
+
+```{r}
+data_complete$Dates2 <- gsub(".{3}$","", data_complete$Dates)
+plt.cc(prem.cca, d1 = 1, d2 = 4, var.label = TRUE, ind.names = data_complete$Dates2)
+```
+Those graphs seem to show otherwise. There are groups of positively and negatively correlated variables. For example, Copper is strongly and positively correlated with rain, and almost all the other chemicals are strongly and negatively correlated with rain. The distance between each variable and the unity sphere is most of the time equal to 0.5. Arsenic is the most correlated with rain chemical and is nearer the unity sphere than the others.
+
+```{r}
+custom_gam_plot <- function(data, mapping, ...) {
+  
+  library(mgcv)
+  library(rlang)
+  library(ggplot2)
+  
+  x_var <- rlang::as_label(mapping$x)
+  y_var <- rlang::as_label(mapping$y)
+
+  formula <- substitute( y ~ s(x, bs='cr'), list(y = as.name(y_var), x = as.name(x_var)) )
+  
+  gam_model <- gamm(formula, correlation = corARMA(form = ~1, p=1), data = data, na.action = na.exclude)
+
+  pred_data <- data.frame(x = seq(min(data[[x_var]], na.rm = TRUE),
+                                    max(data[[x_var]], na.rm = TRUE),
+                                    length.out = 100))
+  names(pred_data) <- x_var
+  
+  pred_data$y <- predict(gam_model$gam, newdata = pred_data)
+
+  ggplot(data, mapping = mapping) +
+    geom_point() +
+    geom_line(data = pred_data, 
+              mapping = aes_string(x = x_var, y = "y"), 
+              color = "blue") +
+    labs(title = paste0("GAM fit:", y_var, "~ s(", x_var, ")"), 
+         x = x_var, y = y_var) +
+    theme_minimal()
+}
+```
+
+```{r}
+library(GGally)
+library(FactoMineR)
+g <- ggpairs(
+  data = data_complete[, c(2,19,7:18)],
+  lower = list(continuous = custom_gam_plot, combo = 'facetdensity'),
+  upper = list(continuous = wrap('cor', size = 3, hjust = 0.8))
+)
+```
+
+```{r, warning=F}
+g[3,1] ; g[3,2] ; g[1,3] ; g[2,3]
+```
+
+```{r, warning=F}
+g[4,1] ; g[4,2] ; g[1,4] ; g[2,4]
+```
+```{r, warning=F}
+g[5,1] ; g[5,2] ; g[1,5] ; g[2,5]
+```
+
+```{r, warning=F}
+g[6,1] ; g[6,2] ; g[1,6] ; g[2,6]
+```
+
+```{r, warning=F}
+g[7,1] ; g[7,2] ; g[1,7] ; g[2,7]
+```
+
+```{r, warning=F}
+g[8,1] ; g[8,2] ; g[1,8] ; g[2,8]
+```
+
+```{r, warning=F}
+g[9,1] ; g[9,2] ; g[1,9] ; g[2,9]
+```
+
+```{r, warning=F}
+g[10,1] ; g[10,2] ; g[1,10] ; g[2,10]
+```
+
+```{r, warning=F}
+g[11,1] ; g[11,2] ; g[1,11] ; g[2,11]
+```
+
+```{r, warning=F}
+g[12,1] ; g[12,2] ; g[1,12] ; g[2,12]
+```
+
+```{r, warning=F}
+g[13,1] ; g[13,2] ; g[1,13] ; g[2,13]
+```
+
+```{r, warning=F}
+g[14,1] ; g[14,2] ; g[1,14] ; g[2,14]
+```
+
+```{r}
+g[1,1] ; g[2,2] ; g[3,3] ; g[4,4] ; g[5,5] ; g[6,6] ; g[7,7] ; g[8,8]
+```
+
+```{r}
+g[9,9] ; g[10,10] ; g[11,11] ; g[12,12] ; g[13,13] ; g[14,14]
+```
+
+# PCA 
+
+```{r, warning=F}
+library(factoextra)
+pca <- PCA(data_complete[1:70,2:19], graph = F)
+pca$eig
+```
+
+```{r}
+var_names <- rownames(pca$var$coord)
+custom_groups <- ifelse(var_names %in% var_names[c(1:5,18)], 
+                        "Élements physico-chimiques", 
+                        "Éléments traces (métalloïdes)")
+
+months <- month(data_complete[1:70, 1])
+pca_df <- data.frame(Month = months, Dim1 = pca$ind$coord[, 1], Dim2 = pca$ind$coord[, 2], Dim3 = pca$ind$coord[ ,3])
+pca_df$Month <- as.factor(pca_df$Month)
+
+years <- year(data_complete[1:70, 1])
+pca_df <- pca_df %>% bind_cols(Year = years)
+pca_df$Year <- as.factor(pca_df$Year)
+
+fviz_pca_var(pca, 
+             axes = c(1,2), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             palette = c("blue", "red"),
+             ggtheme = theme_minimal(),
+             title = "PCA Variables Plot")
+
+fviz_pca_ind(pca,
+             axes = c(1, 2),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = pca_df$Month,
+             addEllipses = FALSE,
+             legend.title = "Month",
+             palette = "nord",
+             title = "PCA Individuals Plot")
+
+fviz_pca_ind(pca,
+             axes = c(1, 2),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = pca_df$Year,
+             addEllipses = FALSE,
+             legend.title = "Year",
+             palette = "nord",
+             title = "PCA Individuals Plot")
+```
+```{r}
+fviz_pca_var(pca, 
+             axes = c(1,3), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             palette = c("blue", "red"),
+             ggtheme = theme_minimal(),
+             title = "PCA Variables Plot")
+
+fviz_pca_ind(pca,
+             axes = c(1,3),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = pca_df$Month,
+             addEllipses = FALSE,
+             legend.title = "Month",
+             palette = "nord",
+             title = "PCA Individuals Plot")
+
+fviz_pca_ind(pca,
+             axes = c(1,3),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = pca_df$Year,
+             addEllipses = FALSE,
+             legend.title = "Year",
+             palette = "nord",
+             title = "PCA Individuals Plot")
+```
+```{r}
+fviz_pca_var(pca, 
+             axes = c(2,3), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             palette = c("blue", "red"),
+             ggtheme = theme_minimal(),
+             title = "PCA Variables Plot")
+
+fviz_pca_ind(pca,
+             axes = c(2,3),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = pca_df$Month,
+             addEllipses = FALSE,
+             legend.title = "Month",
+             palette = "nord",
+             title = "PCA Individuals Plot")
+
+fviz_pca_ind(pca,
+             axes = c(2,3),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = pca_df$Year,
+             addEllipses = FALSE,
+             legend.title = "Year",
+             palette = "nord",
+             title = "PCA Individuals Plot")
+```
+
+
