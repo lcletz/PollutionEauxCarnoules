@@ -29,12 +29,44 @@ data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
 ```
 
 ```{r}
+cowg <- read.table(here('processed','COWG.csv'), dec = c('.'), sep = ";", header = TRUE) %>%
+  mutate_at(2:45, function(x) as.numeric(as.character(gsub(',','.', x))))
+cowg$Dates <- as.Date(cowg$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+recent_cowg <- read.table(here('processed','recent_COWG.csv'), dec = c(',','.'), sep = ";", 
+                          header = TRUE) %>% 
+  mutate_at(2:36, function(x) as.numeric(as.character(gsub(',','.', x))))
+recent_cowg$Dates <- as.Date(recent_cowg$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+na_cowg <- cowg %>%
+  bind_rows(recent_cowg)
+
+na_cowg$Dates <- as.Date(substr(na_cowg$Dates, 1, 10))
+all_months <- seq(
+  from = as.Date(format(min(na_cowg$Dates), "%Y-%m-01")),
+  to   = as.Date(format(max(na_cowg$Dates), "%Y-%m-01")),
+  by = "month"
+)
+all_months_df <- data.frame(Dates = all_months)
+
+na_cowg$MonthDate <- as.Date(format(na_cowg$Dates, "%Y-%m-01"))
+na_cowg <- all_months_df %>%
+  left_join(na_cowg, by = c("Dates" = "MonthDate"))
+
+#na_cowg <- na_cowg %>% select(which(colSums(is.na(na_cowg))<173))
+```
+
+```{r}
 gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
 gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
 gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
 
-data <- gen %>%
-  inner_join(data, by="Dates")
+#data <- gen %>%
+#  inner_join(data, by="Dates")
 ```
 
 ```{r}
@@ -48,11 +80,23 @@ dis2$Dates <- as.Date(dis2$Dates, format="%Y-%m-%d")
 dis3 <- dis %>%
   bind_rows(dis2)
 
-data <- data %>%
-  left_join(dis3) %>% 
-  distinct(Dates, .keep_all = TRUE)
+#data <- data %>%
+#  left_join(dis3) %>% 
+#  distinct(Dates, .keep_all = TRUE)
+```
 
-rm(dis) ; rm(dis2) ; rm(dis3) ; rm(gen)
+```{r}
+na_cowg <- gen %>% 
+  inner_join(na_cowg, by="Dates")
+
+na_cowg <- na_cowg %>%
+  left_join(dis3) %>%
+  distinct(Dates, .keep_all = TRUE)
+```
+
+```{r}
+safe_cowg <- na_cowg[(1:49),-3]
+safe_cowg <- safe_cowg[which(colSums(is.na(safe_cowg))*100/nrow(safe_cowg)<=30)]
 ```
 
 ```{r}
@@ -83,7 +127,8 @@ add_lag <- function(df, nb_lag){
   return(df)
 }
 
-safe_data <- add_lag(safe_data, 1)
+#safe_data <- add_lag(safe_data, 1)
+safe_cowg <- add_lag(safe_cowg, 4)
 ```
 
 ```{r}
@@ -206,6 +251,11 @@ gam_res <- step_GAMMs(new_safe_data)
 ```
 
 ```{r}
+safe_cowg <- safe_cowg[,-c(8:9,11:12,21:37,39:55,57:73,75:91)]
+gam_res <- step_GAMMs(safe_cowg)
+```
+
+```{r}
 impute_GAMMs <- function(df, model){
   
   list_final <- list()
@@ -257,9 +307,9 @@ impute_GAMMs <- function(df, model){
 
 ```{r}
 #ll <- impute_GAMMs(mini_test, l)
-first_impute <- impute_GAMMs(new_safe_data, gam_res)
+#first_impute <- impute_GAMMs(new_safe_data, gam_res)
+first_impute <- impute_GAMMs(safe_cowg, gam_res)
 ```
-
 
 ```{r}
 impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
@@ -319,11 +369,13 @@ impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
 
 ```{r}
 #oh <- impute_iter(ll, l, max_iter = 20)
-data_complete <- impute_iter(first_impute, gam_res, max_iter = 200)
+#data_complete <- impute_iter(first_impute, gam_res, max_iter = 200)
+cowg_co <- impute_iter(first_impute, gam_res, max_iter = 200)
 ```
 
 ```{r}
-write_delim(data_complete, here("processed", "S1_gamm_2004_2008.csv"), delim=";")
+#write_delim(data_complete, here("processed", "S1_gamm_2004_2008.csv"), delim=";")
+write_delim(cowg_co, here("processed", "COWG_gamm_2004_2008.csv"), delim=";")
 ```
 
 ```{r}
@@ -383,9 +435,17 @@ data <- data %>% select( names(data_complete) )
 ```
 
 ```{r}
+#na_cowg <- na_cowg[-211,-c(3,6,12,13,15:21,24:26,28,30:32,35:37,39:42,44:54)]
+na_cowg <- add_lag(na_cowg,4)
+na_cowg <- na_cowg[,-c(17:29,31:43,45:57,59:71)]
+#na_cowg <- na_cowg %>% select( names(cowg_co) )
+```
+
+```{r}
 #test <- data[1:54,]
 #test_co <- impute_byrow(test, data_complete, gam_res)
-data_complete_long <- impute_byrow(data, data_complete, gam_res)
+#data_complete_long <- impute_byrow(data, data_complete, gam_res)
+cowg_co_long <- impute_byrow(na_cowg, cowg_co, gam_res)
 ```
 
 ```{r}
@@ -429,6 +489,54 @@ attempt <- impute_iter(new_impute, gam_res, max_iter = 1000)
 ```{r}
 write_delim(attempt, here('processed', 'S1_gamm_2004_2018.csv'), delim=";")
 ```
+
+
+```{r}
+list_var <- list()
+list_na <- list()
+list_final <- list()
+
+n <- length(cowg_co_long[[2]])
+
+for (col in 3:ncol(na_cowg)) {
+  var <- list()
+
+  for (i in 1:n) {
+    if (names(na_cowg[col]) == cowg_co_long[[2]][[i]]) {
+      var <- c(var, cowg_co_long[[2]][[i + 1]])
+    }
+  }
+
+  var <- unlist(var)
+  list_na <- append(list_na, list(var))
+  list_var <- append(list_var, list(names(na_cowg[col])))
+  list_final <- append(list_final, list(list_var, list_na))
+}
+
+#list_final <- c( list_final[[49]][1:16], list_final[[50]][1:16] )
+```
+
+```{r}
+list_final <- c( list_final[[33]][1:13], list_final[[34]][1:13] )
+
+new_order <- as.vector(rbind(1:16, 17:32))
+reordered_list <- list_final[new_order]
+
+new_impute <- list(cowg_co_long[[1]], reordered_list)
+
+new_impute[[2]] <- lapply( seq_along(new_impute[[2]]), function(i) list( new_impute[[2]][[i]] ) )
+```
+
+```{r}
+attempt <- impute_iter(new_impute, gam_res, max_iter = 1000)
+```
+
+```{r}
+write_delim(attempt, here('processed', 'COWG_gamm_2004_2018.csv'), delim=";")
+```
+
+
+
 
 
 
