@@ -18,6 +18,8 @@ here::i_am("R/new_md_imputation.Rmd")
 library(here)
 ```
 
+# imputeTS
+
 ```{r}
 cowg <- read.table(here('processed','COWG_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
   mutate_at(2:27, function(x) as.numeric(as.character(gsub(',','.', x))))
@@ -51,3 +53,144 @@ colnames(eval) <- names(S1)
 summary(eval)
 ```
 The station's datas aren't quite corresponding. We could use the median or the mean as a linear coefficient but that would be biased...
+
+# GAMM
+
+```{r}
+cowg <- read.table(here('processed','COWG_gamm_2004_2018.csv'), dec = '.' , sep = ";", header = TRUE)
+cowg$Dates <- as.Date(cowg$Dates, format="%Y-%m-%d")
+cowg <- cowg[-27]
+```
+
+```{r}
+S1 <- read.table(here('processed','S1_gamm_2004_2018.csv'), dec = '.' , sep = ";", header = TRUE)
+S1$Dates <- as.Date(S1$Dates, format="%Y-%m-%d")
+```
+
+```{r}
+cowg <- cowg[(1:164),-(17:19)]
+S1 <- S1 %>% select( names(cowg) )
+```
+
+```{r}
+eval <- data.frame(cowg$Dates)
+
+for(i in 2:16){
+  col <- S1[[i]] / cowg[[i]]
+  eval <- eval %>% bind_cols(col)
+}
+colnames(eval) <- names(S1)
+```
+
+```{r}
+summary(eval)
+```
+
+Wilcoxon Signed-Rank Test on Temperature:
+```{r}
+wilcox.test(diff(S1$Temperature), diff(cowg$Temperature), paired=T)
+```
+We reject the null hypothesis that both samples are identical if the p-value is under 0.05, thus they're identical.
+
+Wilcoxon Signed-Rank Test on pH:
+```{r}
+wilcox.test(diff(S1$pH), diff(cowg$pH), paired=T)
+```
+Identical.
+
+Wilcoxon Signed-Rank Test on O2:
+```{r}
+wilcox.test(diff(S1$O2), diff(cowg$O2), paired=T)
+```
+Identical.
+
+Wilcoxon Signed-Rank Test on Plomb:
+```{r}
+wilcox.test(diff(S1$Plomb), diff(cowg$Plomb), paired=T)
+```
+Identical.
+
+Wilcoxon Signed-Rank Test on Aluminium:
+```{r}
+wilcox.test(S1$Aluminium, cowg$Aluminium, paired=T)
+```
+Identical.
+
+Wilcoxon Signed-Rank Test on Arsenic_Total:
+```{r}
+wilcox.test(diff(S1$Arsenic_Total), diff(cowg$Arsenic_Total), paired=T)
+```
+Identical.
+
+Wilcoxon Signed-Rank Test on Zinc:
+```{r}
+wilcox.test(diff(S1$Zinc), diff(cowg$Zinc), paired=T)
+```
+
+Let's try another test just in case. 
+
+Are our datasets normally distributed with similar variances?
+```{r}
+var(cowg$Temperature) ; var(S1$Temperature)
+var(cowg$Arsenic_Total) ; var(S1$Arsenic_Total)
+```
+The variances are not close. 
+
+In the Wilk-Shapiro test, if the p-value is under 0.05, then we reject the null hypothesis that the data are normally distributed.
+```{r}
+shapiro.test(diff(cowg$Temperature - S1$Temperature))
+shapiro.test(diff(cowg$pH - S1$pH))
+shapiro.test(diff(cowg$O2 - S1$O2))
+shapiro.test(diff(cowg$Arsenic_Total - S1$Arsenic_Total))
+shapiro.test(diff(cowg$Plomb - S1$Plomb))
+shapiro.test(diff(cowg$Zinc - S1$Zinc))
+```
+The differences are not normally distributed.
+
+```{r}
+summary(lm(Temperature.y ~ Temperature.x, data = data))
+```
+```{r}
+summary(lm(pH.y ~ pH.x, data = data))
+```
+```{r}
+summary(lm(O2.y ~ O2.x, data = data))
+```
+
+```{r}
+summary(lm(Plomb.y ~ Plomb.x, data = data))
+```
+```{r}
+summary(lm(Aluminium.y ~ Aluminium.x, data = data))
+```
+```{r}
+summary(lm(Arsenic_Total.y ~ Arsenic_Total.x, data = data))
+```
+
+```{r}
+summary(lm(Sulfate.y ~ Sulfate.x, data = data))
+```
+
+```{r}
+summary(lm(Thallium.y ~ Thallium.x, data = data))
+```
+
+```{r}
+summary(lm(Zinc.y ~ Zinc.x, data = data))
+```
+
+```{r}
+summary(lm(Cadmium.y ~ Cadmium.x, data = data))
+```
+
+```{r}
+summary(lm(Cobalt.y ~ Cobalt.x, data = data))
+```
+
+```{r}
+summary(lm(Cuivre.y ~ Cuivre.x, data = data))
+```
+
+```{r}
+summary(lm(Ion_Ferreux.y ~ Ion_Ferreux.x, data = data))
+```
