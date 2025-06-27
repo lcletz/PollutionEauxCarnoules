@@ -13,195 +13,131 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(lubridate)
 library(data.table)
+library(tibble)
+here::i_am("Data_Processing/rainfall_datas_processing.Rmd")
 library(here)
 ```
 
-# Générargues
-
-These are rainfall datas from January 1st of 2003 to July 29th of 2010:
 ```{r}
 gen <- read.table(here('processed','Generargues.csv'), dec = ',', sep = ";", header = TRUE)[1:2]
-```
-
-```{r}
-gen <- gen %>%
-  mutate(
-    month = month(as.POSIXlt(Date.Heure, format="%m/%d/%y")), 
-    year = year(as.POSIXlt(Date.Heure, format="%m/%d/%y"))
-  ) 
-gen <- data.table(gen)
 gen$Date.Heure <- as.Date(gen$Date.Heure, format="%m/%d/%y")
-```
 
-```{r}
 index <- grep('---', gen$Pluviometrie.1h..mm.)
 gen$Pluviometrie.1h..mm. <- replace(gen$Pluviometrie.1h..mm., index, '0')
+gen$Pluviometrie.1h..mm. <- as.numeric(
+  lapply( gen$Pluviometrie.1h..mm., function(x) gsub(",",".",x) )
+  )
 
-write_delim(gen, here('processed',"Generargues_v2.csv"), delim = ";")
+gen <- gen %>% rename(Dates = Date.Heure) %>% rename(Rainfall = Pluviometrie.1h..mm.)
 ```
 
 ```{r}
-all_months <- seq(
-  from = as.Date(format(min(gen$Date.Heure), "%Y-%m-01")),
-  to   = as.Date(format(max(gen$Date.Heure), "%Y-%m-01")),
-  by = "month"
-)
-all_months_df <- data.frame(Dates = all_months)
-
-gen2 <- read.table(here('processed','Generargues_v2.csv'), dec = c(',') , sep = ";", header = TRUE)
-
-gen2$MonthDate <- as.Date(format(gen$Date.Heure, "%Y-%m-01"))
-gen2 <- all_months_df %>%
-  left_join(gen2, by = c("Dates" = "MonthDate"))
-
-gen_sum <- gen2 %>%
-  group_by(month, year) %>%
-  summarise(monthly_rainfall = sum(Pluviometrie.1h..mm.))
-
-gen2 <- gen2 %>% 
-  left_join(gen_sum) %>%
-  select(-c(Date.Heure, Pluviometrie.1h..mm., month, year)) %>%
-  distinct()
-
-write_delim(gen2, here("processed","Generargues_2003_2010.csv"), delim = ";")
-```
-
-```{r}
-gen_rec <- read.table(here('raw_data', 'Pluie generargues', '2010-2019-Tableau 1.csv'),
+gen2 <- read.table(here('raw_data', 'Pluie generargues', '2010-2019-Tableau 1.csv'),
                      dec = ',', sep = ";", header = TRUE)[c(10,12)]
-
-gen_rec <- gen_rec %>%
-  mutate(
-    X.3 = as.Date(X.3, format = "%m/%d/%y"),
-    month = month(X.3), 
-    year = year(X.3),
-    MonthDate = as.Date(format(X.3, "%Y-%m-01"))
-  )
-
-all_months_df <- data.frame(
-  MonthDate = seq(
-    from = as.Date(format(min(gen_rec$MonthDate), "%Y-%m-01")),
-    to = as.Date(format(max(gen_rec$MonthDate), "%Y-%m-01")),
-    by = "month"
-  )
-)
-
-gen_rec <- all_months_df %>%
-  left_join(gen_rec, by = "MonthDate")
-
-gen_sum <- gen_rec %>%
-  group_by(MonthDate, month, year) %>%
-  summarise(monthly_rainfall = sum(RR1, na.rm = TRUE), .groups = "drop")
-
-gen_rec <- gen_rec %>% 
-  left_join(gen_sum, by = c("MonthDate", "month", "year")) %>%
-  select(-c(X.3, RR1, month, year)) %>%
-  distinct()
-
-write_delim(gen_rec, here("processed","Generargues_2010_2019.csv"), delim = ";")
+gen2$X.3 <- as.Date(gen2$X.3, format="%m/%d/%y")
+gen2 <- gen2 %>% rename(Dates = X.3) %>% rename(Rainfall = RR1)
 ```
 
 ```{r}
-gen_rec <- read.table(here('raw_data', 'Pluie generargues', '2020-2023-Tableau 1.csv'),
+gen3 <- read.table(here('raw_data', 'Pluie generargues', '2020-2023-Tableau 1.csv'),
                      dec = ',', sep = ";", header = TRUE)[c(10,12)]
-
-gen_rec <- gen_rec %>%
-  mutate(
-    Date = as.Date(Date, format = "%m/%d/%y"),
-    month = month(Date), 
-    year = year(Date),
-    MonthDate = as.Date(format(Date, "%Y-%m-01"))
-  )
-
-all_months_df <- data.frame(
-  MonthDate = seq(
-    from = as.Date(format(min(gen_rec$MonthDate), "%Y-%m-01")),
-    to = as.Date(format(max(gen_rec$MonthDate), "%Y-%m-01")),
-    by = "month"
-  )
-)
-
-gen_rec <- all_months_df %>%
-  left_join(gen_rec, by = "MonthDate")
-
-gen_sum <- gen_rec %>%
-  group_by(MonthDate, month, year) %>%
-  summarise(monthly_rainfall = sum(RR1, na.rm = TRUE), .groups = "drop")
-
-gen_rec <- gen_rec %>% 
-  left_join(gen_sum, by = c("MonthDate", "month", "year")) %>%
-  select(-c(Date, RR1, month, year)) %>%
-  distinct()
-
-write_delim(gen_rec, here("processed","Generargues_2020_2023.csv"), delim = ";")
+gen3$Date <- as.Date(gen3$Date, format="%m/%d/%y")
+gen3 <- gen3 %>% rename(Dates = Date) %>% rename(Rainfall = RR1)
 ```
 
 ```{r}
-gen1 <- read.table(here('processed','Generargues_2003_2010.csv'),
-                     dec = ',', sep = ";", header = TRUE)
-gen2 <- read.table(here('processed','Generargues_2010_2019.csv'),
-                     dec = ',', sep = ";", header = TRUE)
-gen3 <- read.table(here('processed','Generargues_2020_2023.csv'),
-                     dec = ',', sep = ";", header = TRUE)
-gen1 <- gen1[-(85:91),]
+gen <- gen %>% bind_rows(gen2) %>% bind_rows(gen3)
 
-colnames(gen2) <- colnames(gen1)
-colnames(gen3) <- colnames(gen1)
+all_days <- unique(seq(
+  from = as.Date(format(min(gen$Dates), "%Y-%m-%d")),
+  to   = as.Date(format(max(gen$Dates), "%Y-%m-%d")),
+  by = "day"
+))
+all_days_df <- data.frame(Dates = all_days)
 
-gen <- gen1 %>% bind_rows(gen2) %>% bind_rows(gen3)
+gen <- all_days_df %>%
+  left_join(gen) %>% distinct()
+
+gen <- gen %>%
+  group_by(Dates) %>%
+  summarise(Rainfall = sum(Rainfall, na.rm = TRUE))
 
 write_delim(gen, here("processed","Generargues_complete.csv"), delim = ";")
 ```
 
-# Anduze
 
-These are rainfall datas from January 1st of 2004 to April 30th of 2025:
 ```{r}
-and <- read.table('Pluvio-Anduze.csv', dec = c(',','.'), sep = ";", header = TRUE)[1:2]
+S1 <- read.table(here("processed","Source_S1.csv"), dec=".", sep=";", header=T) 
+S1$Dates <- as.Date(S1$Dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
-and <- and %>%
-  mutate(
-    month = month(as.POSIXlt(Date..TU., format="%Y-%m-%d")), 
-    year = year(as.POSIXlt(Date..TU., format="%Y-%m-%d"))
-  ) 
-and <- data.table(and)
-and$Date..TU. <- as.Date(and$Date..TU., format="%Y-%m-%d")
+S5 <- read.table(here("processed","S5.csv"), dec=".", sep=";", header=T) 
+S5$Dates <- as.Date(S5$Dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
-all_months <- seq(
-  from = as.Date(format(min(and$Date..TU.), "%Y-%m-01")),
-  to   = as.Date(format(max(and$Date..TU.), "%Y-%m-01")),
-  by = "month"
-)
-all_months_df <- data.frame(Dates = all_months)
-
-and$MonthDate <- as.Date(format(and$Date..TU., "%Y-%m-01"))
-and <- all_months_df %>%
-  left_join(and, by = c("Dates" = "MonthDate"))
-
-and_sum <- and %>%
-  group_by(month, year) %>%
-  summarise(monthly_rainfall = sum(Valeur..en.mm.))
-
-and2 <- and %>% 
-  left_join(and_sum) %>%
-  select(-c(Date..TU., Valeur..en.mm., month, year)) %>%
-  distinct()
-
-write_delim(and2, "Anduze_v2.csv")
+COWG <- read.table(here("processed","COWG.csv"), dec=".", sep=";", header=T) 
+COWG$Dates <- as.Date(COWG$Dates, format = "%Y-%m-%d")
 ```
-
-# Comparison
 
 ```{r}
-comp <- gen2 %>%
-  inner_join(and2, join_by("Dates")) %>%
-  mutate(
-    close = as.logical(monthly_rainfall.x -5 <= monthly_rainfall.y & monthly_rainfall.y <= monthly_rainfall.x +5)
-  ) 
-comp %>% count(close)
+GAL <- read.table(here("processed","GAL.csv"), dec=".", sep=";", header=T) 
+GAL$Dates <- as.Date(GAL$Dates, format = "%Y-%m-%d")
 ```
-The datas are really different...
+
+```{r}
+Confluence <- read.table(here("processed","Confluence.csv"), dec=".", sep=";", header=T)
+Confluence$Dates <- as.Date(Confluence$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+Amous <- read.table(here("processed","Amous_1200.csv"), dec=".", sep=";", header=T)
+Amous$Dates <- as.Date(Amous$Dates, format = "%Y-%m-%d")
+```
+
+
+```{r}
+rainfall_processing <- function(df, rain_df){
+  
+  df$Rainfall <- rep(NA, nrow(df))
+  df$Rainfall_lag_1 <- rep(NA, nrow(df))
+  
+  df <- df %>% relocate(Rainfall, .after = Dates)
+  df <- df %>% relocate(Rainfall_lag_1, .after = Rainfall)
+  
+  for(row in 1:nrow(df)){
+    
+    if( is.na(df$Dates[row]) ){
+      get_date <- df$Corrected_Dates[row]
+    } else {
+      get_date <- df$Dates[row]
+    }
+    
+    index_rain <- which(rain_df$Dates == get_date)
+    
+    df$Rainfall[row] <- sum(rain_df$Rainfall[ index_rain:(index_rain - 30) ], na.rm = TRUE)
+    df$Rainfall_lag_1[row] <- sum(rain_df$Rainfall[ (index_rain - 30):(index_rain - 60) ], na.rm = TRUE)
+  }
+  
+  return(df)
+}
+```
+
+```{r}
+S1 <- rainfall_processing(S1, gen)
+S5 <- rainfall_processing(S5, gen)
+COWG <- rainfall_processing(COWG, gen)
+GAL <- rainfall_processing(GAL, gen)
+Confluence <- rainfall_processing(Confluence, gen)
+Amous <- rainfall_processing(Amous, gen)
+```
+
+```{r}
+write_delim(S1, here("processed","Source_S1.csv"), delim=";")
+write_delim(S5, here("processed","S5.csv"), delim=";")
+write_delim(COWG, here("processed","COWG.csv"), delim=";")
+write_delim(GAL, here("processed","GAL.csv"), delim=";")
+write_delim(Confluence, here("processed","Confluence.csv"), delim=";")
+write_delim(Amous, here("processed","Amous_1200.csv"), delim=";")
+```
