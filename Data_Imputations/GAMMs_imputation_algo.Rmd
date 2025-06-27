@@ -18,196 +18,156 @@ library(mgcv)
 library(tibble)
 library(tidyselect)
 library(gam)
-here::i_am("R/GAMMS_imputation_algo.Rmd")
+library(nlme)
+here::i_am("Data_Imputations/GAMMS_imputation_algo.Rmd")
 library(here)
 ```
 
 ```{r, warning=FALSE}
-data <- read.table(here('processed','Source_S1_v2.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
-  mutate_at(2:45, function(x) as.numeric(as.character(gsub(',','.', x))))
-data$Dates <- as.Date(data$Dates, format="%Y-%m-%d")
+S1 <- read.table(here('processed','Source_S1.csv'), dec = '.', sep = ";", header = T) 
+S1$Dates <- as.Date(S1$Dates, format="%Y-%m-%d")
+S1$Corrected_Dates <- as.Date(S1$Corrected_Dates, format="%Y-%m-%d")
+```
+
+```{r, warning=FALSE}
+COWG <- read.table(here('processed','COWG.csv'), dec = '.', sep = ";", header = T) 
+COWG$Dates <- as.Date(COWG$Dates, format="%Y-%m-%d")
+COWG$Corrected_Dates <- as.Date(COWG$Corrected_Dates, format="%Y-%m-%d")
 ```
 
 ```{r}
-cowg <- read.table(here('processed','COWG.csv'), dec = c('.'), sep = ";", header = TRUE) %>%
-  mutate_at(2:45, function(x) as.numeric(as.character(gsub(',','.', x))))
-cowg$Dates <- as.Date(cowg$Dates, format="%Y-%m-%d")
+S1$Numeric_Dates <- as.numeric(S1$Corrected_Dates)
+S1 <- S1 %>% relocate(Numeric_Dates, .before = Temperature)
+
+COWG$Numeric_Dates <- as.numeric(COWG$Corrected_Dates)
+COWG <- COWG %>% relocate(Numeric_Dates, .before = Temperature)
 ```
 
 ```{r}
-recent_cowg <- read.table(here('processed','recent_COWG.csv'), dec = c(',','.'), sep = ";", 
-                          header = TRUE) %>% 
-  mutate_at(2:36, function(x) as.numeric(as.character(gsub(',','.', x))))
-recent_cowg$Dates <- as.Date(recent_cowg$Dates, format="%Y-%m-%d")
+safe_s1 <- S1[(1:86),]
+safe_s1 <- safe_s1[which(colSums(is.na(safe_s1))*100/nrow(safe_s1)<=30)]
 ```
 
 ```{r}
-na_cowg <- cowg %>%
-  bind_rows(recent_cowg)
-
-na_cowg$Dates <- as.Date(substr(na_cowg$Dates, 1, 10))
-all_months <- seq(
-  from = as.Date(format(min(na_cowg$Dates), "%Y-%m-01")),
-  to   = as.Date(format(max(na_cowg$Dates), "%Y-%m-01")),
-  by = "month"
-)
-all_months_df <- data.frame(Dates = all_months)
-
-na_cowg$MonthDate <- as.Date(format(na_cowg$Dates, "%Y-%m-01"))
-na_cowg <- all_months_df %>%
-  left_join(na_cowg, by = c("Dates" = "MonthDate"))
-
-#na_cowg <- na_cowg %>% select(which(colSums(is.na(na_cowg))<173))
+safe_cowg <- COWG[(1:86),]
+safe_cowg <- safe_cowg[which(colSums(is.na(safe_cowg))*100/nrow(safe_cowg)<=35)]
 ```
 
 ```{r}
-gen <- read.table(here('processed','Generargues_complete.csv'), dec = ',', sep = ";", header = TRUE) 
-gen$Dates <- as.Date(gen$Dates, format="%Y-%m-%d")
-gen$monthly_rainfall <- as.numeric(gen$monthly_rainfall)
-
-#data <- gen %>%
-#  inner_join(data, by="Dates")
-```
-
-```{r}
-dis <- read.table(here('processed','S1_discharge.csv'), dec = c(',','.'), sep = ";", header = TRUE)
-dis$Dates <- as.Date(dis$Dates, format="%Y-%m-%d")
-dis$monthly_discharge <- as.numeric(dis$monthly_discharge)
-
-dis2 <- read.table(here('processed','discharge_ESU.csv'), dec = c(',','.'), sep = ";", header = TRUE)
-dis2$Dates <- as.Date(dis2$Dates, format="%Y-%m-%d")
-
-dis3 <- dis %>%
-  bind_rows(dis2)
-
-#data <- data %>%
-#  left_join(dis3) %>% 
-#  distinct(Dates, .keep_all = TRUE)
-```
-
-```{r}
-na_cowg <- gen %>% 
-  inner_join(na_cowg, by="Dates")
-
-na_cowg <- na_cowg %>%
-  left_join(dis3) %>%
-  distinct(Dates, .keep_all = TRUE)
-```
-
-```{r}
-safe_cowg <- na_cowg[(1:49),-3]
-safe_cowg <- safe_cowg[which(colSums(is.na(safe_cowg))*100/nrow(safe_cowg)<=30)]
-```
-
-```{r}
-safe_data <- data[(1:49),]
-safe_data <- safe_data[which(colSums(is.na(safe_data))*100/nrow(safe_data)<=15)]
-```
-
-```{r}
-add_lag <- function(df, nb_lag){
+factor_processing <- function(df){
+  method_groups <- list()
   
-  init_df <- df
-  
-  for(i in 1:nb_lag){
+    for (main_var in names(df)) {
     
-    for(col in 2:ncol(init_df)){
+      method_cols <- grep(paste0("^", main_var, "_[[:alnum:]]"), names(df), value = TRUE)
+    
+      if (length(method_cols) > 1 && main_var %in% names(df)) {
       
-      new_col <- df[[col]]
-      new_col <- new_col[ 1:(length(new_col)-i) ]
-      new_col <- c( rep(as.numeric(NA), i), new_col)
+       method_label <- apply(df[, method_cols], 1, function(row) {
+         if (sum(row, na.rm = TRUE) != 1) return(NA)
+         return(gsub(paste0("^", main_var, "_"), "", method_cols[which(row == 1)]))
+       })
+        
+       df[[paste0(main_var, "_method")]] <- factor(method_label)
       
-      name_col <- paste0( names(df[col]), "_lag_", i )
-      df <- df %>%
-        bind_cols( new_col )
-      colnames( df )[ncol(df)] <- name_col
-    }
+       method_groups[[main_var]] <- method_cols
+     }
   }
+
+  # Remove the binary method indicators
+    for (cols in method_groups) {
+     df <- df[, !names(df) %in% cols]
+    }
   
   return(df)
 }
-
-#safe_data <- add_lag(safe_data, 1)
-safe_cowg <- add_lag(safe_cowg, 4)
 ```
 
 ```{r}
-step_GAMMs <- function(df){
+safe_s1 <- factor_processing(safe_s1)
+safe_cowg <- factor_processing(safe_cowg)
+```
+
+
+```{r}
+step_GAMMs <- function(df) {
   
   list_final <- list()
   control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
                         niterEM = 50, opt = "optim")
-  
-  lag_index <- grep("lag", names(df))
-  
-  
-  for(resp in 2:ncol( df[-lag_index] )){
+
+  ## Stepwise GAMM fitting
+  for (resp in 6:ncol(df)) { # Assuming first 4 columns are Dates, Rainfall, etc.
+    
+     if (is.factor(df[[resp]])) {
+      cat("\nSkipping factor response variable:", names(df[resp]), "\n")
+      next
+     }
+    
     cat('\nVariable:', names(df[resp]), '\n')
     
     best_bic <- Inf
+    response_var <- names(df[resp])
     
-    lag_resp <- grep( names(df[resp]), names(df) )
-    
-    
-    formula <- paste0( names(df[resp]), '~')
-    # Formula including every available variable:
-    for(name in 2:ncol(df)){
-      if( !(name %in% lag_resp) ){
-        formula <- paste0( formula, "s(", names( df[name] ), ", k=4, bs='re') +" )
+    # Initial formula: random effects on all other variables
+    formula <- paste0(response_var, ' ~ ')
+    for (name in 3:ncol(df)) {
+      if (name != resp) {
+        formula <- paste0(formula, "s(", names(df)[name], ", bs='re') + ")
       }
     }
-    formula <- formula(gsub('.{1}$', '', formula))
+    formula <- formula(gsub('.{3}$', '', formula))
     cat('\nFormula:', as.character(formula), '\n')
-      
-    
-    # Initialization of best model with all predictors
+
+    # Try initial model with ARMA correlation
     best_model <- try(gamm(formula, data = df, 
-                    correlation = corARMA(form = ~1, p=1, q=1), 
-                    family = gaussian(), control = control, na.action = na.omit),
-                    silent = TRUE)
-    if (inherits(best_model, "try-error")) {
+                   correlation = corARMA(form = ~1, p=1, q=1), 
+                   family = gaussian(), control = control, na.action = na.omit),
+                   silent = TRUE)
+     if (inherits(best_model, "try-error")) {
         best_model <- try(gamm(formula, data = df, 
-                        correlation = corARMA(form = ~1, p=1), 
-                        family = gaussian(), control = control, na.action = na.omit),
-                        silent = TRUE)
-      if (inherits(best_model, "try-error")) {
+                     correlation = corARMA(form = ~1, p=1), 
+                     family = gaussian(), control = control, na.action = na.omit),
+                     silent = TRUE)
+       if (inherits(best_model, "try-error")) {
           best_model <- try(gamm(formula, data = df, 
-                            correlation = corARMA(form = ~1, q=1), 
-                            family = gaussian(), control = control, na.action = na.omit),
-                            silent = TRUE)
+                       correlation = corARMA(form = ~1, q=1), 
+                       family = gaussian(), control = control, na.action = na.omit),
+                       silent = TRUE)
        }
      }
-    
+
     current_bic <- BIC(best_model$lme)
-    
     worst_pred <- list()
-    
-    
-    
-    while(current_bic <= best_bic){
+
+    while (current_bic <= best_bic) {
       
       fit <- summary(best_model$gam)
-      fit <- rownames_to_column( data.frame(fit$s.table) )
-      fit[1] <- lapply(fit[1], function(x) gsub("^.{2}|.{1}$", "", x))
+      fit <- rownames_to_column(data.frame(fit$s.table), var = "term")
+      fit$term <- gsub("^.{2}|.{1}$", "", fit$term)
+
+      minus_pred <- fit$term[which.max(fit$p.value)]
+      worst_pred <- append(worst_pred, minus_pred)
+
       
-      minus_pred <- fit$rowname[ which(fit$p.value == max(fit$p.value)) ]    # New worst predictor
-      worst_pred <- append(worst_pred, minus_pred)      # List of worst predictors
-            
-      # Formula including every available variable but the worst predictors:
-      formula <- paste0( names(df[resp]), '~')
-      for(name in 2:ncol(df)){
-        if( name != resp & !(names(df[name]) %in% worst_pred) ){
-           formula <- paste0( formula, "s(", names( df[name] ), ", k=4, bs='re') +" )
+      formula <- paste0(response_var, ' ~ ')
+      for (name in 3:ncol(df)) {
+        
+        var_name <- names(df)[name]
+        
+        if (name != resp && !(var_name %in% worst_pred)) {
+          formula <- paste0(formula, "s(", var_name, ", bs='re') + ")
         }
       }
-      formula <- formula(gsub('.{1}$', '', formula))
+      
+      formula <- formula(gsub('.{3}$', '', formula))
       cat('\nNew formula:', as.character(formula), '\n')
-       
-      if ( length(worst_pred) > length(df)-5 ) { # length(df) - Dates - Response - 3 predictors
+      
+      if (length(worst_pred) > (ncol(df) - 5)) {
         cat('\nThis formula is too small! \n')
         break
-      } 
-      
+      }
+
       model <- try(gamm(formula, data = df, 
                    correlation = corARMA(form = ~1, p=1, q=1), 
                    family = gaussian(), control = control, na.action = na.omit),
@@ -222,93 +182,100 @@ step_GAMMs <- function(df){
                        correlation = corARMA(form = ~1, q=1), 
                        family = gaussian(), control = control, na.action = na.omit),
                        silent = TRUE)
-        }
+       }
      }
-      
+
       current_bic <- BIC(model$lme)
-  
-      if (current_bic < best_bic) {
-          best_bic <- current_bic
-          best_model <- model
-          current_bic <- current_bic - 1
-          cat('\nA better model has been chosen! \n')
-      }
       
+      if (current_bic < best_bic) {
+        best_bic <- current_bic
+        best_model <- model
+        current_bic <- current_bic - 1 
+        cat('\nA better model has been chosen! \n')
+      }
     }
-    list_model <- list(names(df[resp]), best_model)
+
+    list_model <- list(response_var, best_model)
     list_final <- c(list_final, list(list_model))
   }
+
   return(list_final)
 }
 ```
 
 ```{r}
-#mini_test <- safe_data[c(1:9,32)]
-#l <- step_GAMMs(mini_test)
-new_safe_data <- safe_data[c(1:9, 12, 15:26, 28, 30, 33, 38, 39)]
-gam_res <- step_GAMMs(new_safe_data)
-#gam_res <- step_GAMMs(safe_data)
+safe_s1 <- safe_s1[c(1:9, 11, 14, 16, 18, 20, 22, 24:27, 29:30, 32, 35)]
+gam_res <- step_GAMMs(safe_s1)
 ```
 
 ```{r}
-safe_cowg <- safe_cowg[,-c(8:9,11:12,21:37,39:55,57:73,75:91)]
-gam_res <- step_GAMMs(safe_cowg)
+safe_cowg <- safe_cowg[c(1:9, 11, 14, 16, 18, 20, 22, 24:27, 29:30, 32, 35)]
+gam_res2 <- step_GAMMs(safe_cowg)
 ```
 
 ```{r}
 impute_GAMMs <- function(df, model){
   
   list_final <- list()
-  lag_index <- grep("lag", names(df))
+  method_index <- grep("method", names(df))
   
-  # Check if there is any columns without NAs where we need to impute values
-  for(resp in 2:ncol( df[-lag_index] )){ # 2 since the first column is supposed to be Dates
+  for(resp in 6:ncol(df[-method_index])){  # Skip Dates, Rainfall, and method cols
     list_na <- list()
     list_resp <- list()
     
-    index_with_na <- which(is.na(df[resp]))
+    index_with_na <- which(is.na(df[[resp]]))
     
-    if(length(index_with_na) == 0) {
-      next
-    } 
+    if(length(index_with_na) == 0) next
     
-    else {
-      cat("\nImputation of variable", names(df[resp]))
-      
-      newdf <- df[index_with_na,]
-      
-      for (col in names(newdf)) {
-        if( any( is.na( newdf[[col]] ) ) ){
-          newdf[ is.na( newdf[[col]] ), col ] <- mean( df[[col]], na.rm = TRUE)
-        }  
+    cat("\nImputation of variable", names(df)[resp])
+    
+    newdf <- df[index_with_na, , drop = FALSE]
+    
+    
+    for(col in names(newdf)){
+      if(is.numeric(newdf[[col]])){
+        newdf[[col]][is.na(newdf[[col]])] <- mean(df[[col]], na.rm = TRUE)
       }
-        
-      list_na <- append( list_na, list(index_with_na) )
-      list_resp <- append( list_resp, names(df[resp]) )
-      list_final <- append( list_final, list(list_resp, list_na) )
+    }
+    
+    
+    method_cols <- grep("_method$", names(newdf), value = TRUE)
+    for(mc in method_cols){
+      newdf[[mc]] <- factor(newdf[[mc]], levels = levels(df[[mc]]))
       
-      index <- 1
-      while( names(df[resp]) != model[[index]][[1]] ){
-        index <- index + 1
+      if(any(is.na(newdf[[mc]]))){
+        levels(newdf[[mc]]) <- c(levels(newdf[[mc]]), "missing")
+        newdf[[mc]][is.na(newdf[[mc]])] <- "missing"
       }
-      
-      formula <- model[[index]][[2]]$gam$formula
-      cat(' using formula:', as.character(formula), '\n')
-      
-      gamm <- model[[index]][[2]]$gam
+    }
+    
+    list_na <- append(list_na, list(index_with_na))
+    list_resp <- append(list_resp, names(df)[resp])
+    list_final <- append(list_final, list(list_resp, list_na))
+    
+    
+    index <- 1
+    while(names(df)[resp] != model[[index]][[1]]){
+      index <- index + 1
+      if(index > length(model)) stop("Model for response variable not found")
+    }
+    
+    formula <- model[[index]][[2]]$gam$formula
+    cat(' using formula:', as.character(formula), '\n')
+    
+    gamm <- model[[index]][[2]]$gam
     
     # Predict the NAs
-      df[[resp]][index_with_na] <- predict.gam(gamm, newdf, na.action = na.exclude)
-    }
+    df[[resp]][index_with_na] <- predict.gam(gamm, newdf, na.action = na.exclude)
   }
-  return( list(df, list_final) )
+  return(list(df, list_final))
 }
+
 ```
 
 ```{r}
-#ll <- impute_GAMMs(mini_test, l)
-#first_impute <- impute_GAMMs(new_safe_data, gam_res)
-first_impute <- impute_GAMMs(safe_cowg, gam_res)
+res_impute <- impute_GAMMs(safe_s1, gam_res)
+res_impute2 <- impute_GAMMs(safe_cowg, gam_res2)
 ```
 
 ```{r}
@@ -316,15 +283,14 @@ impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
 
   df <- imputed[[1]]
   df_old <- df
-  lag_index <- grep("lag", names(df))
+  method_index <- grep("method", names(df))
 
   
   for (iter in 1:max_iter) {
     cat("\nIteration", iter, "\n")
 
-    for (resp in 3:ncol(df[-lag_index])) {
+    for (resp in 6:ncol(df[-method_index])) {
 
-      
       names_index <- 1
       while (names(df[resp]) != imputed[[2]][[names_index]]) {
         names_index <- names_index + 1
@@ -332,15 +298,23 @@ impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
       
       index_with_na <- unlist(imputed[[2]][[names_index + 1]])
 
-      #cat("Imputing variable:", names(df[resp]), "at indices:", index_with_na, "\n")
-      newdf <- df[index_with_na, ]
+      newdf <- df[index_with_na, , drop = FALSE]
       
       for (col in names(newdf)) {
-        if( any( is.na( newdf[[col]] ) ) ){
-          newdf[ is.na( newdf[[col]] ), col ] <- mean( df[[col]], na.rm = TRUE)
-        }  
+        if (is.numeric(newdf[[col]])) {
+          newdf[[col]][is.na(newdf[[col]])] <- mean(df[[col]], na.rm = TRUE)
+        }
       }
       
+      method_cols <- grep("_method$", names(newdf), value = TRUE)
+      for (mc in method_cols) {
+        newdf[[mc]] <- factor(newdf[[mc]], levels = levels(df[[mc]]))
+        
+        if(any(is.na(newdf[[mc]]))) {
+          levels(newdf[[mc]]) <- c(levels(newdf[[mc]]), "missing")
+          newdf[[mc]][is.na(newdf[[mc]])] <- "missing"
+        }
+      }
       
       gam_index <- 1
       while (names(df[resp]) != model[[gam_index]][[1]]) {
@@ -351,7 +325,7 @@ impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
       df[[resp]][index_with_na] <- predict.gam(gamm, newdf, na.action = na.exclude)
     }
     
-    threshold <- sum(( df_old[-c(1,lag_index)] - df[-c(1,lag_index)] )^2, na.rm = TRUE)
+    threshold <- sum(( df_old[-c(1:2, method_index)] - df[-c(1:2, method_index)] )^2, na.rm = TRUE)
     cat("\nPrecision reached:", threshold, "but tolerance's threshold is:", tol, "\n")
     
     if ( threshold < tol) {
@@ -364,18 +338,16 @@ impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
 
   return(df)
 }
-
 ```
 
 ```{r}
-#oh <- impute_iter(ll, l, max_iter = 20)
-#data_complete <- impute_iter(first_impute, gam_res, max_iter = 200)
-cowg_co <- impute_iter(first_impute, gam_res, max_iter = 200)
+S1_complete <- impute_iter(res_impute, gam_res, max_iter = 200)
+COWG_complete <- impute_iter(res_impute2, gam_res2, max_iter = 200)
 ```
 
 ```{r}
-#write_delim(data_complete, here("processed", "S1_gamm_2004_2008.csv"), delim=";")
-write_delim(cowg_co, here("processed", "COWG_gamm_2004_2008.csv"), delim=";")
+write_delim(S1_complete, here("processed", "S1_gamm_2004_2011.csv"), delim=";")
+write_delim(COWG_complete, here("processed", "COWG_gamm_2004_2011.csv"), delim=";")
 ```
 
 ```{r}
@@ -430,22 +402,13 @@ impute_byrow <- function(na_df, df, model){
 ```
 
 ```{r}
-data <- add_lag(data, 1)
-data <- data %>% select( names(data_complete) )
+S1 <- S1 %>% factor_processing() %>% select( names(safe_s1) )
+COWG <- COWG %>% factor_processing() %>% select( names(safe_cowg) )
 ```
 
 ```{r}
-#na_cowg <- na_cowg[-211,-c(3,6,12,13,15:21,24:26,28,30:32,35:37,39:42,44:54)]
-na_cowg <- add_lag(na_cowg,4)
-na_cowg <- na_cowg[,-c(17:29,31:43,45:57,59:71)]
-#na_cowg <- na_cowg %>% select( names(cowg_co) )
-```
-
-```{r}
-#test <- data[1:54,]
-#test_co <- impute_byrow(test, data_complete, gam_res)
-#data_complete_long <- impute_byrow(data, data_complete, gam_res)
-cowg_co_long <- impute_byrow(na_cowg, cowg_co, gam_res)
+S1_complete_long <- impute_byrow(S1, S1_complete, gam_res)
+COWG_complete_long <- impute_byrow(COWG, COWG_complete, gam_res2)
 ```
 
 ```{r}
@@ -453,36 +416,32 @@ list_var <- list()
 list_na <- list()
 list_final <- list()
 
-n <- length(data_complete_long[[2]])
+n <- length(S1_complete_long[[2]])
 
-for (col in 3:ncol(data)) {
+for (col in 6:ncol(S1)) {
   var <- list()
 
   for (i in 1:n) {
-    if (names(data[col]) == data_complete_long[[2]][[i]]) {
-      var <- c(var, data_complete_long[[2]][[i + 1]])
+    if (names(S1[col]) == S1_complete_long[[2]][[i]]) {
+      var <- c(var, S1_complete_long[[2]][[i + 1]])
     }
   }
 
   var <- unlist(var)
   list_na <- append(list_na, list(var))
-  list_var <- append(list_var, list(names(data[col])))
+  list_var <- append(list_var, list(names(S1[col])))
   list_final <- append(list_final, list(list_var, list_na))
 }
 
-list_final <- c( list_final[[49]][1:16], list_final[[50]][1:16] )
-```
+list_final <- c( list_final[[35]][1:12], list_final[[36]][1:12] )
 
-```{r}
-new_order <- as.vector(rbind(1:16, 17:32))
+new_order <- as.vector(rbind(1:12, 13:24))
 reordered_list <- list_final[new_order]
 
-new_impute <- list(data_complete_long[[1]], reordered_list)
+new_impute <- list(S1_complete_long[[1]], reordered_list)
 
 new_impute[[2]] <- lapply( seq_along(new_impute[[2]]), function(i) list( new_impute[[2]][[i]] ) )
-```
 
-```{r}
 attempt <- impute_iter(new_impute, gam_res, max_iter = 1000)
 ```
 
@@ -496,39 +455,33 @@ list_var <- list()
 list_na <- list()
 list_final <- list()
 
-n <- length(cowg_co_long[[2]])
+n <- length(COWG_complete_long[[2]])
 
-for (col in 3:ncol(na_cowg)) {
+for (col in 6:ncol(COWG)) {
   var <- list()
 
   for (i in 1:n) {
-    if (names(na_cowg[col]) == cowg_co_long[[2]][[i]]) {
-      var <- c(var, cowg_co_long[[2]][[i + 1]])
+    if (names(COWG[col]) == COWG_complete_long[[2]][[i]]) {
+      var <- c(var, COWG_complete_long[[2]][[i + 1]])
     }
   }
 
   var <- unlist(var)
   list_na <- append(list_na, list(var))
-  list_var <- append(list_var, list(names(na_cowg[col])))
+  list_var <- append(list_var, list(names(COWG[col])))
   list_final <- append(list_final, list(list_var, list_na))
 }
 
-#list_final <- c( list_final[[49]][1:16], list_final[[50]][1:16] )
-```
+list_final <- c( list_final[[35]][1:12], list_final[[36]][1:12] )
 
-```{r}
-list_final <- c( list_final[[33]][1:13], list_final[[34]][1:13] )
-
-new_order <- as.vector(rbind(1:16, 17:32))
+new_order <- as.vector(rbind(1:12, 13:24))
 reordered_list <- list_final[new_order]
 
-new_impute <- list(cowg_co_long[[1]], reordered_list)
+new_impute <- list(COWG_complete_long[[1]], reordered_list)
 
 new_impute[[2]] <- lapply( seq_along(new_impute[[2]]), function(i) list( new_impute[[2]][[i]] ) )
-```
 
-```{r}
-attempt <- impute_iter(new_impute, gam_res, max_iter = 1000)
+attempt <- impute_iter(new_impute, gam_res2, max_iter = 1000)
 ```
 
 ```{r}
