@@ -1,0 +1,111 @@
+---
+title: "Dates processing"
+author: "CLETZ Laura"
+date: "27/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(tibble)
+here::i_am("Data_Processing/dates_processing.Rmd")
+library(here)
+```
+
+```{r}
+S1 <- read.table(here("processed","Source_S1.csv"), dec=".", sep=";", header=T) 
+S1$Dates <- as.Date(S1$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+S5 <- read.table(here("processed","S5.csv"), dec=".", sep=";", header=T) 
+S5$Dates <- as.Date(S5$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+COWG <- read.table(here("processed","COWG.csv"), dec=".", sep=";", header=T) 
+COWG$Dates <- as.Date(COWG$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+recent_COWG <- read.table(here("processed","recent_COWG.csv"), dec=".", sep=";", header=T)
+recent_COWG$Dates <- as.Date(recent_COWG$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+long_COWG <- COWG %>% bind_rows(recent_COWG)
+```
+
+```{r}
+GAL <- read.table(here("processed","GAL.csv"), dec=".", sep=";", header=T) 
+GAL$Dates <- as.Date(GAL$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+Confluence <- read.table(here("processed","Confluence.csv"), dec=".", sep=";", header=T)
+Confluence$Dates <- as.Date(Confluence$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+Amous <- read.table(here("processed","Amous_1200.csv"), dec=".", sep=";", header=T)
+Amous$Dates <- as.Date(Amous$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+dates_processing <- function(df) {
+
+  df$Corrected_Dates <- as.Date(df$Dates[1], format = "%Y-%m-%d")
+  df <- df %>% relocate(Corrected_Dates)
+  
+  for (row in 2:nrow(df)) {
+    df$Corrected_Dates[row] <- NA
+  }
+
+  while (any(is.na(df$Corrected_Dates))) {
+    for (row in 2:nrow(df)) {
+      if (is.na(df$Corrected_Dates[row])) {
+        diff <- difftime(df$Dates[row], df$Corrected_Dates[row - 1], units = "days")
+
+        if (diff >= 60) {
+          new_row <- data.frame(Dates = NA, Corrected_Dates = df$Corrected_Dates[row - 1] + 30)
+          df <- bind_rows(df[1:(row - 1), ], new_row, df[row:nrow(df), ]) %>%
+            arrange(Corrected_Dates)
+          break
+          
+        } else {
+          df$Corrected_Dates[row] <- df$Corrected_Dates[row - 1] + 30
+        }
+      }
+    }
+  }
+
+  return(df)
+}
+```
+
+```{r}
+S1 <- dates_processing(S1)
+S5 <- dates_processing(S5)
+long_COWG <- dates_processing(long_COWG)
+GAL <- dates_processing(GAL)
+Confluence <- dates_processing(Confluence)
+Amous <- dates_processing(Amous)
+```
+
+```{r}
+write_delim(S1, here("processed","Source_S1.csv"), delim=";")
+write_delim(S5, here("processed","S5.csv"), delim=";")
+write_delim(long_COWG, here("processed","COWG.csv"), delim=";")
+write_delim(GAL, here("processed","GAL.csv"), delim=";")
+write_delim(Confluence, here("processed","Confluence.csv"), delim=";")
+write_delim(Amous, here("processed","Amous_1200.csv"), delim=";")
+```
+
