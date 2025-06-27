@@ -1,0 +1,106 @@
+---
+title: "Indicators organized by priority order"
+author: "CLETZ"
+date: "26/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(readr)
+library(dplyr)
+library(tidyverse)
+here::i_am("Data_Processing/indicators_processing.Rmd")
+library(here)
+```
+```{r}
+S1 <- read.table(here("processed","Source_S1.csv"), dec=c(".",","), sep=";", header=T) %>% 
+  mutate_at(2:79, function(x) as.numeric(as.character(gsub(",",".",x))))
+S1$Dates <- as.Date(S1$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+S5 <- read.table(here("processed","S5.csv"), dec=c(".",","), sep=";", header=T) %>% 
+  mutate_at(2:79, function(x) as.numeric(as.character(gsub(",",".",x))))
+S5$Dates <- as.Date(S5$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+COWG <- read.table(here("processed","COWG.csv"), dec=c(".",","), sep=";", header=T) %>% 
+  mutate_at(2:79, function(x) as.numeric(as.character(gsub(",",".",x))))
+COWG$Dates <- as.Date(COWG$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+GAL <- read.table(here("processed","GAL.csv"), dec=c(".",","), sep=";", header=T) %>% 
+  mutate_at(2:79, function(x) as.numeric(as.character(gsub(",",".",x))))
+GAL$Dates <- as.Date(GAL$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+Confluence <- read.table(here("processed","Confluence.csv"), dec=c(".",","), sep=";", header=T) %>% 
+  mutate_at(2:79, function(x) as.numeric(as.character(gsub(",",".",x))))
+Confluence$Dates <- as.Date(Confluence$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+Amous <- read.table(here("processed","Amous_1200.csv"), dec=c(".",","), sep=";", header=T) %>% 
+  mutate_at(2:79, function(x) as.numeric(as.character(gsub(",",".",x))))
+Amous$Dates <- as.Date(Amous$Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+indicators_processing <- function(df) {
+
+  col <- 1
+  while (col <= ncol(df)) {
+
+    current_col_name <- names(df[col])
+    rep_name <- grep(current_col_name, names(df), value = TRUE)
+
+    if (length(rep_name) == 1) {
+      col <- col + 1
+    } else {
+      for (row in 1:nrow(df)) {
+        if (is.na(df[row, col])) {
+          for (rep_col in rep_name[rep_name != current_col_name]) {
+            df[row, rep_col] <- NA
+          }
+        } else {
+          for (rep_col in rep_name[rep_name != current_col_name]) {
+            if (!is.na(df[row, rep_col]) && df[row, rep_col] == 1) {
+              df[row, rep_name[rep_name != rep_col & rep_name != current_col_name]] <- 0
+            }
+          }
+        }
+      }
+      col <- col + 1
+    }
+  }
+
+  return(df)
+}
+```
+
+```{r}
+S1 <- indicators_processing(S1)
+S5 <- indicators_processing(S5)
+COWG <- indicators_processing(COWG)
+GAL <- indicators_processing(GAL)
+Confluence <- indicators_processing(Confluence)
+Amous <- indicators_processing(Amous)
+```
+
+```{r}
+write_delim(S1, here("processed","Source_S1.csv"), delim=";")
+write_delim(S5, here("processed","S5.csv"), delim=";")
+write_delim(COWG, here("processed","COWG.csv"), delim=";")
+write_delim(GAL, here("processed","GAL.csv"), delim=";")
+write_delim(Confluence, here("processed","Confluence.csv"), delim=";")
+write_delim(Amous, here("processed","Amous_1200.csv"), delim=";")
+```
+
