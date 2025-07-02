@@ -1,0 +1,431 @@
+---
+title: "Sensitivity Analysis"
+author: "CLETZ Laura"
+date: "30/06/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(readr)
+library(mgcv)
+library(rlang)
+library(ggplot2)
+library(Hmisc)
+library(GGally)
+library(dplyr)
+library(FactoMineR)
+library(factoextra)
+here::i_am("Correlations_and_Predictions/sensitivity_analysis.Rmd")
+library(here)
+```
+
+```{r}
+data_small <- read.table(here("processed", "COWG_gamm_2004_2011.csv"), sep=";", dec=".", header=T) %>% 
+  mutate_at(18:23, as.factor)
+data_small$Dates <- as.Date(data_small$Dates, format = "%Y-%m-%d")
+data_small$Corrected_Dates <- as.Date(data_small$Corrected_Dates, format = "%Y-%m-%d")
+```
+
+```{r}
+data_big <- read.table(here("processed", "COWG_gamm_2004_2018.csv"), sep=";", dec=".", header=T) %>% 
+  mutate_at(18:23, as.factor)
+data_big$Dates <- as.Date(data_big$Dates, format = "%Y-%m-%d")
+data_big$Corrected_Dates <- as.Date(data_big$Corrected_Dates, format = "%Y-%m-%d")
+```
+
+# Correlations table
+
+```{r}
+custom_gam_plot <- function(data, mapping, ...) {
+  
+  x_var <- rlang::as_label(mapping$x)
+  y_var <- rlang::as_label(mapping$y)
+
+  formula <- substitute( y ~ s(x, bs='cr'), list(y = as.name(y_var), x = as.name(x_var)) )
+  
+  gam_model <- gamm(formula, correlation = corARMA(form = ~1, p=1), data = data, na.action = na.exclude)
+
+  pred_data <- data.frame(x = seq(min(data[[x_var]], na.rm = TRUE),
+                                    max(data[[x_var]], na.rm = TRUE),
+                                    length.out = 100))
+  names(pred_data) <- x_var
+  
+  pred_data$y <- predict(gam_model$gam, newdata = pred_data)
+
+  ggplot(data, mapping = mapping) +
+    geom_point() +
+    geom_line(data = pred_data, 
+              mapping = aes_string(x = x_var, y = "y"), 
+              color = "blue") +
+    labs(title = paste0("GAM fit:", y_var, "~ s(", x_var, ")"), 
+         x = x_var, y = y_var) +
+    theme_minimal()
+}
+```
+
+```{r, warning=FALSE, echo=FALSE}
+g <- ggpairs(
+  data = data_small[, c(3:23)],
+  lower = list(continuous = custom_gam_plot, combo = 'facetdensity'),
+  upper = list(continuous = wrap('cor', size = 3, hjust = 0.8)),
+  progress = FALSE
+)
+```
+
+```{r, warning=FALSE, echo=FALSE}
+g
+```
+
+Rainfall and Dates:
+```{r}
+ggplot(data_small, aes(x = Numeric_Dates)) +
+  geom_point(aes(y = Rainfall), col = "darkred") +
+  geom_smooth(aes(y = Rainfall), method = 'gam', formula = y ~ s(x, bs='re'), col = "red") +
+  geom_point(aes(y = Rainfall_lag_1), col = "darkgreen") +
+  geom_smooth(aes(y = Rainfall_lag_1), method = 'gam', formula = y ~ s(x, bs='re'), col = "green") +
+  theme_minimal()
+```
+
+Rainfall at one lag and O2:
+```{r}
+ggplot(data_small, aes(x = Rainfall_lag_1, y = O2, colour = O2_method)) +
+  geom_point() +
+  geom_smooth(method = 'gam', formula = y ~ s(x, bs='re')) +
+  theme_minimal()
+```
+
+Dates and O2:
+```{r}
+ggplot(data_small, aes(x = Numeric_Dates, y = O2, colour = O2_method)) +
+  geom_point() +
+  geom_smooth(method = 'gam', formula = y ~ s(x, bs='re')) +
+  theme_minimal()
+```
+
+Rainfall at one lag and Copper:
+```{r}
+ggplot(data_small, aes(x = Rainfall_lag_1, y = Cuivre, colour = Cuivre_method)) +
+  geom_point() +
+  geom_smooth(method = 'gam', formula = y ~ s(x, bs='re')) +
+  theme_minimal()
+```
+
+FeII and Zinc:
+```{r}
+ggplot(data_small, aes(x = Ion_Ferreux, y = Zinc, colour = Zinc_method)) +
+  geom_point() +
+  geom_smooth(method = 'gam', formula = y ~ s(x, bs='re')) +
+  theme_minimal()
+```
+
+Arsenic and O2:
+```{r}
+ggplot(data_small, aes(x = Arsenic_Total, y = O2, colour = O2_method)) +
+  geom_point() +
+  geom_smooth(method = 'gam', formula = y ~ s(x, bs='re')) +
+  theme_minimal()
+```
+
+Lead and Copper:
+```{r}
+ggplot(data_small, aes(x = Cuivre, y = Plomb, colour = Plomb_method)) +
+  geom_point() +
+  geom_smooth(method = 'gam', formula = y ~ s(x, bs='re')) +
+  theme_minimal()
+```
+
+Measurement methods seem to add some precision at predicting confidence intervals in some case only. There are methods like Colorimétrie for O2 that don't help at all, giving straight lines instead of smooth curves. We did not remove NAs because they are too many to avoid, we need to count them in.
+
+# Variances comparison
+
+```{r}
+library(car)
+leveneTest(data_small$Rainfall, group = data_small$O2_method, data = data_small)
+leveneTest(data_small$Conductivité, group = data_small$Plomb_method, data = data_small)
+leveneTest(data_big$Rainfall, group = data_big$O2_method, data = data_big)
+leveneTest(data_big$Conductivité, group = data_big$Plomb_method, data = data_big)
+```
+Variances not homogenous.
+
+```{r}
+data_diff <- data_big %>%
+  anti_join(data_small, by = "Corrected_Dates")
+
+sd(data_big$Arsenic_Total)
+sd(data_diff$Arsenic_Total)
+sd(data_small$Arsenic_Total)
+```
+
+# Par période (nombre d'imputation)
+
+```{r}
+Period <- c( rep("2004-2009", 47), rep("2009-2012", 87-47), rep("2012-2019", 174-87), rep("2019-2022", 213-174))
+data_big <- data_big %>% bind_cols(Period)
+colnames(data_big)[24] <- "Period"
+data_big$Period <- as.factor(data_big$Period)
+```
+
+```{r}
+var.test(data_small$Temperature, data_diff$Temperature)
+var.test(data_small$Antimoine, data_diff$Antimoine)
+var.test(data_small$O2, data_diff$O2)
+var.test(data_small$Arsenic_Total, data_diff$Arsenic_Total)
+```
+Variances between 2004-2009 and 2009-2022 are different.
+
+```{r, warning=FALSE}
+ggplot(data_big, aes(x = Period, y = Arsenic_Total, colour = Period)) +
+  geom_violin() + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  theme_minimal() +
+  stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="red")
+```
+
+```{r, warning=FALSE}
+ggplot(data_big, aes(x = Period, y = Rainfall_lag_1, colour = Period)) +
+  geom_violin() + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  theme_minimal() +
+  stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="red")
+```
+
+```{r, warning=FALSE}
+ggplot(data_big, aes(x = Period, y = O2, colour = O2_method)) +
+  geom_violin() + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  theme_minimal() +
+  stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="red")
+```
+
+```{r, warning=FALSE}
+ggplot(data_big, aes(x = Period, y = Cuivre, colour = Cuivre_method)) +
+  geom_violin() + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) +
+  theme_minimal() +
+  stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="red")
+```
+
+# Factor Analysis of Mixed Data (FAMD)
+
+```{r}
+levels(data_big$O2_method) <- c(levels(data_big$O2_method), "Undetermined_O2_method")
+data_big$O2_method[ is.na( data_big$O2_method ) ] <- "Undetermined_O2_method"
+
+levels(data_big$Cadmium_method) <- c(levels(data_big$Cadmium_method), "Undetermined_Cadmium_method")
+data_big$Cadmium_method[ is.na( data_big$Cadmium_method ) ] <- "Undetermined_Cadmium_method"
+
+levels(data_big$Antimoine_method) <- c(levels(data_big$Antimoine_method), "Undetermined_Antimoine_method")
+data_big$Antimoine_method[ is.na( data_big$Antimoine_method ) ] <- "Undetermined_Antimoine_method"
+
+levels(data_big$Cuivre_method) <- c(levels(data_big$Cuivre_method), "Undetermined_Cuivre_method")
+data_big$Cuivre_method[ is.na( data_big$Cuivre_method ) ] <- "Undetermined_Cuivre_method"
+
+levels(data_big$Plomb_method) <- c(levels(data_big$Plomb_method), "Undetermined_Plomb_method")
+data_big$Plomb_method[ is.na( data_big$Plomb_method ) ] <- "Undetermined_Plomb_method"
+
+levels(data_big$Zinc_method) <- c(levels(data_big$Zinc_method), "Undetermined_Zinc_method")
+data_big$Zinc_method[ is.na( data_big$Zinc_method ) ] <- "Undetermined_Zinc_method"
+```
+
+```{r}
+res.famd <- FAMD(data_big[,3:24], graph = FALSE, ncp = Inf)
+res.famd$eig
+```
+```{r}
+var_names <- rownames(res.famd$var$coord)
+custom_groups <- ifelse(var_names %in% var_names[c(1:7, 22)],
+                        "Éléments physico-chimiques et temps",
+                        ifelse(var_names %in% var_names[8:15],
+                        "Éléments traces (métalloïdes)",
+                        "Méthodes de mesure"))
+
+fviz_famd_var(res.famd, 
+             axes = c(1,2), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             palette = c("blue", "red", "darkgreen"),
+             ggtheme = theme_minimal(),
+             title = "FAMD Variables Plot")
+
+fviz_famd_ind(res.famd,
+             axes = c(1, 2),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = "cos2",
+             label = "quali.var",
+             title = "FAMD Individuals Plot")
+```
+```{r}
+res.famd <- FAMD(data_big[,3:24], graph = FALSE, sup.var = c(17:23))
+res.famd$eig
+```
+
+```{r}
+var_names <- rownames(res.famd$var$coord)
+custom_groups <- ifelse(var_names %in% var_names[c(1:7, 22)],
+                        "Éléments physico-chimiques et temps",
+                        "Éléments traces (métalloïdes)")
+
+fviz_famd_var(res.famd, 
+             axes = c(1,2), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             palette = c("blue", "red"),
+             col.var.sup = "darkgreen",
+             ggtheme = theme_minimal(),
+             title = "FAMD Variables Plot")
+
+fviz_famd_ind(res.famd,
+             axes = c(1, 2),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = "cos2",
+             label = "none",
+             title = "FAMD Individuals Plot")
+```
+
+```{r}
+fviz_famd_var(res.famd, 
+             axes = c(1,3), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             palette = c("blue", "red"),
+             col.var.sup = "darkgreen",
+             ggtheme = theme_minimal(),
+             title = "FAMD Variables Plot")
+
+fviz_famd_ind(res.famd,
+             axes = c(1,3),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = "cos2",
+             label = "none",
+             title = "FAMD Individuals Plot")
+```
+
+```{r}
+test <- read.table(here("processed","COWG.csv"), sep=";", dec=".", header=T)
+
+test <- test[which(colSums(is.na(test[(1:86),]))*100/nrow(test[(1:86),])<=35)] %>%
+  mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d")) %>%
+  factor_processing() %>%
+  select(names(data_big[,-c(5,24)]))
+```
+
+```{r}
+na_index <- unique(unlist(
+  lapply(test[, 5:16], function(col) which(is.na(col)))
+))
+```
+
+```{r}
+#res.famd <- FAMD(data_big[,3:24], graph = FALSE, sup.var = c(17:23), ind.sup = na_index)
+#res.famd$eig
+#It seems that we can't run a FAMD with 152 supplementary rows...
+```
+
+```{r}
+var_names <- rownames(res.famd$var$coord)
+custom_groups <- ifelse(var_names %in% var_names[c(1:7, 22)],
+                        "Éléments physico-chimiques et temps",
+                        "Éléments traces (métalloïdes)")
+
+fviz_famd_var(res.famd, 
+             axes = c(1,2), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             palette = c("blue", "red"),
+             col.var.sup = "darkgreen",
+             ggtheme = theme_minimal(),
+             title = "FAMD Variables Plot")
+
+fviz_famd_ind(res.famd,
+             axes = c(1, 2),
+             repel = TRUE,
+             ggtheme = theme_minimal(),
+             col.ind = "cos2",
+             label = "none",
+             title = "FAMD Individuals Plot")
+```
+
+```{r}
+cd <- catdes(data_big[,3:24], 18)
+plot.catdes(cd)
+```
+
+# Sensitivity Analysis
+
+```{r}
+model <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(Period, bs='re') + s(O2, bs='re') + s(O2_method, bs='re'), correlation = corARMA(form = ~ 1, p = 1, q = 1), data = data_big, na.action = na.exclude)
+
+params <- list(
+  Rainfall_lag_1 = seq(min(data_big$Rainfall_lag_1), max(data_big$Rainfall_lag_1), length.out = 10),
+  O2 = seq(min(data_big$O2), max(data_big$O2), length.out = 10),
+  Period = sample(levels(data_big$Period), 10, replace = T),
+  O2_method = sample(levels(data_big$O2_method), 10, replace = T)
+)
+
+predict_model <- function(x) {
+  new_data <- data.frame(
+    Rainfall_lag_1 = x[, 1],
+    Period = factor(x[, 3], levels = levels(factor(data_big$Period))),
+    O2 = x[, 2],
+    O2_method = factor(x[, 4], levels = levels(factor(data_big$O2_method)))
+  )
+  predict(model$gam, newdata = new_data, type = "response")
+}
+
+library(sensitivity)
+sa_result <- sobol(
+  model = predict_model,
+  X1 = params$Rainfall_lag_1,
+  X2 = params$O2,
+  X3 = params$Period,
+  X4 = params$O2_method,
+  nboot = 100
+)
+
+plot(sa_result)
+```
+# Methods grouping
+
+```{r}
+O2_method <- data_big %>%
+  group_by(O2_method) %>%
+  summarise(Period) %>%
+  filter(O2_method != "Undetermined_O2_method")
+
+Plomb_method <- data_big %>%
+  group_by(Plomb_method) %>%
+  summarise(Period) %>%
+  filter(Plomb_method != "Undetermined_Plomb_method")
+
+Antimoine_method <- data_big %>%
+  group_by(Antimoine_method) %>%
+  summarise(Period) %>%
+  filter(Antimoine_method != "Undetermined_Antimoine_method")
+```
+
+```{r}
+summary(O2_method)
+summary(Plomb_method)
+summary(Antimoine_method)
+```
+
+Before 2012, O2 was most of the time measured by Colorimétrie. After then, it was measured by either methods or just HACH's method but we decided to only keep one method (HACH) if more were used.
+208Pb is the usual method to measure Lead.
+Antimony is sometimes measured by 121Sb and sometimes by 123Sb, there is no notable timeframe for using only one preferable method.
+
+
+
+
+
