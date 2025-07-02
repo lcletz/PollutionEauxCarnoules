@@ -13,52 +13,98 @@ Packages needed:
 ```{r}
 library(dplyr)
 library(tidyverse)
+library(stringr)
+library(GGally)
 here::i_am("R/weather_corr_analysis.Rmd")
 library(here)
 ```
 
 
 ```{r, warning=FALSE}
-cowg <- read.table(here('processed','COWG_ts.csv'), dec = c(',','.') , sep = ";", header = TRUE) %>% 
-  mutate_at(2:27, function(x) as.numeric(as.character(gsub(',','.', x))))
-cowg$Dates <- as.Date(cowg$Dates, format="%Y-%m-%d")
+cowg <- read.table(here('processed','COWG_gamm_2004_2018.csv'), dec = '.' , sep = ";", header = TRUE) %>%
+  mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d"))
 ```
 
 ```{r}
-weather <- read.table(here("processed", "weather.csv"), dec = c(",","."), sep = ";", header = TRUE) %>% 
-  mutate_at(2:8, function(x) as.numeric(as.character(gsub(',','.', x))))
+weather <- read.table(here("processed", "weather.csv"), dec = c(",",""), sep = ";", header = TRUE) 
 weather$Dates <- as.Date(weather$Dates, format="%Y-%m-%d")
 ```
 
 ```{r}
+weather$Rayonnement.solaire..W.m2. <- sapply(weather$Rayonnement.solaire..W.m2., function(x) as.numeric(paste0(unlist(str_extract_all(x, "[0-9]")), collapse="")))
+```
+
+```{r}
+cowg$Corrected_Dates <- sapply(cowg$Corrected_Dates, function(x) gsub('.{3}$', '', x))
+weather$Dates <- sapply(weather$Dates, function(x) gsub('.{3}$', '', x))
+```
+
+```{r}
 data <- weather %>%
-  left_join(cowg, by="Dates")
-data[,c(2,9)]
+  left_join(cowg, by=c("Dates"="Corrected_Dates"))
+data[, c(2,10,11)]
 ```
 
 The measures for Generargues' rainfall from ADEME and from Meteo-France are similar but there are observations where the gap is too wide.
 
 ```{r}
-data[,c(6,10)]
+data[, c(6:8,13)]
 ```
 
 There might be a link between air temperature and water temperature. It's more visible the days of heatwaves.
 
 ```{r, warning = FALSE}
-temp_air <- ts(data[,6], start = c(2016,1), end = c(2019,12), frequency = 12)
-temp_water <- ts(data[,10], start = c(2016,1), end = c(2019,12), frequency = 12)
-fit_air <- decompose(temp_air)
-fit_water <- decompose(temp_water)
-fit <- data.frame(
-  Dates = data$Dates,
-  Temp_Air = as.numeric(fit_air$trend),
-  Temp_Water = as.numeric(fit_water$trend)
-)
-ggplot(fit, aes(x = Dates)) +
-  geom_line(aes(y = Temp_Air, color = "Température de l'air")) +
-  geom_line(aes(y = Temp_Water, color = "Température de l'eau")) +
-  theme_minimal() 
-```
+temp_air_moy <- ts(data[,6], start = c(2016,1), end = c(2019,12), frequency = 12)
+temp_air_min <- ts(data[,7], start = c(2016,1), end = c(2019,12), frequency = 12)
+temp_air_max <- ts(data[,8], start = c(2016,1), end = c(2019,12), frequency = 12)
+temp_water <- ts(data[,13], start = c(2016,1), end = c(2019,12), frequency = 12)
+hum_air <- ts(data[,4]/4, start = c(2016,1), end = c(2019,12), frequency = 12)
+ray <- ts((data[,5] / 14000) + 5, start = c(2016,1), end = c(2019,12), frequency = 12)
 
+fit_air_moy <- decompose(temp_air_moy)
+fit_air_min <- decompose(temp_air_min)
+fit_air_max <- decompose(temp_air_max)
+fit_water <- decompose(temp_water)
+fit_hum <- decompose(hum_air)
+fit_ray <- decompose(ray)
+
+fit <- data.frame(
+  Dates = as.Date(sapply(data$Dates[-1], function(x) paste0(x, "-01")), format="%Y-%m-%d"),
+  Temp_Air_Moy = as.numeric(fit_air_moy$trend),
+  Temp_Air_Min = as.numeric(fit_air_min$trend),
+  Temp_Air_Max = as.numeric(fit_air_max$trend),
+  Temp_Water = as.numeric(fit_water$trend),
+  Hum_Air = as.numeric(fit_hum$trend),
+  Ray = as.numeric(fit_ray$trend)
+)
+
+start_date <- as.Date("2016-08-01")
+end_date <- as.Date("2019-05-01")
+
+ggplot(fit, aes(x = Dates)) +
+  geom_line(aes(y = Temp_Air_Moy, color = "Température moyenne de l'air (C°)")) +
+  geom_line(aes(y = Temp_Air_Min, color = "Température minimum de l'air (C°)")) +
+  geom_line(aes(y = Temp_Air_Max, color = "Température maximum de l'air (C°)")) +
+  geom_line(aes(y = Temp_Water, color = "Température de l'eau (C°)")) +
+  geom_line(aes(y = Hum_Air, color = "Humidité relative (% /4)")) +
+  geom_line(aes(y = Ray, color = "Rayonnement solaire (W/m^2 /14000+5)")) +
+  theme_minimal() +
+  labs(y = "", color = "") +
+  scale_x_date(date_breaks = "6 weeks", date_labels = "%Y-%m",
+               limits = c(start_date, end_date), expand = c(0,0)) +
+  theme(axis.text.x = element_text(angle = 90)) 
+```
 Apparently not. Inconclusive.
 
+```{r, warning=FALSE, echo=FALSE}
+g <- ggpairs(
+  data = data[, c(3:6, 21:24)],
+  lower = list(continuous = custom_gam_plot, combo = 'facetdensity'),
+  upper = list(continuous = wrap('cor', size = 3, hjust = 0.8)),
+  progress = FALSE
+)
+```
+
+```{r, warning=FALSE, echo=FALSE}
+g
+```
