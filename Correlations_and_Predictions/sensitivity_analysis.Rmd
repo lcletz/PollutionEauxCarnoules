@@ -217,27 +217,34 @@ ggplot(data_big, aes(x = Period, y = Cuivre, colour = Cuivre_method)) +
 # Factor Analysis of Mixed Data (FAMD)
 
 ```{r}
-levels(data_big$O2_method) <- c(levels(data_big$O2_method), "Undetermined_O2_method")
-data_big$O2_method[ is.na( data_big$O2_method ) ] <- "Undetermined_O2_method"
+levels(data_diff$O2_method) <- c(levels(data_diff$O2_method), "Undetermined_O2_method")
+data_diff$O2_method[ is.na( data_diff$O2_method ) ] <- "Undetermined_O2_method"
 
-levels(data_big$Cadmium_method) <- c(levels(data_big$Cadmium_method), "Undetermined_Cadmium_method")
-data_big$Cadmium_method[ is.na( data_big$Cadmium_method ) ] <- "Undetermined_Cadmium_method"
+levels(data_diff$Cadmium_method) <- c(levels(data_diff$Cadmium_method), "Undetermined_Cadmium_method")
+data_diff$Cadmium_method[ is.na( data_diff$Cadmium_method ) ] <- "Undetermined_Cadmium_method"
 
-levels(data_big$Antimoine_method) <- c(levels(data_big$Antimoine_method), "Undetermined_Antimoine_method")
-data_big$Antimoine_method[ is.na( data_big$Antimoine_method ) ] <- "Undetermined_Antimoine_method"
+levels(data_diff$Antimoine_method) <- c(levels(data_diff$Antimoine_method), "Undetermined_Antimoine_method")
+data_diff$Antimoine_method[ is.na( data_diff$Antimoine_method ) ] <- "Undetermined_Antimoine_method"
 
-levels(data_big$Cuivre_method) <- c(levels(data_big$Cuivre_method), "Undetermined_Cuivre_method")
-data_big$Cuivre_method[ is.na( data_big$Cuivre_method ) ] <- "Undetermined_Cuivre_method"
+levels(data_diff$Cuivre_method) <- c(levels(data_diff$Cuivre_method), "Undetermined_Cuivre_method")
+data_diff$Cuivre_method[ is.na( data_diff$Cuivre_method ) ] <- "Undetermined_Cuivre_method"
 
-levels(data_big$Plomb_method) <- c(levels(data_big$Plomb_method), "Undetermined_Plomb_method")
-data_big$Plomb_method[ is.na( data_big$Plomb_method ) ] <- "Undetermined_Plomb_method"
+levels(data_diff$Plomb_method) <- c(levels(data_diff$Plomb_method), "Undetermined_Plomb_method")
+data_diff$Plomb_method[ is.na( data_diff$Plomb_method ) ] <- "Undetermined_Plomb_method"
 
-levels(data_big$Zinc_method) <- c(levels(data_big$Zinc_method), "Undetermined_Zinc_method")
-data_big$Zinc_method[ is.na( data_big$Zinc_method ) ] <- "Undetermined_Zinc_method"
+levels(data_diff$Zinc_method) <- c(levels(data_diff$Zinc_method), "Undetermined_Zinc_method")
+data_diff$Zinc_method[ is.na( data_diff$Zinc_method ) ] <- "Undetermined_Zinc_method"
 ```
 
 ```{r}
-res.famd <- FAMD(data_big[,3:24], graph = FALSE, ncp = Inf)
+Period <- c( rep("2009-2012", 8), rep("2012-2015", 43-8), rep("2015-2019", 88-43), rep("2019-2022", 127-88) )
+data_diff <- data_diff %>% bind_cols(Period)
+colnames(data_diff)[24] <- "Period"
+data_diff$Period <- as.factor(data_diff$Period)
+```
+
+```{r}
+res.famd <- FAMD(data_diff[,3:24], graph = FALSE, ncp = Inf)
 res.famd$eig
 ```
 ```{r}
@@ -265,7 +272,7 @@ fviz_famd_ind(res.famd,
              title = "FAMD Individuals Plot")
 ```
 ```{r}
-res.famd <- FAMD(data_big[,3:24], graph = FALSE, sup.var = c(17:23))
+res.famd <- FAMD(data_diff[,3:24], graph = FALSE, sup.var = c(17:23))
 res.famd$eig
 ```
 
@@ -276,7 +283,7 @@ custom_groups <- ifelse(var_names %in% var_names[c(1:7, 22)],
                         "Éléments traces (métalloïdes)")
 
 fviz_famd_var(res.famd, 
-             axes = c(1,2), 
+             axes = c(1, 2), 
              repel = TRUE, 
              col.var = custom_groups,  
              palette = c("blue", "red"),
@@ -313,12 +320,16 @@ fviz_famd_ind(res.famd,
 ```
 
 ```{r}
+dimdesc(res.famd)
+```
+
+```{r}
 test <- read.table(here("processed","COWG.csv"), sep=";", dec=".", header=T)
 
 test <- test[which(colSums(is.na(test[(1:86),]))*100/nrow(test[(1:86),])<=35)] %>%
   mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d")) %>%
   factor_processing() %>%
-  select(names(data_big[,-c(5,24)]))
+  select(names(data_diff[,-c(5,24)]))
 ```
 
 ```{r}
@@ -328,7 +339,7 @@ na_index <- unique(unlist(
 ```
 
 ```{r}
-#res.famd <- FAMD(data_big[,3:24], graph = FALSE, sup.var = c(17:23), ind.sup = na_index)
+#res.famd <- FAMD(data_diff[,3:24], graph = FALSE, sup.var = c(17:23), ind.sup = na_index)
 #res.famd$eig
 #It seems that we can't run a FAMD with 152 supplementary rows...
 ```
@@ -358,44 +369,443 @@ fviz_famd_ind(res.famd,
 ```
 
 ```{r}
-cd <- catdes(data_big[,3:24], 18)
+cd <- catdes(data_diff[,3:24], 18)
 plot.catdes(cd)
 ```
 
 # Sensitivity Analysis
 
+Step 1:
 ```{r}
-model <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(Period, bs='re') + s(O2, bs='re') + s(O2_method, bs='re'), correlation = corARMA(form = ~ 1, p = 1, q = 1), data = data_big, na.action = na.exclude)
+library(scales)
+scaled_data <- data_diff %>%
+  mutate_at(3:17, rescale)
 
-params <- list(
-  Rainfall_lag_1 = seq(min(data_big$Rainfall_lag_1), max(data_big$Rainfall_lag_1), length.out = 10),
-  O2 = seq(min(data_big$O2), max(data_big$O2), length.out = 10),
-  Period = sample(levels(data_big$Period), 10, replace = T),
-  O2_method = sample(levels(data_big$O2_method), 10, replace = T)
-)
+model <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Temperature, bs='re') 
+              + s(Cuivre, bs='re') + s(Conductivité, bs='re') + s(Zinc, bs='re') + s(Ion_Ferreux, bs='re'),
+              correlation = corARMA(form = ~ 1, p = 1, q = 1), 
+              data = scaled_data, na.action = na.exclude,
+              control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
+```
 
+```{r}
 predict_model <- function(x) {
   new_data <- data.frame(
     Rainfall_lag_1 = x[, 1],
-    Period = factor(x[, 3], levels = levels(factor(data_big$Period))),
     O2 = x[, 2],
-    O2_method = factor(x[, 4], levels = levels(factor(data_big$O2_method)))
+    Temperature = x[, 3], 
+    Cuivre = x[, 4],
+    Conductivité = x[, 5],
+    Zinc = x[, 6],
+    Ion_Ferreux = x[, 7]
   )
   predict(model$gam, newdata = new_data, type = "response")
 }
+```
+
+```{r, warning=FALSE}
+n <- 1000
+X1 <- data.frame(matrix(runif(7 * n), nrow = n))
+X2 <- data.frame(matrix(runif(7 * n), nrow = n))
 
 library(sensitivity)
-sa_result <- sobol(
+sa_result <- sobol2002(
   model = predict_model,
-  X1 = params$Rainfall_lag_1,
-  X2 = params$O2,
-  X3 = params$Period,
-  X4 = params$O2_method,
+  X1 = X1,
+  X2 = X2,
   nboot = 100
 )
 
-plot(sa_result)
+var_labels <- c("X1" = "Pluie à t-1", "X2" = "O2", "X3" = "Température", "X4" = "Cuivre", 
+  "X5" = "Conductivité", "X6" = "Zinc", "X7" = "Ion ferreux")
+
+df_plot <- bind_rows(
+  sa_result$S %>%
+    mutate(Variable = rownames(.), Index = "First-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`),
+  sa_result$T %>%
+    mutate(Variable = rownames(.), Index = "Total-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`)
+) %>%
+  mutate(
+    Variable = factor(Variable, levels = names(var_labels)),
+    Label = var_labels[as.character(Variable)]
+  )
+
+ggplot(df_plot, aes(x = Label, y = y, ymin = ymin, ymax = ymax, shape = Index)) +
+  geom_pointrange(position = position_dodge(width = 0.4), size = 0.6) +
+  scale_shape_manual(values = c("First-order" = 16, "Total-order" = 1),
+  labels = c("First-order" = "Indice d'ordre 1", "Total-order" = "Indice total")
+  ) +
+  labs(
+    x = "",
+    y = "Indice de sensibilité",
+    shape = ""
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    legend.position = "right"
+  ) +
+  coord_cartesian(ylim = c(0, 1))
 ```
+
+Step 2:
+```{r}
+model <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Temperature, bs='re') 
+              + s(Cuivre, bs='re') + s(Conductivité, bs='re') + s(Zinc, bs='re'),
+              correlation = corARMA(form = ~ 1, p = 1, q = 1), 
+              data = scaled_data, na.action = na.exclude,
+              control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
+```
+
+```{r}
+predict_model <- function(x) {
+  new_data <- data.frame(
+    Rainfall_lag_1 = x[, 1],
+    O2 = x[, 2],
+    Temperature = x[, 3], 
+    Cuivre = x[, 4],
+    Conductivité = x[, 5],
+    Zinc = x[, 6]
+  )
+  predict(model$gam, newdata = new_data, type = "response")
+}
+```
+
+```{r, warning=FALSE}
+n <- 1000
+X1 <- data.frame(matrix(runif(6 * n), nrow = n))
+X2 <- data.frame(matrix(runif(6 * n), nrow = n))
+
+sa_result <- sobol2002(
+  model = predict_model,
+  X1 = X1,
+  X2 = X2,
+  nboot = 100
+)
+
+var_labels <- c("X1" = "Pluie à t-1", "X2" = "O2", "X3" = "Température", "X4" = "Cuivre", 
+  "X5" = "Conductivité", "X6" = "Zinc")
+
+df_plot <- bind_rows(
+  sa_result$S %>%
+    mutate(Variable = rownames(.), Index = "First-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`),
+  sa_result$T %>%
+    mutate(Variable = rownames(.), Index = "Total-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`)
+) %>%
+  mutate(
+    Variable = factor(Variable, levels = names(var_labels)),
+    Label = var_labels[as.character(Variable)]
+  )
+
+ggplot(df_plot, aes(x = Label, y = y, ymin = ymin, ymax = ymax, shape = Index)) +
+  geom_pointrange(position = position_dodge(width = 0.4), size = 0.6) +
+  scale_shape_manual(values = c("First-order" = 16, "Total-order" = 1),
+  labels = c("First-order" = "Indice d'ordre 1", "Total-order" = "Indice total")
+  ) +
+  labs(
+    x = "",
+    y = "Indice de sensibilité",
+    shape = ""
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    legend.position = "right"
+  ) +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+```{r}
+model <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Temperature, bs='re') 
+              + s(Cuivre, bs='re') + s(Conductivité, bs='re'),
+              correlation = corARMA(form = ~ 1, p = 1, q = 1), 
+              data = scaled_data, na.action = na.exclude)
+```
+
+```{r}
+predict_model <- function(x) {
+  new_data <- data.frame(
+    Rainfall_lag_1 = x[, 1],
+    O2 = x[, 2],
+    Temperature = x[, 3], 
+    Cuivre = x[, 4],
+    Conductivité = x[, 5]
+  )
+  predict(model$gam, newdata = new_data, type = "response")
+}
+```
+
+```{r, warning=FALSE}
+n <- 1000
+X1 <- data.frame(matrix(runif(5 * n), nrow = n))
+X2 <- data.frame(matrix(runif(5 * n), nrow = n))
+
+sa_result <- sobol2002(
+  model = predict_model,
+  X1 = X1,
+  X2 = X2,
+  nboot = 100
+)
+
+var_labels <- c("X1" = "Pluie à t-1", "X2" = "O2", "X3" = "Température", "X4" = "Cuivre", 
+  "X5" = "Conductivité")
+
+df_plot <- bind_rows(
+  sa_result$S %>%
+    mutate(Variable = rownames(.), Index = "First-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`),
+  sa_result$T %>%
+    mutate(Variable = rownames(.), Index = "Total-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`)
+) %>%
+  mutate(
+    Variable = factor(Variable, levels = names(var_labels)),
+    Label = var_labels[as.character(Variable)]
+  )
+
+ggplot(df_plot, aes(x = Label, y = y, ymin = ymin, ymax = ymax, shape = Index)) +
+  geom_pointrange(position = position_dodge(width = 0.4), size = 0.6) +
+  scale_shape_manual(values = c("First-order" = 16, "Total-order" = 1),
+  labels = c("First-order" = "Indice d'ordre 1", "Total-order" = "Indice total")
+  ) +
+  labs(
+    x = "",
+    y = "Indice de sensibilité",
+    shape = ""
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    legend.position = "right"
+  ) +
+  coord_cartesian(ylim = c(0, 1))
+```
+A higher value of S (First-Order Indices) indicates that the input variable has a significant individual effect on the output variance.
+
+A higher value of T (Total-Order Indices) indicates that the input variable, including its interactions with other variables, has a significant effect on the output variance.
+
+Too much variances caught, must be removed: Zinc, Ion_Ferreux.
+Equal high variances caught: Cuivre, O2, Rainfall_lag_1.
+
+Let's compare the three consecutive results with the smaller set of data.
+Step 1:
+```{r}
+scaled_data_small <- data_small %>%
+  mutate_at(3:17, rescale)
+
+model_small <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Temperature, bs='re') 
+              + s(Cuivre, bs='re') + s(Conductivité, bs='re') + s(Zinc, bs='re') + s(Ion_Ferreux, bs='re'),
+              correlation = corARMA(form = ~ 1, p = 1, q = 1), 
+              data = scaled_data_small, na.action = na.exclude,
+              control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
+```
+
+```{r}
+predict_model_small <- function(x) {
+  new_data <- data.frame(
+    Rainfall_lag_1 = x[, 1],
+    O2 = x[, 2],
+    Temperature = x[, 3], 
+    Cuivre = x[, 4],
+    Conductivité = x[, 5],
+    Zinc = x[, 6],
+    Ion_Ferreux = x[, 7]
+  )
+  predict(model_small$gam, newdata = new_data, type = "response")
+}
+```
+
+```{r, warning=FALSE}
+n <- 1000
+X1 <- data.frame(matrix(runif(7 * n), nrow = n))
+X2 <- data.frame(matrix(runif(7 * n), nrow = n))
+
+sa_result_small <- sobol2002(
+  model = predict_model_small,
+  X1 = X1,
+  X2 = X2,
+  nboot = 100
+)
+
+var_labels <- c("X1" = "Pluie à t-1", "X2" = "O2", "X3" = "Température", "X4" = "Cuivre", 
+  "X5" = "Conductivité", "X6" = "Zinc", "X7" = "Ion ferreux")
+
+df_plot <- bind_rows(
+  sa_result_small$S %>%
+    mutate(Variable = rownames(.), Index = "First-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`),
+  sa_result_small$T %>%
+    mutate(Variable = rownames(.), Index = "Total-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`)
+) %>%
+  mutate(
+    Variable = factor(Variable, levels = names(var_labels)),
+    Label = var_labels[as.character(Variable)]
+  )
+
+ggplot(df_plot, aes(x = Label, y = y, ymin = ymin, ymax = ymax, shape = Index)) +
+  geom_pointrange(position = position_dodge(width = 0.4), size = 0.6) +
+  scale_shape_manual(values = c("First-order" = 16, "Total-order" = 1),
+  labels = c("First-order" = "Indice d'ordre 1", "Total-order" = "Indice total")
+  ) +
+  labs(
+    x = "",
+    y = "Indice de sensibilité",
+    shape = ""
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    legend.position = "right"
+  ) +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+Step 2:
+```{r}
+model_small <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Temperature, bs='re') 
+              + s(Cuivre, bs='re') + s(Conductivité, bs='re') + s(Ion_Ferreux, bs='re'),
+              correlation = corARMA(form = ~ 1, p = 1, q = 1), 
+              data = scaled_data_small, na.action = na.exclude,
+              control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
+```
+
+```{r}
+predict_model_small <- function(x) {
+  new_data <- data.frame(
+    Rainfall_lag_1 = x[, 1],
+    O2 = x[, 2],
+    Temperature = x[, 3], 
+    Cuivre = x[, 4],
+    Conductivité = x[, 5],
+    Ion_Ferreux = x[, 6]
+  )
+  predict(model_small$gam, newdata = new_data, type = "response")
+}
+```
+
+```{r, warning=FALSE}
+n <- 1000
+X1 <- data.frame(matrix(runif(6 * n), nrow = n))
+X2 <- data.frame(matrix(runif(6 * n), nrow = n))
+
+sa_result_small <- sobol2002(
+  model = predict_model_small,
+  X1 = X1,
+  X2 = X2,
+  nboot = 100
+)
+
+var_labels <- c("X1" = "Pluie à t-1", "X2" = "O2", "X3" = "Température", "X4" = "Cuivre", 
+  "X5" = "Conductivité", "X6" = "Ion ferreux")
+
+df_plot <- bind_rows(
+  sa_result_small$S %>%
+    mutate(Variable = rownames(.), Index = "First-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`),
+  sa_result_small$T %>%
+    mutate(Variable = rownames(.), Index = "Total-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`)
+) %>%
+  mutate(
+    Variable = factor(Variable, levels = names(var_labels)),
+    Label = var_labels[as.character(Variable)]
+  )
+
+ggplot(df_plot, aes(x = Label, y = y, ymin = ymin, ymax = ymax, shape = Index)) +
+  geom_pointrange(position = position_dodge(width = 0.4), size = 0.6) +
+  scale_shape_manual(values = c("First-order" = 16, "Total-order" = 1),
+  labels = c("First-order" = "Indice d'ordre 1", "Total-order" = "Indice total")
+  ) +
+  labs(
+    x = "",
+    y = "Indice de sensibilité",
+    shape = ""
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    legend.position = "right"
+  ) +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+Step 3:
+```{r}
+model_small <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Temperature, bs='re') 
+              + s(Cuivre, bs='re') + s(Conductivité, bs='re'),
+              correlation = corARMA(form = ~ 1, p = 1, q = 1), 
+              data = scaled_data_small, na.action = na.exclude,
+              control = lmeControl(msMaxIter = 1000, msMaxEval = 1000))
+```
+
+```{r}
+predict_model_small <- function(x) {
+  new_data <- data.frame(
+    Rainfall_lag_1 = x[, 1],
+    O2 = x[, 2],
+    Temperature = x[, 3], 
+    Cuivre = x[, 4],
+    Conductivité = x[, 5]
+  )
+  predict(model_small$gam, newdata = new_data, type = "response")
+}
+```
+
+```{r, warning=FALSE}
+n <- 1000
+X1 <- data.frame(matrix(runif(5 * n), nrow = n))
+X2 <- data.frame(matrix(runif(5 * n), nrow = n))
+
+sa_result_small <- sobol2002(
+  model = predict_model_small,
+  X1 = X1,
+  X2 = X2,
+  nboot = 100
+)
+
+var_labels <- c("X1" = "Pluie à t-1", "X2" = "O2", "X3" = "Température", "X4" = "Cuivre", 
+  "X5" = "Conductivité")
+
+df_plot <- bind_rows(
+  sa_result_small$S %>%
+    mutate(Variable = rownames(.), Index = "First-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`),
+  sa_result_small$T %>%
+    mutate(Variable = rownames(.), Index = "Total-order") %>%
+    rename(y = original, ymin = `min. c.i.`, ymax = `max. c.i.`)
+) %>%
+  mutate(
+    Variable = factor(Variable, levels = names(var_labels)),
+    Label = var_labels[as.character(Variable)]
+  )
+
+ggplot(df_plot, aes(x = Label, y = y, ymin = ymin, ymax = ymax, shape = Index)) +
+  geom_pointrange(position = position_dodge(width = 0.4), size = 0.6) +
+  scale_shape_manual(values = c("First-order" = 16, "Total-order" = 1),
+  labels = c("First-order" = "Indice d'ordre 1", "Total-order" = "Indice total")
+  ) +
+  labs(
+    x = "",
+    y = "Indice de sensibilité",
+    shape = ""
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    legend.position = "right"
+  ) +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+Equal high variances caught: Copper, Conductivity.
+Too much variances caught, must be removed: Zinc.
+A little too much variance caught, must be removed: FeII.
+
 # Methods grouping
 
 ```{r}
