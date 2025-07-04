@@ -1,0 +1,59 @@
+---
+title: "Detection Limits' Table"
+author: "CLETZ Laura"
+date: "04/07/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(readr)
+library(dplyr)
+library(tidyverse)
+here::i_am("Data_Processing/LD_table.Rmd")
+library(here)
+```
+
+```{r}
+data <- read.table(here("raw_data","Carnoules_compas 2019_2021-vérifié-2.csv"), 
+                   dec=".", sep=";")
+```
+
+```{r}
+LOD <- data.frame(
+  "Aluminium" = 0.00025,
+  "Antimoine" = 0.00464,
+  "Arsenic_Total" = 0.00024,
+  "Baryum" = 0.00022,
+  "Bore" = 20,
+  "Cadmium" = 0.00014,
+  "Calcium" = 9360,
+  "Chrome" = 0.00015,
+  "Cobalt" = 0.00047,
+  "Cuivre" = 0.00074,
+  "Fer_Total" = 0.00083,
+  "Ion_Ferreux" = 0.00083,
+  "Lanthane" = 0.00631,
+  "Lithium" = 0.00026,
+  "Magnésium" = 10000,
+  "Manganèse" = 0.00004,
+  "Molybdène" = 0.00052,
+  "Nickel" = 0.00046,
+  "Plomb" = 0.00167,
+  "Potassium" = 1420,
+  "Sodium" = 5000000,
+  "Souffre" = 408000,
+  "Thallium" = 0.00722,
+  "Titane" = 0.00054,
+  "Vanadium" = 0.00059,
+  "Zinc" = 0.00035
+  )
+```
+
+```{r}
+write_delim(LOD, here("processed","LOD_table.csv"), delim = ";")
+```

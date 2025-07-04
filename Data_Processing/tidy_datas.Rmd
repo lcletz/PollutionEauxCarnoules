@@ -127,8 +127,6 @@ O2 <- data.frame(
   "Amous_Mettler" = ifelse(is.na(data$X8[which(data$X2=='electrode Mettler - ppm')]),0,1)
 ) %>%
   arrange(Dates)
-
-# peut-être rajouter aux dataframes les méthodes choisies ou faire une data frame pour chaque méthode
 ```
 
 ```{r}
@@ -314,12 +312,12 @@ Arséniate <- data.frame(
 ```{r}
 Arsenic_Total <- data.frame(
   "Dates" = dates,
-  "S1" = data$X4[which(data$X1=='As total')],
-  "S5" = data$X3[which(data$X1=='As total')],
-  "COWG" = data$X5[which(data$X1=='As total')],
-  "GAL" = data$X6[which(data$X1=='As total')],
-  "Confluence" = data$X7[which(data$X1=='As total')],
-  "Amous" = data$X8[which(data$X1=='As total')]
+  "S1" = ifelse(is.na(data$X4[which(data$X1=='As total')]), data$X4[which(data$X1=='75As')], data$X4[which(data$X1=='As total')]),
+  "S5" = ifelse(is.na(data$X3[which(data$X1=='As total')]), data$X3[which(data$X1=='75As')], data$X3[which(data$X1=='As total')]),
+  "COWG" = ifelse(is.na(data$X5[which(data$X1=='As total')]), data$X5[which(data$X1=='75As')], data$X5[which(data$X1=='As total')]),
+  "GAL" = ifelse(is.na(data$X6[which(data$X1=='As total')]), data$X6[which(data$X1=='75As')], data$X6[which(data$X1=='As total')]),
+  "Confluence" = ifelse(is.na(data$X7[which(data$X1=='As total')]), data$X7[which(data$X1=='75As')], data$X7[which(data$X1=='As total')]),
+  "Amous" = ifelse(is.na(data$X8[which(data$X1=='As total')]), data$X8[which(data$X1=='75As')], data$X8[which(data$X1=='As total')])
 ) %>%
   arrange(Dates)
 ```

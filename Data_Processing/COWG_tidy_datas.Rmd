@@ -56,7 +56,7 @@ COWG <- data.frame(
   "Antimoine_121Sb" = ifelse(is.na(as.numeric(gsub(",", ".", cowg[66,3:101]))), 0,1),
   "Arséniate" = as.numeric(gsub(",", ".", cowg[23,3:101])),
   "Arsénite" = as.numeric(gsub(",", ".", cowg[24,3:101])),
-  "Arsenic_Total" = as.numeric(cowg[25,3:101]),
+  "Arsenic_Total" = as.numeric(cowg[53,3:101]),
   "Baryum" = as.numeric(gsub(",", ".", cowg[70,3:101])),
   "Baryum_138Ba" = rep(0, 101-2),
   "Baryum_137Ba" = ifelse(is.na(as.numeric(gsub(",", ".", cowg[70,3:101]))), 0,1),
@@ -92,6 +92,7 @@ COWG <- data.frame(
   "Strontium" = as.numeric(gsub(",", ".", cowg[57,3:101])),
   "Strontium_88Sr" = ifelse(is.na(as.numeric(gsub(",", ".", cowg[57,3:101]))), 0,1),
   "Strontium_86Sr" = rep(0, 101-2),
+  "Sulfate" = as.numeric(gsub(",", ".", cowg[35,3:101])),###################
   "Thallium" = as.numeric(gsub(",", ".", cowg[74,3:101])),
   "Thallium_205Tl" = ifelse(is.na(as.numeric(gsub(",", ".", cowg[74,3:101]))), 0,1),
   "Thallium_203Tl" = rep(0, 101-2),

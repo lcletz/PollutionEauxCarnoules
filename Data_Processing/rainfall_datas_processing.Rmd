@@ -14,6 +14,7 @@ library(dplyr)
 library(lubridate)
 library(data.table)
 library(tibble)
+library(readr)
 here::i_am("Data_Processing/rainfall_datas_processing.Rmd")
 library(here)
 ```
