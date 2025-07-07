@@ -1,0 +1,228 @@
+---
+title: "MFA with S1's data"
+author: "CLETZ Laura"
+date: "04/07/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+library(lubridate)
+library(FactoMineR)
+library(factoextra)
+here::i_am("Correlations_and_Predictions/MFA_S1.Rmd")
+library(here)
+```
+
+```{r}
+data_small <- read.table(here("processed","S1_gamm_2004_2010.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
+  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
+
+data_big <- read.table(here("processed","S1_gamm_2004_2019.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
+  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
+
+data_diff <- data_big %>% anti_join(data_small)
+```
+
+# From 2004 to 2010
+
+```{r}
+res.mfa <- MFA(data_small[-1], group=c(6,5), graph=F)
+barplot(res.mfa$eig[,2])
+```
+
+The first two components seem the most importants, but the third and the forth components have near or above 10% of the total of inertia.
+
+```{r}
+res.mfa$quanti.var$contrib
+```
+Conductivité, Arsenic_Total, Zinc and Ion_Ferreux contribute the most to the first component.
+Rainfall, pH, O2 and Plomb contribute the most to the second one.
+Rainfall_lag_1, Temperature contribute the most to the third one.
+pH and O2 contribute the most to the forth one, that means the forth and the second components are somewhat alike.
+Rainfall, Rainfall_lag_1, Sulfate and Ion_Ferreux contribute the most to the fifth component that we will not consider.
+
+Most of the time, physicochemical elements are the most contributing to any axis. It also seems that when metalloids contribute, they're strongly correlated to dilution and thus to physicochemical measures.
+
+```{r}
+gr_names <- rownames(res.mfa$partial.axes$coord)
+gr_names <- ifelse(gr_names %in% gr_names[c(1:5)],
+                        str_replace(gr_names, "Gr1", "Élém. ph-chimiques + temps"),
+                        str_replace(gr_names, "Gr2", "Élém. traces"))
+rownames(res.mfa$partial.axes$coord) <- gr_names
+
+fviz_mfa_axes(res.mfa,
+            repel = TRUE, 
+            ggtheme = theme_minimal(),
+            title = "MFA Partial Axis Plot")
+```
+
+The first dimension is well balanced when it comes to groups contribution but their positions are perpendicular, meaning they don't fit the first dimension of a regular PCA.
+The second dimension is mostly due to physicochemicals parameters.
+The third dimension is mostly due to metalloid variables.
+The forth and fifth dimensions are negligible.
+
+Let's analyse axis 1, 2 and 3 remembering their contributors.
+
+## Axis 1 and 2
+
+```{r}
+var_names <- rownames(res.mfa$quanti.var$coord)
+custom_groups <- ifelse(var_names %in% var_names[c(1:6)],
+                        "Élém. ph-chimiques + temps",
+                        "Élém. traces")
+
+a <- fviz_mfa_var(res.mfa, 
+             axes = c(1,2), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             ggtheme = theme_minimal(),
+             title = "") +
+  labs(color='')  +
+  theme(legend.position = "bottom")
+
+b <- fviz_mfa_ind(res.mfa,
+            axes = c(1,2),
+            repel = TRUE,
+            habillage = factor(month(data_small$Corrected_Dates)),
+            ggtheme = theme_minimal(),
+            title = "") +
+  labs(color='Months')
+
+ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
+```
+
+```{r}
+library(plotly)
+ggplotly(b) %>% 
+  layout(hovermode = "x unified")
+```
+
+## Axis 1 and 3
+
+```{r}
+a <- fviz_mfa_var(res.mfa, 
+             axes = c(1,3), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             ggtheme = theme_minimal(),
+             title = "") +
+  labs(color='')  +
+  theme(legend.position = "bottom")
+
+b <- fviz_mfa_ind(res.mfa,
+            axes = c(1,3),
+            repel = TRUE,
+            habillage = factor(month(data_small$Corrected_Dates)),
+            ggtheme = theme_minimal(),
+            title = "") +
+  labs(color='Months')
+
+ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
+```
+
+```{r}
+library(plotly)
+ggplotly(b) %>% 
+  layout(hovermode = "x unified")
+```
+
+## Axis 2 and 3
+
+```{r}
+a <- fviz_mfa_var(res.mfa, 
+             axes = c(2,3), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             ggtheme = theme_minimal(),
+             title = "") +
+  labs(color='')  +
+  theme(legend.position = "bottom")
+
+b <- fviz_mfa_ind(res.mfa,
+            axes = c(2,3),
+            repel = TRUE,
+            habillage = factor(month(data_small$Corrected_Dates)),
+            ggtheme = theme_minimal(),
+            title = "") +
+  labs(color='Months')
+
+ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
+```
+
+```{r}
+ggplotly(b) %>% 
+  layout(hovermode = "x unified")
+```
+
+# From 2011 to 2019
+
+```{r}
+res.mfa <- MFA(data_diff[-1], group=c(6,5), graph=F)
+barplot(res.mfa$eig[,2])
+```
+The first component has more than 50% of the variability, we'll probably need to study only the first two dimensions.
+
+```{r}
+res.mfa$quanti.var$contrib
+```
+pH, Conductivité, Arsenic_Total, Plomb, Zinc and Ion_Ferreux contribute the most to the first component.
+Rainfall and Rainfall_lag_1 contribute the most to the second one.
+Rainfall and Rainfall_lag_1 contribute the most to the third one, we can read the second and the third components as one and the same.
+Temperature contributes the most to the forth one.
+Rainfall and O2 contribute the most to the fifth one.
+
+```{r}
+gr_names <- rownames(res.mfa$partial.axes$coord)
+gr_names <- ifelse(gr_names %in% gr_names[c(1:5)],
+                        str_replace(gr_names, "Gr1", "Élém. ph-chimiques + temps"),
+                        str_replace(gr_names, "Gr2", "Élém. traces"))
+rownames(res.mfa$partial.axes$coord) <- gr_names
+
+fviz_mfa_axes(res.mfa,
+            repel = TRUE, 
+            ggtheme = theme_minimal(),
+            title = "MFA Partial Axis Plot")
+```
+The dimension 1 in both group almost fits the natural dimension 1.
+The dimension 2 also but one contributes positively while the other contributes negatively.
+The other dimensions are negligible.
+
+Let's analyse the axis 1 and 2.
+
+```{r}
+a <- fviz_mfa_var(res.mfa, 
+             axes = c(1,2), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             ggtheme = theme_minimal(),
+             title = "") +
+  labs(color='')  +
+  theme(legend.position = "bottom")
+
+b <- fviz_mfa_ind(res.mfa,
+            axes = c(1,2),
+            repel = TRUE,
+            habillage = factor(month(data_diff$Corrected_Dates)),
+            ggtheme = theme_minimal(),
+            title = "") +
+  labs(color='Months')
+
+ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
+```
+
+```{r}
+ggplotly(b) %>% 
+  layout(hovermode = "x unified")
+```
+
+
