@@ -55,5 +55,5 @@ DUBOIS Jonathan, CASIOT-MAROUANI Corinne
 ---
 
 <div align="center">
-  <img src="Réunions/retroplanning.png" alt="Retroplanning" />
+  <img src="Meetings/retroplanning.png" alt="Retroplanning" />
 </div>
