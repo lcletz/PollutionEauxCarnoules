@@ -1,0 +1,121 @@
+---
+title: "Optimisation of prediction formula in station S1"
+author: "CLETZ Laura"
+date: "07/07/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(mgcv)
+here::i_am("Formulae_Optimisation/COWG_Formula_Opt.Rmd")
+library(here)
+```
+
+```{r}
+data <- read.table(here("processed","COWG_gamm_2004_2022.csv"), sep=";", dec=".", header=T)
+```
+
+In this RMarkdown file, there has been various attempt to find the best formula for Arsenic_Total, Zinc, Plomb and Ion_Ferreux variables following four steps:
+- thinking of a plausible and logical correlation between variables ;
+- looking at plots between the outcome and each plausible variable to find a function that might fit better ;
+- using ANOVA on small LM' fits to find which interactions are needed ;
+- repeating GAMM' and LM' fits in a backward step-wise logic until each remaining predictor is significant and the BIC is minimized.
+
+# Arsenic_Total
+
+```{r}
+old_bic <- bic
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+test <- gamm(Arsenic_Total ~ s(O2, bs='re') + s(Sulfate, bs='re') + Ion_Ferreux + Conductivité^2 + Zinc + 
+               Zinc:Conductivité + O2:Conductivité + 
+               Zinc:Ion_Ferreux + O2:Ion_Ferreux + Zinc:Sulfate + Sulfate:Ion_Ferreux, 
+             data=data, correlation=corARMA(form = ~1, p=1),
+             control=control)
+
+bic <- BIC(test$lme)
+summary(test$gam)
+```
+
+The best formulae is:
+Arsenic_Total ~ s(O2, bs='re') + s(Sulfate, bs='re') + Ion_Ferreux + Conductivité^2 + Zinc + 
+               Zinc:Conductivité + O2:Conductivité + 
+               Zinc:Ion_Ferreux + O2:Ion_Ferreux + Zinc:Sulfate + Sulfate:Ion_Ferreux
+
+with correlation AR(1).
+
+# Zinc
+
+```{r}
+old_bic <- bic
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+test <- gamm(Zinc ~ s(Sulfate, bs='re') + Ion_Ferreux + Plomb + Conductivité^2 + Arsenic_Total +
+               Sulfate:Ion_Ferreux +Sulfate:Plomb + Sulfate:Conductivité, data=data, 
+             correlation=corARMA(form = ~1, p=1), control=control)
+
+bic <- BIC(test$lme)
+summary(test$gam)
+```
+
+The best formulae is:
+Zinc ~ s(Sulfate, bs='re') + Ion_Ferreux + Plomb + Conductivité^2 + Arsenic_Total +
+               Sulfate:Ion_Ferreux +Sulfate:Plomb + Sulfate:Conductivité
+
+with correlation AR(1).
+
+# Plomb
+
+```{r}
+old_bic <- bic
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+test <- gamm(Plomb ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + 
+               Zinc + Ion_Ferreux + pH + Conductivité + Arsenic_Total +
+               Conductivité:Arsenic_Total + Rainfall_lag_1:Conductivité + Arsenic_Total:Ion_Ferreux, 
+             data=data, correlation=corARMA(form = ~1, p=1),
+             control=control)
+
+bic <- BIC(test$lme)
+summary(test$gam)
+```
+
+The best formulae is:
+Plomb ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + Zinc + Ion_Ferreux + pH + Conductivité + Arsenic_Total +
+               Conductivité:Arsenic_Total + Rainfall_lag_1:Conductivité + Arsenic_Total:Ion_Ferreux
+
+with correlation AR(1). (It's not that different from the formulae in S1.)
+
+# Ion_Ferreux
+
+```{r}
+old_bic <- bic
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
+                        niterEM = 50, opt = "optim")
+
+test <- gamm(Ion_Ferreux ~ s(Rainfall, bs='re') + s(O2, bs='re') + Plomb + Conductivité + 
+               sqrt(Arsenic_Total) + Plomb:Conductivité + Rainfall:O2, 
+             data=data, correlation=corARMA(form = ~1, p=1),
+             control=control)
+
+bic <- BIC(test$lme)
+summary(test$gam)
+```
+
+The best formulae is:
+Ion_Ferreux ~ s(Rainfall, bs='re') + s(O2, bs='re') + Plomb + Conductivité + 
+               sqrt(Arsenic_Total) + Plomb:Conductivité + Rainfall:O2
+
+with correlation AR(1).
