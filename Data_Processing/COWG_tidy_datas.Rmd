@@ -42,7 +42,7 @@ dates <- parse_date_time_robust(dates)
 ```{r}
 COWG <- data.frame(
   "Dates" = dates,
-  "Temperature" = as.numeric(cowg[2,3:101]),
+  "Temperature" = as.numeric(gsub(",", ".", cowg[2,3:101])),
   "pH" = as.numeric(gsub(",", ".", cowg[3,3:101])),
   "Eh" = as.numeric(gsub(",", ".", cowg[4,3:101])),
   "Conductivité" = as.numeric(gsub(",", ".", cowg[5,3:101])),
@@ -92,7 +92,7 @@ COWG <- data.frame(
   "Strontium" = as.numeric(gsub(",", ".", cowg[57,3:101])),
   "Strontium_88Sr" = ifelse(is.na(as.numeric(gsub(",", ".", cowg[57,3:101]))), 0,1),
   "Strontium_86Sr" = rep(0, 101-2),
-  "Sulfate" = as.numeric(gsub(",", ".", cowg[35,3:101])),###################
+  "Sulfate" = (as.numeric(gsub(",", ".", cowg[35,3:101])) * 96)/32000,
   "Thallium" = as.numeric(gsub(",", ".", cowg[74,3:101])),
   "Thallium_205Tl" = ifelse(is.na(as.numeric(gsub(",", ".", cowg[74,3:101]))), 0,1),
   "Thallium_203Tl" = rep(0, 101-2),
@@ -109,108 +109,82 @@ COWG <- data.frame(
 ```
 
 ```{r}
-write_delim(COWG, here("processed","recent_COWG_daily.csv"), delim = ";")
-```
-
-```{r}
-all_months <- seq(
-  from = as.Date(format(min(COWG$Dates), "%Y-%m-01")),
-  to   = as.Date(format(max(COWG$Dates), "%Y-%m-01")),
-  by = "month"
-)
-all_months_df <- data.frame(Dates = all_months)
-
-COWG$MonthDate <- as.Date(format(COWG$Dates, "%Y-%m-01"))
-COWG <- all_months_df %>%
-  left_join(COWG, by = c("Dates" = "MonthDate"))
+COWG$Dates <- as.Date(format(COWG$Dates, "%Y-%m-01"))
 ```
 
 ```{r}
 mean_COWG <- COWG %>%
-  mutate(
-    month = month(as.POSIXlt(Dates, format="%Y-%m-%d")),
-    year = year(as.POSIXlt(Dates, format="%Y-%m-%d"))
-  ) %>%
-  group_by(month, year) %>%
-  summarise(Temperature = mean(Temperature),
-            pH = mean(pH),
-            Eh = mean(Eh),
-            Conductivité = mean(Conductivité),
-            O2 = mean(O2),
-            O2_HACH = max(O2_HACH),
-            O2_Colorimétrie = max(O2_Colorimétrie),
-            O2_Mettler = max(O2_Mettler),
-            Aluminium = mean(Aluminium),
-            Antimoine = mean(Antimoine),
-            Antimoine_123Sb = max(Antimoine_123Sb),
-            Antimoine_121Sb = max(Antimoine_121Sb),
-            Arséniate = mean(Arséniate),
-            Arsénite = mean(Arsénite),
-            Arsenic_Total = mean(Arsenic_Total),
-            Baryum = mean(Baryum),
-            Baryum_138Ba = max(Baryum_138Ba),
-            Baryum_137Ba = max(Baryum_137Ba),
-            Baryum_136Ba = max(Baryum_136Ba),
-            Bore = mean(Bore),
-            Cadmium = mean(Cadmium),
-            Cadmium_114Cd = max(Cadmium_114Cd),
-            Cadmium_111Cd = max(Cadmium_111Cd),
-            Calcium = mean(Calcium),
-            Calcium_44Ca = max(Calcium_44Ca),
-            Calcium_43Ca = max(Calcium_43Ca),
-            Césium = mean(Césium),
-            Chrome = mean(Chrome),
-            Chrome_53Cr = max(Chrome_53Cr),
-            Chrome_52Cr = max(Chrome_52Cr),
-            Cobalt = mean(Cobalt),
-            Cuivre = mean(Cuivre),
-            Cuivre_65Cu = max(Cuivre_65Cu),
-            Cuivre_63Cu = max(Cuivre_63Cu),
-            Fer_Total = mean(Fer_Total),
-            Lanthane = mean(Lanthane),
-            Magnésium = mean(Magnésium),
-            Nickel = mean(Nickel),
-            Nickel_62Ni = max(Nickel_62Ni),
-            Nickel_60Ni = max(Nickel_60Ni),
-            Plomb = mean(Plomb),
-            Plomb_208Pb = max(Plomb_208Pb),
-            Plomb_207Pb = max(Plomb_207Pb),
-            Plomb_206Pb = max(Plomb_206Pb),
-            Rubidium = mean(Rubidium),
-            Sodium = mean(Sodium),
-            Souffre = mean(Souffre),
-            Strontium = mean(Strontium),
-            Strontium_88Sr = max(Strontium_88Sr),
-            Strontium_86Sr = max(Strontium_86Sr),
-            Thallium = mean(Thallium),
-            Thallium_205Tl = max(Thallium_205Tl),
-            Thallium_203Tl = max(Thallium_203Tl),
-            Titane = mean(Titane),
-            Titane_49Ti = max(Titane_49Ti),
-            Titane_47Ti = max(Titane_47Ti),
-            Vanadium = mean(Vanadium),
-            Yttrium = mean(Yttrium),
-            Zinc = mean(Zinc),
-            Zinc_68Zn = max(Zinc_68Zn),
-            Zinc_67Zn = max(Zinc_67Zn),
-            Zinc_66Zn = max(Zinc_66Zn)
-            ) %>%
-  mutate(MonthDate = as.Date(paste(year, month, "01", sep = "-")))
-```
-
-```{r, warning=FALSE}
-monthly_COWG <- COWG %>%
-  mutate(
-    month = month(Dates),
-    year = year(Dates)
-  ) %>%
-  left_join(mean_COWG, by = c("month", "year")) %>%
-  select(-c(Dates.y, ends_with(".x"), month, year, MonthDate)) %>% 
-  distinct() %>%
-  rename_with(~ gsub("\\.y$", "", .x))
+  group_by(Dates) %>%
+  summarise(Temperature = mean(Temperature, na.rm=T),
+            pH = mean(pH, na.rm=T),
+            Eh = mean(Eh, na.rm=T),
+            Conductivité = mean(Conductivité, na.rm=T),
+            O2 = mean(O2, na.rm=T),
+            O2_HACH = max(O2_HACH, na.rm=T),
+            O2_Colorimétrie = max(O2_Colorimétrie, na.rm=T),
+            O2_Mettler = max(O2_Mettler, na.rm=T),
+            Aluminium = mean(Aluminium, na.rm=T),
+            Antimoine = mean(Antimoine, na.rm=T),
+            Antimoine_123Sb = max(Antimoine_123Sb, na.rm=T),
+            Antimoine_121Sb = max(Antimoine_121Sb, na.rm=T),
+            Arséniate = mean(Arséniate, na.rm=T),
+            Arsénite = mean(Arsénite, na.rm=T),
+            Arsenic_Total = mean(Arsenic_Total, na.rm=T),
+            Baryum = mean(Baryum, na.rm=T),
+            Baryum_138Ba = max(Baryum_138Ba, na.rm=T),
+            Baryum_137Ba = max(Baryum_137Ba, na.rm=T),
+            Baryum_136Ba = max(Baryum_136Ba, na.rm=T),
+            Bore = mean(Bore, na.rm=T),
+            Cadmium = mean(Cadmium, na.rm=T),
+            Cadmium_114Cd = max(Cadmium_114Cd, na.rm=T),
+            Cadmium_111Cd = max(Cadmium_111Cd, na.rm=T),
+            Calcium = mean(Calcium, na.rm=T),
+            Calcium_44Ca = max(Calcium_44Ca, na.rm=T),
+            Calcium_43Ca = max(Calcium_43Ca, na.rm=T),
+            Césium = mean(Césium, na.rm=T),
+            Chrome = mean(Chrome, na.rm=T),
+            Chrome_53Cr = max(Chrome_53Cr, na.rm=T),
+            Chrome_52Cr = max(Chrome_52Cr, na.rm=T),
+            Cobalt = mean(Cobalt, na.rm=T),
+            Cuivre = mean(Cuivre, na.rm=T),
+            Cuivre_65Cu = max(Cuivre_65Cu, na.rm=T),
+            Cuivre_63Cu = max(Cuivre_63Cu, na.rm=T),
+            Fer_Total = mean(Fer_Total, na.rm=T),
+            Lanthane = mean(Lanthane, na.rm=T),
+            Magnésium = mean(Magnésium, na.rm=T),
+            Nickel = mean(Nickel, na.rm=T),
+            Nickel_62Ni = max(Nickel_62Ni, na.rm=T),
+            Nickel_60Ni = max(Nickel_60Ni, na.rm=T),
+            Plomb = mean(Plomb, na.rm=T),
+            Plomb_208Pb = max(Plomb_208Pb, na.rm=T),
+            Plomb_207Pb = max(Plomb_207Pb, na.rm=T),
+            Plomb_206Pb = max(Plomb_206Pb, na.rm=T),
+            Rubidium = mean(Rubidium, na.rm=T),
+            Sodium = mean(Sodium, na.rm=T),
+            Souffre = mean(Souffre, na.rm=T),
+            Strontium = mean(Strontium, na.rm=T),
+            Strontium_88Sr = max(Strontium_88Sr, na.rm=T),
+            Strontium_86Sr = max(Strontium_86Sr, na.rm=T),
+            Thallium = mean(Thallium, na.rm=T),
+            Thallium_205Tl = max(Thallium_205Tl, na.rm=T),
+            Thallium_203Tl = max(Thallium_203Tl, na.rm=T),
+            Titane = mean(Titane, na.rm=T),
+            Titane_49Ti = max(Titane_49Ti, na.rm=T),
+            Titane_47Ti = max(Titane_47Ti, na.rm=T),
+            Vanadium = mean(Vanadium, na.rm=T),
+            Yttrium = mean(Yttrium, na.rm=T),
+            Zinc = mean(Zinc, na.rm=T),
+            Zinc_68Zn = max(Zinc_68Zn, na.rm=T),
+            Zinc_67Zn = max(Zinc_67Zn, na.rm=T),
+            Zinc_66Zn = max(Zinc_66Zn, na.rm=T)
+            )
 ```
 
 ```{r}
-write_delim(monthly_COWG, here("processed","recent_COWG.csv"), delim = ";")
+mean_COWG <- sapply(mean_COWG, function(x) { x[is.nan(x)] <- NA; x })
+```
+
+```{r}
+write_delim(as.data.frame(mean_COWG), here("processed","recent_COWG.csv"), delim = ";")
 ```
 

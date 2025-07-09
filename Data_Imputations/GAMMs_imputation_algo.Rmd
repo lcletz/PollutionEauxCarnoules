@@ -39,6 +39,8 @@ S1$Sulfate[na_index] <- ( S1$Souffre[na_index] * 96 ) / 32000
 
 na_index <- which(is.na(COWG$Sulfate))
 COWG$Sulfate[na_index] <- ( COWG$Souffre[na_index] * 96 ) / 32000
+
+rm(na_index)
 ```
 
 ```{r}
@@ -184,6 +186,16 @@ gam_res2 <- step_GAMMs(safe_cowg)
 ```
 
 ```{r}
+diff_s1 <- S1[(76:174),] %>% select( names(safe_s1) )
+diff_cowg <- COWG[(76:213),] %>% select( names(safe_s1) )
+```
+
+```{r}
+gam_res_diff <- step_GAMMs(diff_s1)
+gam_res_diff2 <- step_GAMMs(diff_cowg)
+```
+
+```{r}
 impute_GAMMs <- function(df, model){
   
   list_final <- list()
@@ -249,6 +261,11 @@ res_impute2 <- impute_GAMMs(safe_cowg, gam_res2)
 ```
 
 ```{r}
+res_impute_diff <- impute_GAMMs(diff_s1, gam_res_diff)
+res_impute_diff2 <- impute_GAMMs(diff_cowg, gam_res_diff2)
+```
+
+```{r}
 impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
 
   df <- imputed[[1]]
@@ -260,7 +277,15 @@ impute_iter <- function(imputed, model, max_iter = 10, tol = 1e-4) {
 
     for (resp in 6:ncol(df)) {
 
-      names_index <- 1
+       names_index <- 1
+       max_index <- length(imputed[[2]])
+       found <- FALSE
+
+       while (names(df[resp]) != imputed[[2]][[names_index]]) {
+         names_index <- names_index + 1
+         if (names_index > max_index) stop("Variable not found in imputed list")
+       }
+
       while (names(df[resp]) != imputed[[2]][[names_index]]) {
         names_index <- names_index + 1
       }
@@ -310,50 +335,37 @@ write_delim(COWG_complete, here("processed", "COWG_gamm_2004_2010.csv"), delim="
 ```
 
 ```{r}
-impute_byrow <- function(na_df, df, model){
+S1_diff_complete <- impute_iter(res_impute_diff, gam_res_diff, max_iter = 200)
+COWG_diff_complete <- impute_iter(res_impute_diff2, gam_res_diff2, max_iter = 700)
+```
+
+```{r}
+impute_byrow <- function(na_df, df, model) {
   
-  index <- nrow(df)
   list_final <- list()
   
-  while( index < nrow(na_df) ){
+  while (nrow(df) < nrow(na_df)) {
     
-    cat("\n Il reste", nrow(na_df)-nrow(df), "ligne(s) à compléter")
+    cat("\n Il reste", nrow(na_df) - nrow(df), "ligne(s) à compléter")
     
     last_date <- df[[1]][nrow(df)]
     corres_index <- which(na_df[[1]] == as.Date(last_date))
     
-    if(index + 2 > nrow(na_df)){
-      
-      cat("\n Traitement de la ligne après la date", as.character(last_date))
+    rows_remaining <- nrow(na_df) - corres_index
+    rows_to_add <- min(30, rows_remaining)
     
-      next_rows <- na_df[ corres_index + 1, ]
+    cat("\n Traitement des", rows_to_add, "lignes après la date", as.character(last_date))
     
-      df <- df %>% bind_rows(next_rows)
-      l <- impute_GAMMs(df, model)
-      
-      df <- l[[1]]
-      list_ind <- l[[2]]
-      list_final <- append(list_final, list_ind)
+    next_rows <- na_df[ (corres_index + 1):(corres_index + rows_to_add), , drop = FALSE]
     
-      cat("\n Imputation de la nouvelle ligne réussie")
+    df <- df %>% bind_rows(next_rows)
     
-      index <- index + 1
-      
-    } else { 
-      cat("\n Traitement des deux lignes après la date", as.character(last_date))
+    l <- impute_GAMMs(df, model)
+    df <- l[[1]]
+    list_ind <- l[[2]]
+    list_final <- append(list_final, list_ind)
     
-      next_rows <- na_df[ c(corres_index + 1, corres_index + 2), ]
-    
-      df <- df %>% bind_rows(next_rows)
-      l <- impute_GAMMs(df, model)
-      
-      df <- l[[1]]
-      list_ind <- l[[2]]
-      list_final <- append(list_final, list_ind)
-    
-      cat("\n Imputation des nouvelles lignes réussie")
-      
-      index <- index + 2 }
+    cat("\n Imputation des nouvelles lignes réussie")
   }
   
   return(list(df, list_final))
@@ -446,7 +458,13 @@ attempt <- impute_iter(new_impute, gam_res2, max_iter = 1000)
 write_delim(attempt, here('processed', 'COWG_gamm_2004_2022.csv'), delim=";")
 ```
 
+```{r}
+new_S1 <- S1_complete %>% bind_rows(S1_diff_complete[-1,])
+write_delim(new_S1, here("processed","S1_gamm_2004_2019_twice.csv"), delim=";")
 
+new_COWG <- COWG_complete %>% bind_rows(COWG_diff_complete[-1,])
+write_delim(new_COWG, here("processed","COWG_gamm_2004_2022_twice.csv"), delim=";")
+```
 
 
 
