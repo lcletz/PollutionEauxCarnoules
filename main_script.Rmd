@@ -1,0 +1,33 @@
+---
+title: "Main Script"
+author: "CLETZ Laura"
+date: "09/07/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+source_rmd = function(file, ...) {
+  tmp_file = tempfile(fileext=".R")
+  on.exit(unlink(tmp_file), add = TRUE)
+  knitr::purl(file, output=tmp_file)
+  source(file = tmp_file, ...)
+}
+```
+
+```{r}
+source_rmd("Data_Processing/tidy_datas.Rmd")
+source_rmd("Data_Processing/COWG_tidy_datas.Rmd") 
+source_rmd("Data_Processing/indicators_processing.Rmd") 
+source_rmd("Data_Processing/LD_table.Rmd") 
+source_rmd("Data_Processing/chr_to_num_processing.Rmd") 
+source_rmd("Data_Processing/dates_processing.Rmd") 
+source_rmd("Data_Processing/rainfall_datas_processing.Rmd") 
+```
+
+```{r}
+source_rmd("Data_Imputations/GAMMs_imputation_algo.Rmd")
+```
