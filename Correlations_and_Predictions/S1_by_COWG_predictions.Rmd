@@ -1,0 +1,419 @@
+---
+title: "ARIMA and GAMMs predictions at station S1 using COWG's data"
+author: "CLETZ Laura"
+date: "08/07/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(dplyr)
+library(mgcv)
+library(gam)
+library(forecast)
+here::i_am("Correlations_and_Predictions/S1_by_COWG_predictions.Rmd")
+library(here)
+```
+
+In this file, we will predict S1 using COWG where we couldn't in the file named "S1_predictions.Rmd" as long as we predicted correctly the corresponding variables in COWG.
+
+```{r}
+#data <- read.table(here('processed', 'COWG_gamm_2004_2022.csv'), dec = '.', sep = ';', header = T) %>%
+#  mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d"))
+
+data <- read.table(here('processed', 'COWG_gamm_2004_2022_twice.csv'), dec = '.', sep = ';', header = T) %>%
+  mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d"))
+```
+
+```{r}
+#S1 <- read.table(here('processed', 'S1_gamm_2004_2019.csv'), dec = '.', sep = ';', header = T) %>%
+#  mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d"))
+
+S1 <- read.table(here('processed', 'S1_gamm_2004_2019_twice.csv'), dec = '.', sep = ';', header = T) %>%
+  mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d"))
+```
+
+```{r}
+new_data <- data.frame(
+  Dates = as.Date("2025-04-24", format = "%Y-%m-%d"),
+  Temperature = 16.8,
+  Rainfall = 107.4,
+  Rainfall_lag_1 = 243.1,
+  Conductivité = 4560,
+  pH = 2.97,
+  O2 = 2.86,
+  Ion_Ferreux = 1069.64,
+  Sulfate = (1240903.62 * 96) / 32000,
+  Zinc = 19337.51,
+  Arsenic_Total = 115181.67,
+  Plomb = 1614.53
+  ) %>%
+  mutate(Numeric_Dates = as.numeric(Dates)) 
+```
+
+```{r}
+test <- read.table(here('processed','Source_S1.csv'), dec = '.', sep = ";", header = TRUE)[77:174,] %>%
+  mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d")) %>%
+  mutate(Numeric_Dates = as.numeric(Corrected_Dates)) %>%
+  select(names(new_data))
+```
+
+# Temperature
+
+We recall that : S1 = 7.81202 + 0.51873 * COWG
+
+```{r}
+temp <- ts(data$Temperature, start = c(2004,11), end = c(2022,4), frequency = 12)
+
+fit_temp <- arima(temp, order = c(1, 1, 1),
+      seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
+
+pred_temp <- predict(fit_temp, n.ahead = 51) 
+```
+
+```{r}
+temp <- ts(S1$Temperature, start = c(2004,11), end = c(2019,1), frequency = 12)
+
+plot.ts(temp, type='l', xlab='Temps', ylab="Température (C°)",
+        xlim = c(2004,2026), xaxt = 'n')
+
+cowg <- ts(7.81202 + 0.51873 * data$Temperature[174:213], start = c(2019,1), end = c(2022,4), frequency = 12)
+points(cowg, type='l', col='blue')
+
+ts <- ts(7.81202 + 0.51873 * pred_temp$pred, start = c(2022,4), end = c(2026,6), frequency = 12)
+ts_se <- ts(pred_temp$se, start = c(2022,4), end = c(2026,6), frequency = 12)
+
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(ts(test$Temperature, start = c(2011,2), end = c(2019,1), frequency = 12),
+       pch = 19, col = "darkred")
+
+points(2025.33, new_data$Temperature, col='red', pch=19)
+
+abline(h=13, col='red')
+abline(h=18, col='red')
+
+legend(x = "bottomright",
+       legend=c("S1", "7.81202 + 0.51873 * COWG", "Intervalle de prédiction", "Points non-imputés", "Point test"),
+       col=c("black", "blue", "cyan3", "darkred", "red"),
+       pch=c(NA, NA, NA, 19, 19),
+       lty=c(1, 1, 1, NA, NA),
+       lwd=c(1, 1, 5, 1, 1),
+       bty = "n")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+The prediction curve is accurate!
+
+# O2
+
+We recall that : S1 = -0.3946 + 0.2911 * COWG (intercept NS)
+
+```{r}
+o2 <- ts(data$O2, start = c(2004,11), end = c(2022,4), frequency = 12)
+
+fit_o2 <- arima(o2, order = c(1, 1, 1),
+      seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
+
+pred_o2 <- predict(fit_o2, n.ahead = 51) 
+```
+
+```{r}
+o2 <- ts(S1$O2, start = c(2004,11), end = c(2019,1), frequency = 12)
+
+plot.ts(o2, type='l', xlab='Temps', ylab="O2",
+        xlim = c(2004,2026), xaxt = 'n')
+
+cowg <- ts(-0.3946 + 0.2911 * data$O2[174:213], start = c(2019,1), end = c(2022,4), frequency = 12)
+points(cowg, type='l', col='blue')
+
+ts <- ts(-0.3946 + 0.2911 * pred_o2$pred, start = c(2022,4), end = c(2026,6), frequency = 12)
+ts_se <- ts(pred_o2$se, start = c(2022,4), end = c(2026,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(ts(test$O2, start = c(2011,2), end = c(2019,1), frequency = 12),
+       pch = 19, col = "darkred")
+
+points(2025.33, new_data$O2, col='red', pch=19)
+
+abline(h=0.5, col='red')
+abline(h=3.5, col='red')
+
+legend(x = "topright",
+       legend=c("S1", "0.7349 + 0.6365 * COWG", "Intervalle de prédiction", "Points non-imputés", "Point test"),
+       col=c("black", "blue", "cyan3", "darkred", "red"),
+       pch=c(NA, NA, NA, 19, 19),
+       lty=c(1, 1, 1, NA, NA),
+       lwd=c(1, 1, 5, 1, 1),
+       cex=c(0.6, 0.6, 0.6, 0.6, 0.6),
+       bty = "n")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+# pH
+
+We recall that : S1 = 0.7349 + 0.6365 * COWG (intercept not much significant)
+
+```{r}
+ph <- ts(data$pH, start = c(2004,11), end = c(2022,4), frequency = 12)
+
+fit_ph <- arima(ph, order = c(1, 1, 1),
+      seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
+
+pred_ph <- predict(fit_ph, n.ahead = 51) 
+```
+
+```{r}
+ph <- ts(S1$pH, start = c(2004,11), end = c(2019,1), frequency = 12)
+
+plot.ts(ph, type='l', xlab='Temps', ylab="pH",
+        xlim = c(2004,2026), xaxt = 'n')
+
+cowg <- ts(0.7349 + 0.6365 * data$pH[174:213], start = c(2019,1), end = c(2022,4), frequency = 12)
+points(cowg, type='l', col='blue')
+
+ts <- ts(0.7349 + 0.6365 * pred_ph$pred, start = c(2022,4), end = c(2026,6), frequency = 12)
+ts_se <- ts(pred_ph$se, start = c(2022,4), end = c(2026,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(ts(test$pH, start = c(2011,2), end = c(2019,1), frequency = 12),
+       pch = 19, col = "darkred")
+
+points(2025.33, new_data$pH, col='red', pch=19)
+
+abline(h=2.5, col='red')
+abline(h=3.5, col='red')
+
+legend(x = "topright",
+       legend=c("S1", "0.7349 + 0.6365 * COWG", "Intervalle de prédiction", "Points non-imputés", "Point test"),
+       col=c("black", "blue", "cyan3", "darkred", "red"),
+       pch=c(NA, NA, NA, 19, 19),
+       lty=c(1, 1, 1, NA, NA),
+       lwd=c(1, 1, 5, 1, 1),
+       cex=c(0.6, 0.6, 0.6, 0.6, 0.6),
+       bty = "n")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+Since the prediction didn't fit on S1's data, that oddly decreasing curve the imputed data made doesn't join the predicted curve but the predicted curve predicts accurately the point in 2025!
+
+# Arsenic_Total
+
+We recall that : S1 = 1.021e+05 + 4.862e-01 * COWG
+
+```{r}
+ars <- ts(data$Arsenic_Total, start = c(2004,11), end = c(2022,4), frequency = 12)
+
+fit_ars <- arima(ars, order = c(1, 1, 1),
+      seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
+
+pred_ars <- predict(fit_ars, n.ahead = 51) 
+```
+
+```{r}
+ars <- ts(S1$Arsenic_Total, start = c(2004,11), end = c(2019,1), frequency = 12)
+
+plot.ts(ars, type='l', xlab='Temps', ylab="Concentration en arsenic (ppb)",
+        xlim = c(2004,2026), xaxt = 'n')
+
+cowg <- ts(1.021e+05 + 4.862e-01 * data$Arsenic_Total[174:213], start = c(2019,1), end = c(2022,4), frequency = 12)
+points(cowg, type='l', col='blue')
+
+ts <- ts(1.021e+05 + 4.862e-01 * pred_ars$pred, start = c(2022,4), end = c(2026,6), frequency = 12)
+ts_se <- ts(pred_ars$se, start = c(2022,4), end = c(2026,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(ts(test$Arsenic_Total, start = c(2011,2), end = c(2019,1), frequency = 12),
+       pch = 19, col = "darkred")
+
+points(2025.33, new_data$Arsenic_Total, col='red', pch=19)
+
+abline(h=200000, col='red')
+abline(h=100000, col='red')
+
+legend(x = "bottomright",
+       legend=c("S1", "1.021e+05 + 4.862e-01 * COWG", "Intervalle de prédiction", "Points non-imputés", "Point test"),
+       col=c("black", "blue", "cyan3", "darkred", "red"),
+       pch=c(NA, NA, NA, 19, 19),
+       lty=c(1, 1, 1, NA, NA),
+       lwd=c(1, 1, 5, 1, 1),
+       cex=c(0.6, 0.6, 0.6, 0.6, 0.6),
+       bty = "n")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+The imputed data whether that be from S1 or COWG might be too high, we can see that the non-missing data seem to decrease but the imputation had an increasing effect. We can't really predict S1 by COWG when it comes to Arsenic...
+
+# Zinc
+
+We recall that : S1 = 1.069e+04 + 6.795e-01 * COWG
+
+```{r}
+zinc <- ts(data$Zinc, start = c(2004,11), end = c(2022,4), frequency = 12)
+
+fit_zinc <- arima(zinc, order = c(1, 1, 1),
+      seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
+
+pred_zinc <- predict(fit_zinc, n.ahead = 51) 
+```
+
+```{r}
+zinc <- ts(S1$Zinc, start = c(2004,11), end = c(2019,1), frequency = 12)
+
+plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en zinc (ppb)",
+        xlim = c(2004,2026), xaxt = 'n')
+
+cowg <- ts(1.069e+04 + 6.795e-01 * data$Zinc[174:213], start = c(2019,1), end = c(2022,4), frequency = 12)
+points(cowg, type='l', col='blue')
+
+ts <- ts(1.069e+04 + 6.795e-01 * pred_zinc$pred, start = c(2022,4), end = c(2026,6), frequency = 12)
+ts_se <- ts(pred_zinc$se, start = c(2022,4), end = c(2026,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(ts(test$Zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
+       pch = 19, col = "darkred")
+
+points(2025.33, new_data$Zinc, col='red', pch=19)
+
+abline(h=15000, col='red')
+abline(h=30000, col='red')
+
+legend(x = "topright",
+       legend=c("S1", "1.069e+04 + 6.795e-01 * COWG", "Intervalle de prédiction", "Points non-imputés", "Point test"),
+       col=c("black", "blue", "cyan3", "darkred", "red"),
+       pch=c(NA, NA, NA, 19, 19),
+       lty=c(1, 1, 1, NA, NA),
+       lwd=c(1, 1, 5, 1, 1),
+       cex=c(0.6, 0.6, 0.6, 0.6, 0.6),
+       bty = "n")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+We can't predict Zinc in S1 from COWG data.
+
+# Plomb
+
+We recall that : S1 = 1.163e+03 + 4.234e-01 * COWG
+
+```{r}
+lead <- ts(data$Plomb, start = c(2004,11), end = c(2022,4), frequency = 12)
+
+fit_lead <- arima(lead, order = c(1, 1, 1),
+      seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
+
+pred_lead <- predict(fit_lead, n.ahead = 51) 
+```
+
+```{r}
+lead <- ts(S1$Plomb, start = c(2004,11), end = c(2019,1), frequency = 12)
+
+plot.ts(lead, type='l', xlab='Temps', ylab="Concentration en Plomb (ppb)",
+        xlim = c(2004,2026), xaxt = 'n')
+
+cowg <- ts(1.163e+03 + 4.234e-01 * data$Plomb[174:213], start = c(2019,1), end = c(2022,4), frequency = 12)
+points(cowg, type='l', col='blue')
+
+ts <- ts(1.163e+03 + 4.234e-01 * pred_lead$pred, start = c(2022,4), end = c(2026,6), frequency = 12)
+ts_se <- ts(pred_lead$se, start = c(2022,4), end = c(2026,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(ts(test$Plomb, start = c(2011,2), end = c(2019,1), frequency = 12),
+       pch = 19, col = "darkred")
+
+points(2025.33, new_data$Plomb, col='red', pch=19)
+
+abline(h=15000, col='red')
+abline(h=25000, col='red')
+
+legend(x = "topright",
+       legend=c("S1", "1.163e+03 + 4.234e-01  * COWG", "Intervalle de prédiction", "Points non-imputés", "Point test"),
+       col=c("black", "blue", "cyan3", "darkred", "red"),
+       pch=c(NA, NA, NA, 19, 19),
+       lty=c(1, 1, 1, NA, NA),
+       lwd=c(1, 1, 5, 1, 1),
+       cex=c(0.6, 0.6, 0.6, 0.6, 0.6),
+       bty = "n")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+It's good!
+
+# Ion_Ferreux
+
+We recall that : S1 = 735.90420 + 0.58520 * COWG
+
+```{r}
+fer <- ts(data$Ion_Ferreux, start = c(2004,11), end = c(2022,4), frequency = 12)
+
+fit_fer <- arima(fer, order = c(1, 1, 1),
+      seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
+
+pred_fer <- predict(fit_fer, n.ahead = 51) 
+```
+
+```{r}
+fer <- ts(S1$Ion_Ferreux, start = c(2004,11), end = c(2019,1), frequency = 12)
+
+plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en FeII (ppb)",
+        xlim = c(2004,2026), xaxt = 'n')
+
+cowg <- ts(735.90420 + 0.58520 * data$Ion_Ferreux[174:213], start = c(2019,1), end = c(2022,4), frequency = 12)
+points(cowg, type='l', col='blue')
+
+ts <- ts(735.90420 + 0.58520 * pred_fer$pred, start = c(2022,4), end = c(2026,6), frequency = 12)
+ts_se <- ts(pred_fer$se, start = c(2022,4), end = c(2026,6), frequency = 12)
+x_coords <- c(time(ts), rev(time(ts)))
+y_coords <- c(ts + ts_se, rev(ts - ts_se))
+polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
+
+points(ts, type='l', col='blue')
+points(ts(test$Ion_Ferreux, start = c(2011,2), end = c(2019,1), frequency = 12),
+       pch = 19, col = "darkred")
+
+points(2025.33, new_data$Ion_Ferreux, col='red', pch=19)
+
+abline(h=15000, col='red')
+abline(h=25000, col='red')
+
+legend(x = "topright",
+       legend=c("S1", "735.90420 + 0.58520 * COWG", "Intervalle de prédiction", "Points non-imputés", "Point test"),
+       col=c("black", "blue", "cyan3", "darkred", "red"),
+       pch=c(NA, NA, NA, 19, 19),
+       lty=c(1, 1, 1, NA, NA),
+       lwd=c(1, 1, 5, 1, 1),
+       cex=c(0.6, 0.6, 0.6, 0.6, 0.6),
+       bty = "n")
+
+axis(1, at = seq(2004, 2026, by = 1), las = 2)
+```
+
+Almost...
+
