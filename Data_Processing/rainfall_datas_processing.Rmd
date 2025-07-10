@@ -1,5 +1,5 @@
 ---
-title: "Rainfall datas processing"
+title: "rainfall datas processing"
 author: "CLETZ Laura"
 date: "04/06/2025"
 output: pdf_document
@@ -29,39 +29,39 @@ gen$Pluviometrie.1h..mm. <- as.numeric(
   lapply( gen$Pluviometrie.1h..mm., function(x) gsub(",",".",x) )
   )
 
-gen <- gen %>% rename(Dates = Date.Heure) %>% rename(Rainfall = Pluviometrie.1h..mm.)
+gen <- gen %>% rename(dates = Date.Heure) %>% rename(rainfall = Pluviometrie.1h..mm.)
 ```
 
 ```{r}
 gen2 <- read.table(here('raw_data', 'Pluie generargues', '2010-2019-Tableau 1.csv'),
                      dec = ',', sep = ";", header = TRUE)[c(10,12)]
 gen2$X.3 <- as.Date(gen2$X.3, format="%m/%d/%y")
-gen2 <- gen2 %>% rename(Dates = X.3) %>% rename(Rainfall = RR1)
+gen2 <- gen2 %>% rename(dates = X.3) %>% rename(rainfall = RR1)
 ```
 
 ```{r}
 gen3 <- read.table(here('raw_data', 'Pluie generargues', '2020-2023-Tableau 1.csv'),
                      dec = ',', sep = ";", header = TRUE)[c(10,12)]
 gen3$Date <- as.Date(gen3$Date, format="%m/%d/%y")
-gen3 <- gen3 %>% rename(Dates = Date) %>% rename(Rainfall = RR1)
+gen3 <- gen3 %>% rename(dates = Date) %>% rename(rainfall = RR1)
 ```
 
 ```{r}
 gen <- gen %>% bind_rows(gen2) %>% bind_rows(gen3)
 
 all_days <- unique(seq(
-  from = as.Date(format(min(gen$Dates), "%Y-%m-%d")),
-  to   = as.Date(format(max(gen$Dates), "%Y-%m-%d")),
+  from = as.Date(format(min(gen$dates), "%Y-%m-%d")),
+  to   = as.Date(format(max(gen$dates), "%Y-%m-%d")),
   by = "day"
 ))
-all_days_df <- data.frame(Dates = all_days)
+all_days_df <- data.frame(dates = all_days)
 
 gen <- all_days_df %>%
   left_join(gen) %>% distinct()
 
 gen <- gen %>%
-  group_by(Dates) %>%
-  summarise(Rainfall = sum(Rainfall, na.rm = TRUE))
+  group_by(dates) %>%
+  summarise(rainfall = sum(rainfall, na.rm = TRUE))
 
 write_delim(gen, here("processed","Generargues_complete.csv"), delim = ";")
 ```
@@ -69,56 +69,56 @@ write_delim(gen, here("processed","Generargues_complete.csv"), delim = ";")
 
 ```{r}
 S1 <- read.table(here("processed","Source_S1.csv"), dec=".", sep=";", header=T) 
-S1$Dates <- as.Date(S1$Dates, format = "%Y-%m-%d")
+S1$dates <- as.Date(S1$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 S5 <- read.table(here("processed","S5.csv"), dec=".", sep=";", header=T) 
-S5$Dates <- as.Date(S5$Dates, format = "%Y-%m-%d")
+S5$dates <- as.Date(S5$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 COWG <- read.table(here("processed","COWG.csv"), dec=".", sep=";", header=T) 
-COWG$Dates <- as.Date(COWG$Dates, format = "%Y-%m-%d")
+COWG$dates <- as.Date(COWG$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 GAL <- read.table(here("processed","GAL.csv"), dec=".", sep=";", header=T) 
-GAL$Dates <- as.Date(GAL$Dates, format = "%Y-%m-%d")
+GAL$dates <- as.Date(GAL$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 Confluence <- read.table(here("processed","Confluence.csv"), dec=".", sep=";", header=T)
-Confluence$Dates <- as.Date(Confluence$Dates, format = "%Y-%m-%d")
+Confluence$dates <- as.Date(Confluence$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 Amous <- read.table(here("processed","Amous_1200.csv"), dec=".", sep=";", header=T)
-Amous$Dates <- as.Date(Amous$Dates, format = "%Y-%m-%d")
+Amous$dates <- as.Date(Amous$dates, format = "%Y-%m-%d")
 ```
 
 
 ```{r}
 rainfall_processing <- function(df, rain_df){
   
-  df$Rainfall <- rep(NA, nrow(df))
-  df$Rainfall_lag_1 <- rep(NA, nrow(df))
+  df$rainfall <- rep(NA, nrow(df))
+  df$rainfall_lag_1 <- rep(NA, nrow(df))
   
-  df <- df %>% relocate(Rainfall, .after = Dates)
-  df <- df %>% relocate(Rainfall_lag_1, .after = Rainfall)
+  df <- df %>% relocate(rainfall, .after = dates)
+  df <- df %>% relocate(rainfall_lag_1, .after = rainfall)
   
   for(row in 1:nrow(df)){
     
-    if( is.na(df$Dates[row]) ){
-      get_date <- df$Corrected_Dates[row]
+    if( is.na(df$dates[row]) ){
+      get_date <- df$corrected_dates[row]
     } else {
-      get_date <- df$Dates[row]
+      get_date <- df$dates[row]
     }
     
-    index_rain <- which(rain_df$Dates == get_date)
+    index_rain <- which(rain_df$dates == get_date)
     
-    df$Rainfall[row] <- sum(rain_df$Rainfall[ index_rain:(index_rain - 30) ], na.rm = TRUE)
-    df$Rainfall_lag_1[row] <- sum(rain_df$Rainfall[ (index_rain - 30):(index_rain - 60) ], na.rm = TRUE)
+    df$rainfall[row] <- sum(rain_df$rainfall[ index_rain:(index_rain - 30) ], na.rm = TRUE)
+    df$rainfall_lag_1[row] <- sum(rain_df$rainfall[ (index_rain - 30):(index_rain - 60) ], na.rm = TRUE)
   }
   
   return(df)

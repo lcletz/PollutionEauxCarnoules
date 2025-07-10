@@ -1,5 +1,5 @@
 ---
-title: "Dates processing"
+title: "dates processing"
 author: "CLETZ Laura"
 date: "27/06/2025"
 output: pdf_document
@@ -22,22 +22,22 @@ library(here)
 
 ```{r}
 S1 <- read.table(here("processed","Source_S1.csv"), dec=".", sep=";", header=T) 
-S1$Dates <- as.Date(S1$Dates, format = "%Y-%m-%d")
+S1$dates <- as.Date(S1$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 S5 <- read.table(here("processed","S5.csv"), dec=".", sep=";", header=T) 
-S5$Dates <- as.Date(S5$Dates, format = "%Y-%m-%d")
+S5$dates <- as.Date(S5$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 COWG <- read.table(here("processed","COWG.csv"), dec=".", sep=";", header=T) 
-COWG$Dates <- as.Date(COWG$Dates, format = "%Y-%m-%d")
+COWG$dates <- as.Date(COWG$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 recent_COWG <- read.table(here("processed","recent_COWG.csv"), dec=".", sep=";", header=T)
-recent_COWG$Dates <- as.Date(recent_COWG$Dates, format = "%Y-%m-%d")
+recent_COWG$dates <- as.Date(recent_COWG$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
@@ -46,42 +46,42 @@ long_COWG <- COWG %>% bind_rows(recent_COWG)
 
 ```{r}
 GAL <- read.table(here("processed","GAL.csv"), dec=".", sep=";", header=T) 
-GAL$Dates <- as.Date(GAL$Dates, format = "%Y-%m-%d")
+GAL$dates <- as.Date(GAL$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 Confluence <- read.table(here("processed","Confluence.csv"), dec=".", sep=";", header=T)
-Confluence$Dates <- as.Date(Confluence$Dates, format = "%Y-%m-%d")
+Confluence$dates <- as.Date(Confluence$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 Amous <- read.table(here("processed","Amous_1200.csv"), dec=".", sep=";", header=T)
-Amous$Dates <- as.Date(Amous$Dates, format = "%Y-%m-%d")
+Amous$dates <- as.Date(Amous$dates, format = "%Y-%m-%d")
 ```
 
 ```{r}
 dates_processing <- function(df) {
 
-  df$Corrected_Dates <- as.Date(df$Dates[1], format = "%Y-%m-%d")
-  df <- df %>% relocate(Corrected_Dates)
+  df$corrected_dates <- as.Date(df$dates[1], format = "%Y-%m-%d")
+  df <- df %>% relocate(corrected_dates)
   
   for (row in 2:nrow(df)) {
-    df$Corrected_Dates[row] <- NA
+    df$corrected_dates[row] <- NA
   }
 
-  while (any(is.na(df$Corrected_Dates))) {
+  while (any(is.na(df$corrected_dates))) {
     for (row in 2:nrow(df)) {
-      if (is.na(df$Corrected_Dates[row])) {
-        diff <- difftime(df$Dates[row], df$Corrected_Dates[row - 1], units = "days")
+      if (is.na(df$corrected_dates[row])) {
+        diff <- difftime(df$dates[row], df$corrected_dates[row - 1], units = "days")
 
         if (diff >= 60) {
-          new_row <- data.frame(Dates = NA, Corrected_Dates = df$Corrected_Dates[row - 1] + 30)
+          new_row <- data.frame(dates = NA, corrected_dates = df$corrected_dates[row - 1] + 30)
           df <- bind_rows(df[1:(row - 1), ], new_row, df[row:nrow(df), ]) %>%
-            arrange(Corrected_Dates)
+            arrange(corrected_dates)
           break
           
         } else {
-          df$Corrected_Dates[row] <- df$Corrected_Dates[row - 1] + 30
+          df$corrected_dates[row] <- df$corrected_dates[row - 1] + 30
         }
       }
     }
@@ -104,50 +104,50 @@ Amous <- dates_processing(Amous)
 ```{r}
 undetermined_method <- function(df){
   
-  levels(df$O2_method) <- c(levels(df$O2_method), "Undetermined_O2_method")
-  df$O2_method[ is.na( df$O2_method ) ] <- "Undetermined_O2_method"
+  levels(df$o2_method) <- c(levels(df$o2_method), "undetermined_o2_method")
+  df$o2_method[ is.na( df$o2_method ) ] <- "undetermined_o2_method"
   
-  levels(df$Antimoine_method) <- c(levels(df$Antimoine_method), "Undetermined_Antimoine_method")
-  df$Antimoine_method[ is.na( df$Antimoine_method ) ] <- "Undetermined_Antimoine_method"
+  levels(df$antimony_method) <- c(levels(df$antimony_method), "undetermined_antimony_method")
+  df$antimony_method[ is.na( df$antimony_method ) ] <- "undetermined_antimony_method"
   
-  levels(df$Baryum_method) <- c(levels(df$Baryum_method), "Undetermined_Baryum_method")
-  df$Baryum_method[ is.na( df$Baryum_method ) ] <- "Undetermined_Baryum_method"
+  levels(df$baryum_method) <- c(levels(df$baryum_method), "undetermined_baryum_method")
+  df$baryum_method[ is.na( df$baryum_method ) ] <- "undetermined_baryum_method"
   
-  levels(df$Cadmium_method) <- c(levels(df$Cadmium_method), "Undetermined_Cadmium_method")
-  df$Cadmium_method[ is.na( df$Cadmium_method ) ] <- "Undetermined_Cadmium_method"
+  levels(df$cadmium_method) <- c(levels(df$cadmium_method), "undetermined_cadmium_method")
+  df$cadmium_method[ is.na( df$cadmium_method ) ] <- "undetermined_cadmium_method"
   
-  levels(df$Calcium_method) <- c(levels(df$Calcium_method), "Undetermined_Calcium_method")
-  df$Calcium_method[ is.na( df$Calcium_method ) ] <- "Undetermined_Calcium_method"
+  levels(df$calcium_method) <- c(levels(df$calcium_method), "undetermined_calcium_method")
+  df$calcium_method[ is.na( df$calcium_method ) ] <- "undetermined_calcium_method"
   
-  levels(df$Chrome_method) <- c(levels(df$Chrome_method), "Undetermined_Chrome_method")
-  df$Chrome_method[ is.na( df$Chrome_method ) ] <- "Undetermined_Chrome_method"
+  levels(df$chromium_method) <- c(levels(df$chromium_method), "undetermined_chromium_method")
+  df$chromium_method[ is.na( df$chromium_method ) ] <- "undetermined_chromium_method"
   
-  levels(df$Cuivre_method) <- c(levels(df$Cuivre_method), "Undetermined_Cuivre_method")
-  df$Cuivre_method[ is.na( df$Cuivre_method ) ] <- "Undetermined_Cuivre_method"
+  levels(df$copper_method) <- c(levels(df$copper_method), "undetermined_copper_method")
+  df$copper_method[ is.na( df$copper_method ) ] <- "undetermined_copper_method"
   
-  levels(df$Étain_method) <- c(levels(df$Étain_method), "Undetermined_Étain_method")
-  df$Étain_method[ is.na( df$Étain_method ) ] <- "Undetermined_Étain_method"
+  levels(df$tin_method) <- c(levels(df$tin_method), "undetermined_tin_method")
+  df$tin_method[ is.na( df$tin_method ) ] <- "undetermined_tin_method"
   
-  levels(df$Molybdène_method) <- c(levels(df$Molybdène_method), "Undetermined_Molybdène_method")
-  df$Molybdène_method[ is.na( df$Molybdène_method ) ] <- "Undetermined_Molybdène_method"
+  levels(df$molybdenum_method) <- c(levels(df$molybdenum_method), "undetermined_molybdenum_method")
+  df$molybdenum_method[ is.na( df$molybdenum_method ) ] <- "undetermined_molybdenum_method"
   
-  levels(df$Nickel_method) <- c(levels(df$Nickel_method), "Undetermined_Nickel_method")
-  df$Nickel_method[ is.na( df$Nickel_method ) ] <- "Undetermined_Nickel_method"
+  levels(df$nickel_method) <- c(levels(df$nickel_method), "undetermined_nickel_method")
+  df$nickel_method[ is.na( df$nickel_method ) ] <- "undetermined_nickel_method"
   
-  levels(df$Plomb_method) <- c(levels(df$Plomb_method), "Undetermined_Plomb_method")
-  df$Plomb_method[ is.na( df$Plomb_method ) ] <- "Undetermined_Plomb_method"
+  levels(df$lead_method) <- c(levels(df$lead_method), "undetermined_lead_method")
+  df$lead_method[ is.na( df$lead_method ) ] <- "undetermined_lead_method"
   
-  levels(df$Strontium_method) <- c(levels(df$Strontium_method), "Undetermined_Strontium_method")
-  df$Strontium_method[ is.na( df$Strontium_method ) ] <- "Undetermined_Strontium_method"
+  levels(df$strontium_method) <- c(levels(df$strontium_method), "undetermined_strontium_method")
+  df$strontium_method[ is.na( df$strontium_method ) ] <- "undetermined_strontium_method"
   
-  levels(df$Thallium_method) <- c(levels(df$Thallium_method), "Undetermined_Thallium_method")
-  df$Thallium_method[ is.na( df$Thallium_method ) ] <- "Undetermined_Thallium_method"
+  levels(df$thallium_method) <- c(levels(df$thallium_method), "undetermined_thallium_method")
+  df$thallium_method[ is.na( df$thallium_method ) ] <- "undetermined_thallium_method"
   
-  levels(df$Titane_method) <- c(levels(df$Titane_method), "Undetermined_Titane_method")
-  df$Titane_method[ is.na( df$Titane_method ) ] <- "Undetermined_Titane_method"
+  levels(df$titanium_method) <- c(levels(df$titanium_method), "undetermined_titanium_method")
+  df$titanium_method[ is.na( df$titanium_method ) ] <- "undetermined_titanium_method"
   
-  levels(df$Zinc_method) <- c(levels(df$Zinc_method), "Undetermined_Zinc_method")
-  df$Zinc_method[ is.na( df$Zinc_method ) ] <- "Undetermined_Zinc_method"
+  levels(df$zinc_method) <- c(levels(df$zinc_method), "undetermined_zinc_method")
+  df$zinc_method[ is.na( df$zinc_method ) ] <- "undetermined_zinc_method"
   
   return(df)
 }

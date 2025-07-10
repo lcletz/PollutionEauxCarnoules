@@ -1,11 +1,11 @@
 ---
 title: "Datas processing"
-author: "CLETZ Laura"
+author: "chloride_ionETZ Laura"
 date: "02/06/2025"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, inchloride_ionude=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -29,7 +29,7 @@ for(file in files){
 }
 ```
 
-Cleaning dates format:
+chloride_ioneaning dates format:
 ```{r}
 get_dates <- grep('/', data$X1)
 dates <- data$X1[get_dates]
@@ -47,8 +47,8 @@ dates <- parse_date_time_robust(dates)
 # Creating a data.frame for each variables
 
 ```{r}
-Temperature <- data.frame(
-  "Dates" = dates,
+temperature <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='T')],
   "S5" = data$X3[which(data$X1=='T')],
   "COWG" = data$X5[which(data$X1=='T')],
@@ -56,12 +56,12 @@ Temperature <- data.frame(
   "Confluence" = data$X7[which(data$X1=='T')],
   "Amous" = data$X8[which(data$X1=='T')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-pH <- data.frame(
-  "Dates" = dates,
+ph <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='pH')],
   "S5" = data$X3[which(data$X1=='pH')],
   "COWG" = data$X5[which(data$X1=='pH')],
@@ -69,12 +69,12 @@ pH <- data.frame(
   "Confluence" = data$X7[which(data$X1=='pH')],
   "Amous" = data$X8[which(data$X1=='pH')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Eh <- data.frame(
-  "Dates" = dates,
+eh <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Eh')],
   "S5" = data$X3[which(data$X1=='Eh')],
   "COWG" = data$X5[which(data$X1=='Eh')],
@@ -82,12 +82,12 @@ Eh <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Eh')],
   "Amous" = data$X8[which(data$X1=='Eh')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Conductivité <- data.frame(
-  "Dates" = dates,
+conductivity <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Conductivité')],
   "S5" = data$X3[which(data$X1=='Conductivité')],
   "COWG" = data$X5[which(data$X1=='Conductivité')],
@@ -95,43 +95,43 @@ Conductivité <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Conductivité')],
   "Amous" = data$X8[which(data$X1=='Conductivité')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-O2 <- data.frame(
-  "Dates" = dates,
+o2 <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X4[which(data$X2=='colorimétrie - ppm')]), data$X4[which(data$X2=='electrode Mettler - ppm')], data$X4[which(data$X2=='colorimétrie - ppm')]), data$X4[which(data$X2=='electrode HACH - ppm')]),
   "S5" = ifelse(is.na(data$X3[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X3[which(data$X2=='colorimétrie - ppm')]), data$X3[which(data$X2=='electrode Mettler - ppm')], data$X3[which(data$X2=='colorimétrie - ppm')]), data$X3[which(data$X2=='electrode HACH - ppm')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X5[which(data$X2=='colorimétrie - ppm')]), data$X5[which(data$X2=='electrode Mettler - ppm')], data$X5[which(data$X2=='colorimétrie - ppm')]), data$X5[which(data$X2=='electrode HACH - ppm')]),
   "GAL" = ifelse(is.na(data$X6[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X6[which(data$X2=='colorimétrie - ppm')]), data$X6[which(data$X2=='electrode Mettler - ppm')], data$X6[which(data$X2=='colorimétrie - ppm')]), data$X6[which(data$X2=='electrode HACH - ppm')]),
   "Confluence" = ifelse(is.na(data$X7[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X7[which(data$X2=='colorimétrie - ppm')]), data$X7[which(data$X2=='electrode Mettler - ppm')], data$X7[which(data$X2=='colorimétrie - ppm')]), data$X7[which(data$X2=='electrode HACH - ppm')]),
   "Amous" = ifelse(is.na(data$X8[which(data$X2=='electrode HACH - ppm')]), ifelse(is.na(data$X8[which(data$X2=='colorimétrie - ppm')]), data$X8[which(data$X2=='electrode Mettler - ppm')], data$X8[which(data$X2=='colorimétrie - ppm')]), data$X8[which(data$X2=='electrode HACH - ppm')]),
-  "S1_HACH" = ifelse(is.na(data$X4[which(data$X2=='electrode HACH - ppm')]),0,1),
-  "S5_HACH" = ifelse(is.na(data$X3[which(data$X2=='electrode HACH - ppm')]),0,1),
-  "COWG_HACH" = ifelse(is.na(data$X5[which(data$X2=='electrode HACH - ppm')]),0,1),
-  "GAL_HACH" = ifelse(is.na(data$X6[which(data$X2=='electrode HACH - ppm')]),0,1),
-  "Confluence_HACH" = ifelse(is.na(data$X7[which(data$X2=='electrode HACH - ppm')]),0,1),
-  "Amous_HACH" = ifelse(is.na(data$X8[which(data$X2=='electrode HACH - ppm')]),0,1),
-  "S1_Colorimétrie" = ifelse(is.na(data$X4[which(data$X2=='colorimétrie - ppm')]),0,1),
-  "S5_Colorimétrie" = ifelse(is.na(data$X3[which(data$X2=='colorimétrie - ppm')]),0,1),
-  "COWG_Colorimétrie" = ifelse(is.na(data$X5[which(data$X2=='colorimétrie - ppm')]),0,1),
-  "GAL_Colorimétrie" = ifelse(is.na(data$X6[which(data$X2=='colorimétrie - ppm')]),0,1),
-  "Confluence_Colorimétrie" = ifelse(is.na(data$X7[which(data$X2=='colorimétrie - ppm')]),0,1),
-  "Amous_Colorimétrie" = ifelse(is.na(data$X8[which(data$X2=='colorimétrie - ppm')]),0,1),
-  "S1_Mettler" = ifelse(is.na(data$X4[which(data$X2=='electrode Mettler - ppm')]),0,1),
-  "S5_Mettler" = ifelse(is.na(data$X3[which(data$X2=='electrode Mettler - ppm')]),0,1),
-  "COWG_Mettler" = ifelse(is.na(data$X5[which(data$X2=='electrode Mettler - ppm')]),0,1),
-  "GAL_Mettler" = ifelse(is.na(data$X6[which(data$X2=='electrode Mettler - ppm')]),0,1),
-  "Confluence_Mettler" = ifelse(is.na(data$X7[which(data$X2=='electrode Mettler - ppm')]),0,1),
-  "Amous_Mettler" = ifelse(is.na(data$X8[which(data$X2=='electrode Mettler - ppm')]),0,1)
+  "S1_hach" = ifelse(is.na(data$X4[which(data$X2=='electrode HACH - ppm')]),0,1),
+  "S5_hach" = ifelse(is.na(data$X3[which(data$X2=='electrode HACH - ppm')]),0,1),
+  "COWG_hach" = ifelse(is.na(data$X5[which(data$X2=='electrode HACH - ppm')]),0,1),
+  "GAL_hach" = ifelse(is.na(data$X6[which(data$X2=='electrode HACH - ppm')]),0,1),
+  "Confluence_hach" = ifelse(is.na(data$X7[which(data$X2=='electrode HACH - ppm')]),0,1),
+  "Amous_hach" = ifelse(is.na(data$X8[which(data$X2=='electrode HACH - ppm')]),0,1),
+  "S1_colorimetrie" = ifelse(is.na(data$X4[which(data$X2=='colorimétrie - ppm')]),0,1),
+  "S5_colorimetrie" = ifelse(is.na(data$X3[which(data$X2=='colorimétrie - ppm')]),0,1),
+  "COWG_colorimetrie" = ifelse(is.na(data$X5[which(data$X2=='colorimétrie - ppm')]),0,1),
+  "GAL_colorimetrie" = ifelse(is.na(data$X6[which(data$X2=='colorimétrie - ppm')]),0,1),
+  "Confluence_colorimetrie" = ifelse(is.na(data$X7[which(data$X2=='colorimétrie - ppm')]),0,1),
+  "Amous_colorimetrie" = ifelse(is.na(data$X8[which(data$X2=='colorimétrie - ppm')]),0,1),
+  "S1_mettler" = ifelse(is.na(data$X4[which(data$X2=='electrode Mettler - ppm')]),0,1),
+  "S5_mettler" = ifelse(is.na(data$X3[which(data$X2=='electrode Mettler - ppm')]),0,1),
+  "COWG_mettler" = ifelse(is.na(data$X5[which(data$X2=='electrode Mettler - ppm')]),0,1),
+  "GAL_mettler" = ifelse(is.na(data$X6[which(data$X2=='electrode Mettler - ppm')]),0,1),
+  "Confluence_mettler" = ifelse(is.na(data$X7[which(data$X2=='electrode Mettler - ppm')]),0,1),
+  "Amous_mettler" = ifelse(is.na(data$X8[which(data$X2=='electrode Mettler - ppm')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Sulfate <- data.frame(
-  "Dates" = dates,
+sulfate <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='SO42-')],
   "S5" = data$X3[which(data$X1=='SO42-')],
   "COWG" = data$X5[which(data$X1=='SO42-')],
@@ -139,12 +139,12 @@ Sulfate <- data.frame(
   "Confluence" = data$X7[which(data$X1=='SO42-')],
   "Amous" = data$X8[which(data$X1=='SO42-')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Ion_Ferreux <- data.frame(
-  "Dates" = dates,
+feII <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Fe II')],
   "S5" = data$X3[which(data$X1=='Fe II')],
   "COWG" = data$X5[which(data$X1=='Fe II')],
@@ -152,12 +152,12 @@ Ion_Ferreux <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Fe II')],
   "Amous" = data$X8[which(data$X1=='Fe II')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Fer_Total <- data.frame(
-  "Dates" = dates[-which(dates==as.Date("2019-01-28 UTC"))],
+total_iron <- data.frame(
+  "dates" = dates[-which(dates==as.Date("2019-01-28 UTC"))],
   "S1" = data$X4[which(data$X1=='Fe total par AA')],
   "S5" = data$X3[which(data$X1=='Fe total par AA')],
   "COWG" = data$X5[which(data$X1=='Fe total par AA')],
@@ -165,10 +165,10 @@ Fer_Total <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Fe total par AA')],
   "Amous" = data$X8[which(data$X1=='Fe total par AA')]
 ) %>%
-  arrange(Dates)
-Fer_Total <- Fer_Total %>% bind_rows(
+  arrange(dates)
+total_iron <- total_iron %>% bind_rows(
   data.frame(
-    Dates = as.Date("2019-01-28", format = "%Y-%m-%d"), 
+    dates = as.Date("2019-01-28", format = "%Y-%m-%d"), 
     S1 = NA,
     S5 = NA,
     COWG = NA,
@@ -180,8 +180,8 @@ Fer_Total <- Fer_Total %>% bind_rows(
 ```
 
 ```{r}
-Ion_Chlorure <- data.frame(
-  "Dates" = dates,
+chloride_ion <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Cl-')],
   "S5" = data$X3[which(data$X1=='Cl-')],
   "COWG" = data$X5[which(data$X1=='Cl-')],
@@ -189,12 +189,12 @@ Ion_Chlorure <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Cl-')],
   "Amous" = data$X8[which(data$X1=='Cl-')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Nitrate <- data.frame(
-  "Dates" = dates,
+nitrate <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='NO3-')],
   "S5" = data$X3[which(data$X1=='NO3-')],
   "COWG" = data$X5[which(data$X1=='NO3-')],
@@ -202,12 +202,12 @@ Nitrate <- data.frame(
   "Confluence" = data$X7[which(data$X1=='NO3-')],
   "Amous" = data$X8[which(data$X1=='NO3-')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Ion_Calcium <- data.frame(
-  "Dates" = dates,
+calcium_ion <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Ca2+')],
   "S5" = data$X3[which(data$X1=='Ca2+')],
   "COWG" = data$X5[which(data$X1=='Ca2+')],
@@ -215,12 +215,12 @@ Ion_Calcium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Ca2+')],
   "Amous" = data$X8[which(data$X1=='Ca2+')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Ion_Magnésium <- data.frame(
-  "Dates" = dates,
+magnesium_ion <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Mg2+')],
   "S5" = data$X3[which(data$X1=='Mg2+')],
   "COWG" = data$X5[which(data$X1=='Mg2+')],
@@ -228,12 +228,12 @@ Ion_Magnésium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Mg2+')],
   "Amous" = data$X8[which(data$X1=='Mg2+')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Ion_Sodium <- data.frame(
-  "Dates" = dates,
+sodium_ion <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Na+')],
   "S5" = data$X3[which(data$X1=='Na+')],
   "COWG" = data$X5[which(data$X1=='Na+')],
@@ -241,12 +241,12 @@ Ion_Sodium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Na+')],
   "Amous" = data$X8[which(data$X1=='Na+')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Ion_Potassium <- data.frame(
-  "Dates" = dates,
+potassium_ion <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='K+')],
   "S5" = data$X3[which(data$X1=='K+')],
   "COWG" = data$X5[which(data$X1=='K+')],
@@ -254,12 +254,12 @@ Ion_Potassium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='K+')],
   "Amous" = data$X8[which(data$X1=='K+')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Ion_Fluorure <- data.frame(
-  "Dates" = dates,
+fluoride <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='F-')],
   "S5" = data$X3[which(data$X1=='F-')],
   "COWG" = data$X5[which(data$X1=='F-')],
@@ -267,12 +267,12 @@ Ion_Fluorure <- data.frame(
   "Confluence" = data$X7[which(data$X1=='F-')],
   "Amous" = data$X8[which(data$X1=='F-')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Ion_Bromure <- data.frame(
-  "Dates" = dates,
+bromide <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Br-')],
   "S5" = data$X3[which(data$X1=='Br-')],
   "COWG" = data$X5[which(data$X1=='Br-')],
@@ -280,12 +280,12 @@ Ion_Bromure <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Br-')],
   "Amous" = data$X8[which(data$X1=='Br-')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Arsénite <- data.frame(
-  "Dates" = dates,
+asIII <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='As III')],
   "S5" = data$X3[which(data$X1=='As III')],
   "COWG" = data$X5[which(data$X1=='As III')],
@@ -293,12 +293,12 @@ Arsénite <- data.frame(
   "Confluence" = data$X7[which(data$X1=='As III')],
   "Amous" = data$X8[which(data$X1=='As III')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Arséniate <- data.frame(
-  "Dates" = dates,
+asV <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='As V')],
   "S5" = data$X3[which(data$X1=='As V')],
   "COWG" = data$X5[which(data$X1=='As V')],
@@ -306,12 +306,12 @@ Arséniate <- data.frame(
   "Confluence" = data$X7[which(data$X1=='As V')],
   "Amous" = data$X8[which(data$X1=='As V')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Arsenic_Total <- data.frame(
-  "Dates" = dates,
+total_arsenic <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='As total')]), data$X4[which(data$X1=='75As')], data$X4[which(data$X1=='As total')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='As total')]), data$X3[which(data$X1=='75As')], data$X3[which(data$X1=='As total')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='As total')]), data$X5[which(data$X1=='75As')], data$X5[which(data$X1=='As total')]),
@@ -319,12 +319,12 @@ Arsenic_Total <- data.frame(
   "Confluence" = ifelse(is.na(data$X7[which(data$X1=='As total')]), data$X7[which(data$X1=='75As')], data$X7[which(data$X1=='As total')]),
   "Amous" = ifelse(is.na(data$X8[which(data$X1=='As total')]), data$X8[which(data$X1=='75As')], data$X8[which(data$X1=='As total')])
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Cobalt <- data.frame(
-  "Dates" = dates,
+cobalt <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='59Co')],
   "S5" = data$X3[which(data$X1=='59Co')],
   "COWG" = data$X5[which(data$X1=='59Co')],
@@ -332,12 +332,12 @@ Cobalt <- data.frame(
   "Confluence" = data$X7[which(data$X1=='59Co')],
   "Amous" = data$X8[which(data$X1=='59Co')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Souffre <- data.frame(
-  "Dates" = dates,
+sulfur <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='34S')],
   "S5" = data$X3[which(data$X1=='34S')],
   "COWG" = data$X5[which(data$X1=='34S')],
@@ -345,12 +345,12 @@ Souffre <- data.frame(
   "Confluence" = data$X7[which(data$X1=='34S')],
   "Amous" = data$X8[which(data$X1=='34S')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Bore <- data.frame(
-  "Dates" = dates,
+bore <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='11B')],
   "S5" = data$X3[which(data$X1=='11B')],
   "COWG" = data$X5[which(data$X1=='11B')],
@@ -358,12 +358,12 @@ Bore <- data.frame(
   "Confluence" = data$X7[which(data$X1=='11B')],
   "Amous" = data$X8[which(data$X1=='11B')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Sodium <- data.frame(
-  "Dates" = dates,
+sodium <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Na')],
   "S5" = data$X3[which(data$X1=='Na')],
   "COWG" = data$X5[which(data$X1=='Na')],
@@ -371,12 +371,12 @@ Sodium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Na')],
   "Amous" = data$X8[which(data$X1=='Na')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Magnésium <- data.frame(
-  "Dates" = dates,
+magnesium <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='Mg')],
   "S5" = data$X3[which(data$X1=='Mg')],
   "COWG" = data$X5[which(data$X1=='Mg')],
@@ -384,12 +384,12 @@ Magnésium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='Mg')],
   "Amous" = data$X8[which(data$X1=='Mg')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Aluminium <- data.frame(
-  "Dates" = dates,
+aluminium <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='27Al')],
   "S5" = data$X3[which(data$X1=='27Al')],
   "COWG" = data$X5[which(data$X1=='27Al')],
@@ -397,12 +397,12 @@ Aluminium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='27Al')],
   "Amous" = data$X8[which(data$X1=='27Al')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Cuivre <- data.frame(
-  "Dates" = dates,
+copper <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='65Cu')]), data$X4[which(data$X1=='63Cu')], data$X4[which(data$X1=='65Cu')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='65Cu')]), data$X3[which(data$X1=='63Cu')], data$X3[which(data$X1=='65Cu')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='65Cu')]), data$X5[which(data$X1=='63Cu')], data$X5[which(data$X1=='65Cu')]),
@@ -422,12 +422,12 @@ Cuivre <- data.frame(
   "Confluence_63Cu" = ifelse(is.na(data$X7[which(data$X1=='63Cu')]),0,1),
   "Amous_63Cu" = ifelse(is.na(data$X8[which(data$X1=='63Cu')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Calcium <- data.frame(
-  "Dates" = dates,
+calcium <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='44Ca')]), data$X4[which(data$X1=='43Ca')], data$X4[which(data$X1=='44Ca')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='44Ca')]), data$X3[which(data$X1=='43Ca')], data$X3[which(data$X1=='44Ca')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='44Ca')]), data$X5[which(data$X1=='43Ca')], data$X5[which(data$X1=='44Ca')]),
@@ -447,12 +447,12 @@ Calcium <- data.frame(
   "Confluence_43Ca" = ifelse(is.na(data$X7[which(data$X1=='43Ca')]),0,1),
   "Amous_43Ca" = ifelse(is.na(data$X8[which(data$X1=='43Ca')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Titane <- data.frame(
-  "Dates" = dates,
+titanium <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='49Ti')]), data$X4[which(data$X1=='47Ti')], data$X4[which(data$X1=='49Ti')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='49Ti')]), data$X3[which(data$X1=='47Ti')], data$X3[which(data$X1=='49Ti')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='49Ti')]), data$X5[which(data$X1=='47Ti')], data$X5[which(data$X1=='49Ti')]),
@@ -472,12 +472,12 @@ Titane <- data.frame(
   "Confluence_47Ti" = ifelse(is.na(data$X7[which(data$X1=='47Ti')]),0,1),
   "Amous_47Ti" = ifelse(is.na(data$X8[which(data$X1=='47Ti')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Vanadium <- data.frame(
-  "Dates" = dates,
+vanadium <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='51V')],
   "S5" = data$X3[which(data$X1=='51V')],
   "COWG" = data$X5[which(data$X1=='51V')],
@@ -485,12 +485,12 @@ Vanadium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='51V')],
   "Amous" = data$X8[which(data$X1=='51V')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Rubidium <- data.frame(
-  "Dates" = dates,
+rubidium <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='85Rb')],
   "S5" = data$X3[which(data$X1=='85Rb')],
   "COWG" = data$X5[which(data$X1=='85Rb')],
@@ -498,12 +498,12 @@ Rubidium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='85Rb')],
   "Amous" = data$X8[which(data$X1=='85Rb')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Yttrium <- data.frame(
-  "Dates" = dates,
+yttrium <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='89Y')],
   "S5" = data$X3[which(data$X1=='89Y')],
   "COWG" = data$X5[which(data$X1=='89Y')],
@@ -511,12 +511,12 @@ Yttrium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='89Y')],
   "Amous" = data$X8[which(data$X1=='89Y')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Zirconium <- data.frame(
-  "Dates" = dates,
+zirconium <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='90Zr')],
   "S5" = data$X3[which(data$X1=='90Zr')],
   "COWG" = data$X5[which(data$X1=='90Zr')],
@@ -524,12 +524,12 @@ Zirconium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='90Zr')],
   "Amous" = data$X8[which(data$X1=='90Zr')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Césium <- data.frame(
-  "Dates" = dates,
+caesium <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='133Cs')],
   "S5" = data$X3[which(data$X1=='133Cs')],
   "COWG" = data$X5[which(data$X1=='133Cs')],
@@ -537,12 +537,12 @@ Césium <- data.frame(
   "Confluence" = data$X7[which(data$X1=='133Cs')],
   "Amous" = data$X8[which(data$X1=='133Cs')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Chrome <- data.frame(
-  "Dates" = dates,
+chromium <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='53Cr')]), data$X4[which(data$X1=='52Cr')], data$X4[which(data$X1=='53Cr')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='53Cr')]), data$X3[which(data$X1=='52Cr')], data$X3[which(data$X1=='53Cr')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='53Cr')]), data$X5[which(data$X1=='52Cr')], data$X5[which(data$X1=='53Cr')]),
@@ -562,12 +562,12 @@ Chrome <- data.frame(
   "Confluence_52Cr" = ifelse(is.na(data$X7[which(data$X1=='52Cr')]),0,1),
   "Amous_52Cr" = ifelse(is.na(data$X8[which(data$X1=='52Cr')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Molybdène <- data.frame(
-  "Dates" = dates,
+molybdenum <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='97Mo')]), data$X4[which(data$X1=='95Mo')], data$X4[which(data$X1=='97Mo')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='97Mo')]), data$X3[which(data$X1=='95Mo')], data$X3[which(data$X1=='97Mo')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='97Mo')]), data$X5[which(data$X1=='95Mo')], data$X5[which(data$X1=='97Mo')]),
@@ -587,12 +587,12 @@ Molybdène <- data.frame(
   "Confluence_95Mo" = ifelse(is.na(data$X7[which(data$X1=='95Mo')]),0,1),
   "Amous_95Mo" = ifelse(is.na(data$X8[which(data$X1=='95Mo')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Étain <- data.frame(
-  "Dates" = dates,
+tin <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='120Sn')]), data$X4[which(data$X1=='118Sn')], data$X4[which(data$X1=='120Sn')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='120Sn')]), data$X3[which(data$X1=='118Sn')], data$X3[which(data$X1=='120Sn')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='120Sn')]), data$X5[which(data$X1=='118Sn')], data$X5[which(data$X1=='120Sn')]),
@@ -612,12 +612,12 @@ Molybdène <- data.frame(
   "Confluence_118Sn" = ifelse(is.na(data$X7[which(data$X1=='118Sn')]),0,1),
   "Amous_118Sn" = ifelse(is.na(data$X8[which(data$X1=='118Sn')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Strontium <- data.frame(
-  "Dates" = dates,
+strontium <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='88Sr')]), data$X4[which(data$X1=='86Sr')], data$X4[which(data$X1=='88Sr')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='88Sr')]), data$X3[which(data$X1=='86Sr')], data$X3[which(data$X1=='88Sr')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='88Sr')]), data$X5[which(data$X1=='86Sr')], data$X5[which(data$X1=='88Sr')]),
@@ -637,12 +637,12 @@ Strontium <- data.frame(
   "Confluence_86Sr" = ifelse(is.na(data$X7[which(data$X1=='86Sr')]),0,1),
   "Amous_86Sr" = ifelse(is.na(data$X8[which(data$X1=='86Sr')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Nickel <- data.frame(
-  "Dates" = dates,
+nickel <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='62Ni')]), data$X4[which(data$X1=='60Ni')], data$X4[which(data$X1=='62Ni')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='62Ni')]), data$X3[which(data$X1=='60Ni')], data$X3[which(data$X1=='62Ni')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='62Ni')]), data$X5[which(data$X1=='60Ni')], data$X5[which(data$X1=='62Ni')]),
@@ -662,12 +662,12 @@ Nickel <- data.frame(
   "Confluence_60Ni" = ifelse(is.na(data$X7[which(data$X1=='60Ni')]),0,1),
   "Amous_60Ni" = ifelse(is.na(data$X8[which(data$X1=='60Ni')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Zinc <- data.frame(
-  "Dates" = dates,
+zinc <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='68Zn')]), ifelse(is.na(data$X4[which(data$X1=='67Zn')]), data$X4[which(data$X1=='66Zn')], data$X4[which(data$X1=='67Zn')]), data$X4[which(data$X1=='68Zn')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='68Zn')]), ifelse(is.na(data$X3[which(data$X1=='67Zn')]), data$X3[which(data$X1=='66Zn')], data$X3[which(data$X1=='67Zn')]), data$X3[which(data$X1=='68Zn')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='68Zn')]), ifelse(is.na(data$X5[which(data$X1=='67Zn')]), data$X5[which(data$X1=='66Zn')], data$X5[which(data$X1=='67Zn')]), data$X5[which(data$X1=='68Zn')]),
@@ -693,12 +693,12 @@ Zinc <- data.frame(
   "Confluence_66Zn" = ifelse(is.na(data$X7[which(data$X1=='66Zn')]),0,1),
   "Amous_66Zn" = ifelse(is.na(data$X8[which(data$X1=='66Zn')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Cadmium <- data.frame(
-  "Dates" = dates,
+cadmium <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='114Cd')]), data$X4[which(data$X1=='111Cd')], data$X4[which(data$X1=='114Cd')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='114Cd')]), data$X3[which(data$X1=='111Cd')], data$X3[which(data$X1=='114Cd')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='114Cd')]), data$X5[which(data$X1=='111Cd')], data$X5[which(data$X1=='114Cd')]),
@@ -718,12 +718,12 @@ Cadmium <- data.frame(
   "Confluence_111Cd" = ifelse(is.na(data$X7[which(data$X1=='111Cd')]),0,1),
   "Amous_111Cd" = ifelse(is.na(data$X8[which(data$X1=='111Cd')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Antimoine <- data.frame(
-  "Dates" = dates,
+antimony <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='123Sb')]), data$X4[which(data$X1=='121Sb')], data$X4[which(data$X1=='123Sb')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='123Sb')]), data$X3[which(data$X1=='121Sb')], data$X3[which(data$X1=='123Sb')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='123Sb')]), data$X5[which(data$X1=='121Sb')], data$X5[which(data$X1=='123Sb')]),
@@ -743,12 +743,12 @@ Antimoine <- data.frame(
   "Confluence_121Sb" = ifelse(is.na(data$X7[which(data$X1=='121Sb')]),0,1),
   "Amous_121Sb" = ifelse(is.na(data$X8[which(data$X1=='121Sb')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Thallium <- data.frame(
-  "Dates" = dates,
+thallium <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='205Tl')]), data$X4[which(data$X1=='203Tl')], data$X4[which(data$X1=='205Tl')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='205Tl')]), data$X3[which(data$X1=='203Tl')], data$X3[which(data$X1=='205Tl')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='205Tl')]), data$X5[which(data$X1=='203Tl')], data$X5[which(data$X1=='205Tl')]),
@@ -768,12 +768,12 @@ Thallium <- data.frame(
   "Confluence_203Tl" = ifelse(is.na(data$X7[which(data$X1=='203Tl')]),0,1),
   "Amous_203Tl" = ifelse(is.na(data$X8[which(data$X1=='203Tl')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Plomb <- data.frame(
-  "Dates" = dates,
+lead <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='208Pb')]), ifelse(is.na(data$X4[which(data$X1=='207Pb')]), data$X4[which(data$X1=='206Pb')], data$X4[which(data$X1=='207Pb')]), data$X4[which(data$X1=='208Pb')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='208Pb')]), ifelse(is.na(data$X3[which(data$X1=='207Pb')]), data$X3[which(data$X1=='206Pb')], data$X3[which(data$X1=='207Pb')]), data$X3[which(data$X1=='208Pb')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='208Pb')]), ifelse(is.na(data$X5[which(data$X1=='207Pb')]), data$X5[which(data$X1=='206Pb')], data$X5[which(data$X1=='207Pb')]), data$X5[which(data$X1=='208Pb')]),
@@ -799,12 +799,12 @@ Plomb <- data.frame(
   "Confluence_206Pb" = ifelse(is.na(data$X7[which(data$X1=='206Pb')]),0,1),
   "Amous_206Pb" = ifelse(is.na(data$X8[which(data$X1=='206Pb')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Lanthane <- data.frame(
-  "Dates" = dates,
+lanthanum <- data.frame(
+  "dates" = dates,
   "S1" = data$X4[which(data$X1=='139La')],
   "S5" = data$X3[which(data$X1=='139La')],
   "COWG" = data$X5[which(data$X1=='139La')],
@@ -812,12 +812,12 @@ Lanthane <- data.frame(
   "Confluence" = data$X7[which(data$X1=='139La')],
   "Amous" = data$X8[which(data$X1=='139La')]
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 ```{r}
-Baryum <- data.frame(
-  "Dates" = dates,
+baryum <- data.frame(
+  "dates" = dates,
   "S1" = ifelse(is.na(data$X4[which(data$X1=='138Ba')]), ifelse(is.na(data$X4[which(data$X1=='137Ba')]), data$X4[which(data$X1=='136Ba')], data$X4[which(data$X1=='137Ba')]), data$X4[which(data$X1=='138Ba')]),
   "S5" = ifelse(is.na(data$X3[which(data$X1=='138Ba')]), ifelse(is.na(data$X3[which(data$X1=='137Ba')]), data$X3[which(data$X1=='136Ba')], data$X3[which(data$X1=='137Ba')]), data$X3[which(data$X1=='138Ba')]),
   "COWG" = ifelse(is.na(data$X5[which(data$X1=='138Ba')]), ifelse(is.na(data$X5[which(data$X1=='137Ba')]), data$X5[which(data$X1=='136Ba')], data$X5[which(data$X1=='137Ba')]), data$X5[which(data$X1=='138Ba')]),
@@ -843,512 +843,512 @@ Baryum <- data.frame(
   "Confluence_136Ba" = ifelse(is.na(data$X7[which(data$X1=='136Ba')]),0,1),
   "Amous_136Ba" = ifelse(is.na(data$X8[which(data$X1=='136Ba')]),0,1)
 ) %>%
-  arrange(Dates)
+  arrange(dates)
 ```
 
 # Creating and saving a data.frame for each station
 
 ```{r}
 Source_S1 <- data.frame(
-  Dates = Temperature$Dates,
-  Temperature = Temperature$S1,
-  pH = pH$S1,
-  Eh = Eh$S1,
-  O2 = O2$S1,
-  O2_HACH = O2$S1_HACH,
-  O2_Colorimétrie = O2$S1_Colorimétrie,
-  O2_Mettler = O2$S1_Mettler,
-  Conductivité = Conductivité$S1,
-  Aluminium = Aluminium$S1,
-  Antimoine = Antimoine$S1,
-  Antimoine_123Sb = Antimoine$S1_123Sb,
-  Antimoine_121Sb = Antimoine$S1_121Sb,
-  Arséniate = Arséniate$S1,
-  Arsénite = Arsénite$S1,
-  Arsenic_Total = Arsenic_Total$S1,
-  Baryum = Baryum$S1,
-  Baryum_138Ba = Baryum$S1_138Ba,
-  Baryum_137Ba = Baryum$S1_137Ba,
-  Baryum_136Ba = Baryum$S1_136Ba,
-  Bore = Bore$S1,
-  Cadmium = Cadmium$S1,
-  Cadmium_114Cd = Cadmium$S1_114Cd,
-  Cadmium_111Cd = Cadmium$S1_111Cd,
-  Calcium = Calcium$S1,
-  Calcium_44Ca = Calcium$S1_44Ca,
-  Calcium_43Ca = Calcium$S1_43Ca,
-  Césium = Césium$S1,
-  Chrome = Chrome$S1,
-  Chrome_53Cr = Chrome$S1_53Cr,
-  Chrome_52Cr = Chrome$S1_52Cr,
-  Cobalt = Cobalt$S1,
-  Cuivre = Cuivre$S1,
-  Cuivre_65Cu = Cuivre$S1_65Cu,
-  Cuivre_63Cu = Cuivre$S1_63Cu,
-  Étain = Étain$S1,
-  Étain_120Sn = Étain$S1_120Sn,
-  Étain_118Sn = Étain$S1_118Sn,
-  Fer_Total = Fer_Total$S1,
-  Lanthane = Lanthane$S1,
-  Magnésium = Magnésium$S1,
-  Molybdène = Molybdène$S1,
-  Molybdène_97Mo = Molybdène$S1_97Mo,
-  Molybdène_95Mo = Molybdène$S1_95Mo,
-  Nickel = Nickel$S1,
-  Nickel_62Ni = Nickel$S1_62Ni,
-  Nickel_60Ni = Nickel$S1_60Ni,
-  Nitrate = Nitrate$S1,
-  Plomb = Plomb$S1,
-  Plomb_208Pb = Plomb$S1_208Pb,
-  Plomb_207Pb = Plomb$S1_207Pb,
-  Plomb_206Pb = Plomb$S1_206Pb,
-  Rubidium = Rubidium$S1,
-  Sodium = Sodium$S1,
-  Souffre = Souffre$S1,
-  Strontium = Strontium$S1,
-  Strontium_88Sr = Strontium$S1_88Sr,
-  Strontium_86Sr = Strontium$S1_86Sr,
-  Sulfate = Sulfate$S1,
-  Thallium = Thallium$S1,
-  Thallium_205Tl = Thallium$S1_205Tl,
-  Thallium_203Tl = Thallium$S1_203Tl,
-  Titane = Titane$S1,
-  Titane_49Ti = Titane$S1_49Ti,
-  Titane_47Ti = Titane$S1_47Ti,
-  Vanadium = Vanadium$S1,
-  Yttrium = Yttrium$S1,
-  Zinc = Zinc$S1,
-  Zinc_68Zn = Zinc$S1_68Zn,
-  Zinc_67Zn = Zinc$S1_67Zn,
-  Zinc_66Zn = Zinc$S1_66Zn,
-  Zirconium = Zirconium$S1,
-  Ion_Bromure = Ion_Bromure$S1,
-  Ion_Calcium = Ion_Calcium$S1,
-  Ion_Ferreux = Ion_Ferreux$S1,
-  Ion_Fluorure = Ion_Fluorure$S1,
-  Ion_Magnésium = Ion_Magnésium$S1,
-  Ion_Potassium = Ion_Potassium$S1,
-  Ion_Sodium = Ion_Sodium$S1
+  dates = temperature$dates,
+  temperature = temperature$S1,
+  ph = ph$S1,
+  eh = eh$S1,
+  o2 = o2$S1,
+  o2_HACH = o2$S1_hach,
+  o2_colorimétrie = o2$S1_colorimetrie,
+  o2_Mettler = o2$S1_mettler,
+  conductivity = conductivity$S1,
+  aluminium = aluminium$S1,
+  antimony = antimony$S1,
+  antimony_123Sb = antimony$S1_123Sb,
+  antimony_121Sb = antimony$S1_121Sb,
+  asV = asV$S1,
+  asIII = asIII$S1,
+  total_arsenic = total_arsenic$S1,
+  baryum = baryum$S1,
+  baryum_138Ba = baryum$S1_138Ba,
+  baryum_137Ba = baryum$S1_137Ba,
+  baryum_136Ba = baryum$S1_136Ba,
+  bore = bore$S1,
+  cadmium = cadmium$S1,
+  cadmium_114Cd = cadmium$S1_114Cd,
+  cadmium_111Cd = cadmium$S1_111Cd,
+  calcium = calcium$S1,
+  calcium_44Ca = calcium$S1_44Ca,
+  calcium_43Ca = calcium$S1_43Ca,
+  caesium = caesium$S1,
+  chromium = chromium$S1,
+  chromium_53Cr = chromium$S1_53Cr,
+  chromium_52Cr = chromium$S1_52Cr,
+  cobalt = cobalt$S1,
+  copper = copper$S1,
+  copper_65Cu = copper$S1_65Cu,
+  copper_63Cu = copper$S1_63Cu,
+  tin = tin$S1,
+  tin_120Sn = tin$S1_120Sn,
+  tin_118Sn = tin$S1_118Sn,
+  total_iron = total_iron$S1,
+  lanthanum = lanthanum$S1,
+  magnesium = magnesium$S1,
+  molybdenum = molybdenum$S1,
+  molybdenum_97Mo = molybdenum$S1_97Mo,
+  molybdenum_95Mo = molybdenum$S1_95Mo,
+  nickel = nickel$S1,
+  nickel_62Ni = nickel$S1_62Ni,
+  nickel_60Ni = nickel$S1_60Ni,
+  nitrate = nitrate$S1,
+  lead = lead$S1,
+  lead_208Pb = lead$S1_208Pb,
+  lead_207Pb = lead$S1_207Pb,
+  lead_206Pb = lead$S1_206Pb,
+  rubidium = rubidium$S1,
+  sodium = sodium$S1,
+  sulfur = sulfur$S1,
+  strontium = strontium$S1,
+  strontium_88Sr = strontium$S1_88Sr,
+  strontium_86Sr = strontium$S1_86Sr,
+  sulfate = sulfate$S1,
+  thallium = thallium$S1,
+  thallium_205Tl = thallium$S1_205Tl,
+  thallium_203Tl = thallium$S1_203Tl,
+  titanium = titanium$S1,
+  titanium_49Ti = titanium$S1_49Ti,
+  titanium_47Ti = titanium$S1_47Ti,
+  vanadium = vanadium$S1,
+  yttrium = yttrium$S1,
+  zinc = zinc$S1,
+  zinc_68Zn = zinc$S1_68Zn,
+  zinc_67Zn = zinc$S1_67Zn,
+  zinc_66Zn = zinc$S1_66Zn,
+  zirconium = zirconium$S1,
+  bromide = bromide$S1,
+  calcium_ion = calcium_ion$S1,
+  feII = feII$S1,
+  fluoride = fluoride$S1,
+  magnesium_ion = magnesium_ion$S1,
+  potassium_ion = potassium_ion$S1,
+  sodium_ion = sodium_ion$S1
 )
 ```
 
 ```{r}
 S5 <- data.frame(
-  Dates = Temperature$Dates,
-  Temperature = Temperature$S5,
-  pH = pH$S5,
-  Eh = Eh$S5,
-  O2 = O2$S5,
-  O2_HACH = O2$S5_HACH,
-  O2_Colorimétrie = O2$S5_Colorimétrie,
-  O2_Mettler = O2$S5_Mettler,
-  Conductivité = Conductivité$S5,
-  Aluminium = Aluminium$S5,
-  Antimoine = Antimoine$S5,
-  Antimoine_123Sb = Antimoine$S5_123Sb,
-  Antimoine_121Sb = Antimoine$S5_121Sb,
-  Arséniate = Arséniate$S5,
-  Arsénite = Arsénite$S5,
-  Arsenic_Total = Arsenic_Total$S5,
-  Baryum = Baryum$S5,
-  Baryum_138Ba = Baryum$S5_138Ba,
-  Baryum_137Ba = Baryum$S5_137Ba,
-  Baryum_136Ba = Baryum$S5_136Ba,
-  Bore = Bore$S5,
-  Cadmium = Cadmium$S5,
-  Cadmium_114Cd = Cadmium$S5_114Cd,
-  Cadmium_111Cd = Cadmium$S5_111Cd,
-  Calcium = Calcium$S5,
-  Calcium_44Ca = Calcium$S5_44Ca,
-  Calcium_43Ca = Calcium$S5_43Ca,
-  Césium = Césium$S5,
-  Chrome = Chrome$S5,
-  Chrome_53Cr = Chrome$S5_53Cr,
-  Chrome_52Cr = Chrome$S5_52Cr,
-  Cobalt = Cobalt$S5,
-  Cuivre = Cuivre$S5,
-  Cuivre_65Cu = Cuivre$S5_65Cu,
-  Cuivre_63Cu = Cuivre$S5_63Cu,
-  Étain = Étain$S5,
-  Étain_120Sn = Étain$S5_120Sn,
-  Étain_118Sn = Étain$S5_118Sn,
-  Fer_Total = Fer_Total$S5,
-  Lanthane = Lanthane$S5,
-  Magnésium = Magnésium$S5,
-  Molybdène = Molybdène$S5,
-  Molybdène_97Mo = Molybdène$S5_97Mo,
-  Molybdène_95Mo = Molybdène$S5_95Mo,
-  Nickel = Nickel$S5,
-  Nickel_62Ni = Nickel$S5_62Ni,
-  Nickel_60Ni = Nickel$S5_60Ni,
-  Nitrate = Nitrate$S5,
-  Plomb = Plomb$S5,
-  Plomb_208Pb = Plomb$S5_208Pb,
-  Plomb_207Pb = Plomb$S5_207Pb,
-  Plomb_206Pb = Plomb$S5_206Pb,
-  Rubidium = Rubidium$S5,
-  Sodium = Sodium$S5,
-  Souffre = Souffre$S5,
-  Strontium = Strontium$S5,
-  Strontium_88Sr = Strontium$S5_88Sr,
-  Strontium_86Sr = Strontium$S5_86Sr,
-  Sulfate = Sulfate$S5,
-  Thallium = Thallium$S5,
-  Thallium_205Tl = Thallium$S5_205Tl,
-  Thallium_203Tl = Thallium$S5_203Tl,
-  Titane = Titane$S5,
-  Titane_49Ti = Titane$S5_49Ti,
-  Titane_47Ti = Titane$S5_47Ti,
-  Vanadium = Vanadium$S5,
-  Yttrium = Yttrium$S5,
-  Zinc = Zinc$S5,
-  Zinc_68Zn = Zinc$S5_68Zn,
-  Zinc_67Zn = Zinc$S5_67Zn,
-  Zinc_66Zn = Zinc$S5_66Zn,
-  Zirconium = Zirconium$S5,
-  Ion_Bromure = Ion_Bromure$S5,
-  Ion_Calcium = Ion_Calcium$S5,
-  Ion_Ferreux = Ion_Ferreux$S5,
-  Ion_Fluorure = Ion_Fluorure$S5,
-  Ion_Magnésium = Ion_Magnésium$S5,
-  Ion_Potassium = Ion_Potassium$S5,
-  Ion_Sodium = Ion_Sodium$S5
+  dates = temperature$dates,
+  temperature = temperature$S5,
+  ph = ph$S5,
+  eh = eh$S5,
+  o2 = o2$S5,
+  o2_HACH = o2$S5_hach,
+  o2_colorimétrie = o2$S5_colorimetrie,
+  o2_Mettler = o2$S5_mettler,
+  conductivity = conductivity$S5,
+  aluminium = aluminium$S5,
+  antimony = antimony$S5,
+  antimony_123Sb = antimony$S5_123Sb,
+  antimony_121Sb = antimony$S5_121Sb,
+  asV = asV$S5,
+  asIII = asIII$S5,
+  total_arsenic = total_arsenic$S5,
+  baryum = baryum$S5,
+  baryum_138Ba = baryum$S5_138Ba,
+  baryum_137Ba = baryum$S5_137Ba,
+  baryum_136Ba = baryum$S5_136Ba,
+  bore = bore$S5,
+  cadmium = cadmium$S5,
+  cadmium_114Cd = cadmium$S5_114Cd,
+  cadmium_111Cd = cadmium$S5_111Cd,
+  calcium = calcium$S5,
+  calcium_44Ca = calcium$S5_44Ca,
+  calcium_43Ca = calcium$S5_43Ca,
+  caesium = caesium$S5,
+  chromium = chromium$S5,
+  chromium_53Cr = chromium$S5_53Cr,
+  chromium_52Cr = chromium$S5_52Cr,
+  cobalt = cobalt$S5,
+  copper = copper$S5,
+  copper_65Cu = copper$S5_65Cu,
+  copper_63Cu = copper$S5_63Cu,
+  tin = tin$S5,
+  tin_120Sn = tin$S5_120Sn,
+  tin_118Sn = tin$S5_118Sn,
+  total_iron = total_iron$S5,
+  lanthanum = lanthanum$S5,
+  magnesium = magnesium$S5,
+  molybdenum = molybdenum$S5,
+  molybdenum_97Mo = molybdenum$S5_97Mo,
+  molybdenum_95Mo = molybdenum$S5_95Mo,
+  nickel = nickel$S5,
+  nickel_62Ni = nickel$S5_62Ni,
+  nickel_60Ni = nickel$S5_60Ni,
+  nitrate = nitrate$S5,
+  lead = lead$S5,
+  lead_208Pb = lead$S5_208Pb,
+  lead_207Pb = lead$S5_207Pb,
+  lead_206Pb = lead$S5_206Pb,
+  rubidium = rubidium$S5,
+  sodium = sodium$S5,
+  sulfur = sulfur$S5,
+  strontium = strontium$S5,
+  strontium_88Sr = strontium$S5_88Sr,
+  strontium_86Sr = strontium$S5_86Sr,
+  sulfate = sulfate$S5,
+  thallium = thallium$S5,
+  thallium_205Tl = thallium$S5_205Tl,
+  thallium_203Tl = thallium$S5_203Tl,
+  titanium = titanium$S5,
+  titanium_49Ti = titanium$S5_49Ti,
+  titanium_47Ti = titanium$S5_47Ti,
+  vanadium = vanadium$S5,
+  yttrium = yttrium$S5,
+  zinc = zinc$S5,
+  zinc_68Zn = zinc$S5_68Zn,
+  zinc_67Zn = zinc$S5_67Zn,
+  zinc_66Zn = zinc$S5_66Zn,
+  zirconium = zirconium$S5,
+  bromide = bromide$S5,
+  calcium_ion = calcium_ion$S5,
+  feII = feII$S5,
+  fluoride = fluoride$S5,
+  magnesium_ion = magnesium_ion$S5,
+  potassium_ion = potassium_ion$S5,
+  sodium_ion = sodium_ion$S5
 )
 ```
 
 ```{r}
 COWG <- data.frame(
-  Dates = Temperature$Dates,
-  Temperature = Temperature$COWG,
-  pH = pH$COWG,
-  Eh = Eh$COWG,
-  O2 = O2$COWG,
-  O2_HACH = O2$COWG_HACH,
-  O2_Colorimétrie = O2$COWG_Colorimétrie,
-  O2_Mettler = O2$COWG_Mettler,
-  Conductivité = Conductivité$COWG,
-  Aluminium = Aluminium$COWG,
-  Antimoine = Antimoine$COWG,
-  Antimoine_123Sb = Antimoine$COWG_123Sb,
-  Antimoine_121Sb = Antimoine$COWG_121Sb,
-  Arséniate = Arséniate$COWG,
-  Arsénite = Arsénite$COWG,
-  Arsenic_Total = Arsenic_Total$COWG,
-  Baryum = Baryum$COWG,
-  Baryum_138Ba = Baryum$COWG_138Ba,
-  Baryum_137Ba = Baryum$COWG_137Ba,
-  Baryum_136Ba = Baryum$COWG_136Ba,
-  Bore = Bore$COWG,
-  Cadmium = Cadmium$COWG,
-  Cadmium_114Cd = Cadmium$COWG_114Cd,
-  Cadmium_111Cd = Cadmium$COWG_111Cd,
-  Calcium = Calcium$COWG,
-  Calcium_44Ca = Calcium$COWG_44Ca,
-  Calcium_43Ca = Calcium$COWG_43Ca,
-  Césium = Césium$COWG,
-  Chrome = Chrome$COWG,
-  Chrome_53Cr = Chrome$COWG_53Cr,
-  Chrome_52Cr = Chrome$COWG_52Cr,
-  Cobalt = Cobalt$COWG,
-  Cuivre = Cuivre$COWG,
-  Cuivre_65Cu = Cuivre$COWG_65Cu,
-  Cuivre_63Cu = Cuivre$COWG_63Cu,
-  Étain = Étain$COWG,
-  Étain_120Sn = Étain$COWG_120Sn,
-  Étain_118Sn = Étain$COWG_118Sn,
-  Fer_Total = Fer_Total$COWG,
-  Lanthane = Lanthane$COWG,
-  Magnésium = Magnésium$COWG,
-  Molybdène = Molybdène$COWG,
-  Molybdène_97Mo = Molybdène$COWG_97Mo,
-  Molybdène_95Mo = Molybdène$COWG_95Mo,
-  Nickel = Nickel$COWG,
-  Nickel_62Ni = Nickel$COWG_62Ni,
-  Nickel_60Ni = Nickel$COWG_60Ni,
-  Nitrate = Nitrate$COWG,
-  Plomb = Plomb$COWG,
-  Plomb_208Pb = Plomb$COWG_208Pb,
-  Plomb_207Pb = Plomb$COWG_207Pb,
-  Plomb_206Pb = Plomb$COWG_206Pb,
-  Rubidium = Rubidium$COWG,
-  Sodium = Sodium$COWG,
-  Souffre = Souffre$COWG,
-  Strontium = Strontium$COWG,
-  Strontium_88Sr = Strontium$COWG_88Sr,
-  Strontium_86Sr = Strontium$COWG_86Sr,
-  Sulfate = Sulfate$COWG,
-  Thallium = Thallium$COWG,
-  Thallium_205Tl = Thallium$COWG_205Tl,
-  Thallium_203Tl = Thallium$COWG_203Tl,
-  Titane = Titane$COWG,
-  Titane_49Ti = Titane$COWG_49Ti,
-  Titane_47Ti = Titane$COWG_47Ti,
-  Vanadium = Vanadium$COWG,
-  Yttrium = Yttrium$COWG,
-  Zinc = Zinc$COWG,
-  Zinc_68Zn = Zinc$COWG_68Zn,
-  Zinc_67Zn = Zinc$COWG_67Zn,
-  Zinc_66Zn = Zinc$COWG_66Zn,
-  Zirconium = Zirconium$COWG,
-  Ion_Bromure = Ion_Bromure$COWG,
-  Ion_Calcium = Ion_Calcium$COWG,
-  Ion_Ferreux = Ion_Ferreux$COWG,
-  Ion_Fluorure = Ion_Fluorure$COWG,
-  Ion_Magnésium = Ion_Magnésium$COWG,
-  Ion_Potassium = Ion_Potassium$COWG,
-  Ion_Sodium = Ion_Sodium$COWG
+  dates = temperature$dates,
+  temperature = temperature$COWG,
+  ph = ph$COWG,
+  eh = eh$COWG,
+  o2 = o2$COWG,
+  o2_HACH = o2$COWG_hach,
+  o2_colorimétrie = o2$COWG_colorimetrie,
+  o2_Mettler = o2$COWG_mettler,
+  conductivity = conductivity$COWG,
+  aluminium = aluminium$COWG,
+  antimony = antimony$COWG,
+  antimony_123Sb = antimony$COWG_123Sb,
+  antimony_121Sb = antimony$COWG_121Sb,
+  asV = asV$COWG,
+  asIII = asIII$COWG,
+  total_arsenic = total_arsenic$COWG,
+  baryum = baryum$COWG,
+  baryum_138Ba = baryum$COWG_138Ba,
+  baryum_137Ba = baryum$COWG_137Ba,
+  baryum_136Ba = baryum$COWG_136Ba,
+  bore = bore$COWG,
+  cadmium = cadmium$COWG,
+  cadmium_114Cd = cadmium$COWG_114Cd,
+  cadmium_111Cd = cadmium$COWG_111Cd,
+  calcium = calcium$COWG,
+  calcium_44Ca = calcium$COWG_44Ca,
+  calcium_43Ca = calcium$COWG_43Ca,
+  caesium = caesium$COWG,
+  chromium = chromium$COWG,
+  chromium_53Cr = chromium$COWG_53Cr,
+  chromium_52Cr = chromium$COWG_52Cr,
+  cobalt = cobalt$COWG,
+  copper = copper$COWG,
+  copper_65Cu = copper$COWG_65Cu,
+  copper_63Cu = copper$COWG_63Cu,
+  tin = tin$COWG,
+  tin_120Sn = tin$COWG_120Sn,
+  tin_118Sn = tin$COWG_118Sn,
+  total_iron = total_iron$COWG,
+  lanthanum = lanthanum$COWG,
+  magnesium = magnesium$COWG,
+  molybdenum = molybdenum$COWG,
+  molybdenum_97Mo = molybdenum$COWG_97Mo,
+  molybdenum_95Mo = molybdenum$COWG_95Mo,
+  nickel = nickel$COWG,
+  nickel_62Ni = nickel$COWG_62Ni,
+  nickel_60Ni = nickel$COWG_60Ni,
+  nitrate = nitrate$COWG,
+  lead = lead$COWG,
+  lead_208Pb = lead$COWG_208Pb,
+  lead_207Pb = lead$COWG_207Pb,
+  lead_206Pb = lead$COWG_206Pb,
+  rubidium = rubidium$COWG,
+  sodium = sodium$COWG,
+  sulfur = sulfur$COWG,
+  strontium = strontium$COWG,
+  strontium_88Sr = strontium$COWG_88Sr,
+  strontium_86Sr = strontium$COWG_86Sr,
+  sulfate = sulfate$COWG,
+  thallium = thallium$COWG,
+  thallium_205Tl = thallium$COWG_205Tl,
+  thallium_203Tl = thallium$COWG_203Tl,
+  titanium = titanium$COWG,
+  titanium_49Ti = titanium$COWG_49Ti,
+  titanium_47Ti = titanium$COWG_47Ti,
+  vanadium = vanadium$COWG,
+  yttrium = yttrium$COWG,
+  zinc = zinc$COWG,
+  zinc_68Zn = zinc$COWG_68Zn,
+  zinc_67Zn = zinc$COWG_67Zn,
+  zinc_66Zn = zinc$COWG_66Zn,
+  zirconium = zirconium$COWG,
+  bromide = bromide$COWG,
+  calcium_ion = calcium_ion$COWG,
+  feII = feII$COWG,
+  fluoride = fluoride$COWG,
+  magnesium_ion = magnesium_ion$COWG,
+  potassium_ion = potassium_ion$COWG,
+  sodium_ion = sodium_ion$COWG
 )
 ```
 
 ```{r}
 GAL <- data.frame(
-  Dates = Temperature$Dates,
-  Temperature = Temperature$GAL,
-  pH = pH$GAL,
-  Eh = Eh$GAL,
-  O2 = O2$GAL,
-  O2_HACH = O2$GAL_HACH,
-  O2_Colorimétrie = O2$GAL_Colorimétrie,
-  O2_Mettler = O2$GAL_Mettler,
-  Conductivité = Conductivité$GAL,
-  Aluminium = Aluminium$GAL,
-  Antimoine = Antimoine$GAL,
-  Antimoine_123Sb = Antimoine$GAL_123Sb,
-  Antimoine_121Sb = Antimoine$GAL_121Sb,
-  Arséniate = Arséniate$GAL,
-  Arsénite = Arsénite$GAL,
-  Arsenic_Total = Arsenic_Total$GAL,
-  Baryum = Baryum$GAL,
-  Baryum_138Ba = Baryum$GAL_138Ba,
-  Baryum_137Ba = Baryum$GAL_137Ba,
-  Baryum_136Ba = Baryum$GAL_136Ba,
-  Bore = Bore$GAL,
-  Cadmium = Cadmium$GAL,
-  Cadmium_114Cd = Cadmium$GAL_114Cd,
-  Cadmium_111Cd = Cadmium$GAL_111Cd,
-  Calcium = Calcium$GAL,
-  Calcium_44Ca = Calcium$GAL_44Ca,
-  Calcium_43Ca = Calcium$GAL_43Ca,
-  Césium = Césium$GAL,
-  Chrome = Chrome$GAL,
-  Chrome_53Cr = Chrome$GAL_53Cr,
-  Chrome_52Cr = Chrome$GAL_52Cr,
-  Cobalt = Cobalt$GAL,
-  Cuivre = Cuivre$GAL,
-  Cuivre_65Cu = Cuivre$GAL_65Cu,
-  Cuivre_63Cu = Cuivre$GAL_63Cu,
-  Étain = Étain$GAL,
-  Étain_120Sn = Étain$GAL_120Sn,
-  Étain_118Sn = Étain$GAL_118Sn,
-  Fer_Total = Fer_Total$GAL,
-  Lanthane = Lanthane$GAL,
-  Magnésium = Magnésium$GAL,
-  Molybdène = Molybdène$GAL,
-  Molybdène_97Mo = Molybdène$GAL_97Mo,
-  Molybdène_95Mo = Molybdène$GAL_95Mo,
-  Nickel = Nickel$GAL,
-  Nickel_62Ni = Nickel$GAL_62Ni,
-  Nickel_60Ni = Nickel$GAL_60Ni,
-  Nitrate = Nitrate$GAL,
-  Plomb = Plomb$GAL,
-  Plomb_208Pb = Plomb$GAL_208Pb,
-  Plomb_207Pb = Plomb$GAL_207Pb,
-  Plomb_206Pb = Plomb$GAL_206Pb,
-  Rubidium = Rubidium$GAL,
-  Sodium = Sodium$GAL,
-  Souffre = Souffre$GAL,
-  Strontium = Strontium$GAL,
-  Strontium_88Sr = Strontium$GAL_88Sr,
-  Strontium_86Sr = Strontium$GAL_86Sr,
-  Sulfate = Sulfate$GAL,
-  Thallium = Thallium$GAL,
-  Thallium_205Tl = Thallium$GAL_205Tl,
-  Thallium_203Tl = Thallium$GAL_203Tl,
-  Titane = Titane$GAL,
-  Titane_49Ti = Titane$GAL_49Ti,
-  Titane_47Ti = Titane$GAL_47Ti,
-  Vanadium = Vanadium$GAL,
-  Yttrium = Yttrium$GAL,
-  Zinc = Zinc$GAL,
-  Zinc_68Zn = Zinc$GAL_68Zn,
-  Zinc_67Zn = Zinc$GAL_67Zn,
-  Zinc_66Zn = Zinc$GAL_66Zn,
-  Zirconium = Zirconium$GAL,
-  Ion_Bromure = Ion_Bromure$GAL,
-  Ion_Calcium = Ion_Calcium$GAL,
-  Ion_Ferreux = Ion_Ferreux$GAL,
-  Ion_Fluorure = Ion_Fluorure$GAL,
-  Ion_Magnésium = Ion_Magnésium$GAL,
-  Ion_Potassium = Ion_Potassium$GAL,
-  Ion_Sodium = Ion_Sodium$GAL
+  dates = temperature$dates,
+  temperature = temperature$GAL,
+  ph = ph$GAL,
+  eh = eh$GAL,
+  o2 = o2$GAL,
+  o2_HACH = o2$GAL_hach,
+  o2_colorimétrie = o2$GAL_colorimetrie,
+  o2_Mettler = o2$GAL_mettler,
+  conductivity = conductivity$GAL,
+  aluminium = aluminium$GAL,
+  antimony = antimony$GAL,
+  antimony_123Sb = antimony$GAL_123Sb,
+  antimony_121Sb = antimony$GAL_121Sb,
+  asV = asV$GAL,
+  asIII = asIII$GAL,
+  total_arsenic = total_arsenic$GAL,
+  baryum = baryum$GAL,
+  baryum_138Ba = baryum$GAL_138Ba,
+  baryum_137Ba = baryum$GAL_137Ba,
+  baryum_136Ba = baryum$GAL_136Ba,
+  bore = bore$GAL,
+  cadmium = cadmium$GAL,
+  cadmium_114Cd = cadmium$GAL_114Cd,
+  cadmium_111Cd = cadmium$GAL_111Cd,
+  calcium = calcium$GAL,
+  calcium_44Ca = calcium$GAL_44Ca,
+  calcium_43Ca = calcium$GAL_43Ca,
+  caesium = caesium$GAL,
+  chromium = chromium$GAL,
+  chromium_53Cr = chromium$GAL_53Cr,
+  chromium_52Cr = chromium$GAL_52Cr,
+  cobalt = cobalt$GAL,
+  copper = copper$GAL,
+  copper_65Cu = copper$GAL_65Cu,
+  copper_63Cu = copper$GAL_63Cu,
+  tin = tin$GAL,
+  tin_120Sn = tin$GAL_120Sn,
+  tin_118Sn = tin$GAL_118Sn,
+  total_iron = total_iron$GAL,
+  lanthanum = lanthanum$GAL,
+  magnesium = magnesium$GAL,
+  molybdenum = molybdenum$GAL,
+  molybdenum_97Mo = molybdenum$GAL_97Mo,
+  molybdenum_95Mo = molybdenum$GAL_95Mo,
+  nickel = nickel$GAL,
+  nickel_62Ni = nickel$GAL_62Ni,
+  nickel_60Ni = nickel$GAL_60Ni,
+  nitrate = nitrate$GAL,
+  lead = lead$GAL,
+  lead_208Pb = lead$GAL_208Pb,
+  lead_207Pb = lead$GAL_207Pb,
+  lead_206Pb = lead$GAL_206Pb,
+  rubidium = rubidium$GAL,
+  sodium = sodium$GAL,
+  sulfur = sulfur$GAL,
+  strontium = strontium$GAL,
+  strontium_88Sr = strontium$GAL_88Sr,
+  strontium_86Sr = strontium$GAL_86Sr,
+  sulfate = sulfate$GAL,
+  thallium = thallium$GAL,
+  thallium_205Tl = thallium$GAL_205Tl,
+  thallium_203Tl = thallium$GAL_203Tl,
+  titanium = titanium$GAL,
+  titanium_49Ti = titanium$GAL_49Ti,
+  titanium_47Ti = titanium$GAL_47Ti,
+  vanadium = vanadium$GAL,
+  yttrium = yttrium$GAL,
+  zinc = zinc$GAL,
+  zinc_68Zn = zinc$GAL_68Zn,
+  zinc_67Zn = zinc$GAL_67Zn,
+  zinc_66Zn = zinc$GAL_66Zn,
+  zirconium = zirconium$GAL,
+  bromide = bromide$GAL,
+  calcium_ion = calcium_ion$GAL,
+  feII = feII$GAL,
+  fluoride = fluoride$GAL,
+  magnesium_ion = magnesium_ion$GAL,
+  potassium_ion = potassium_ion$GAL,
+  sodium_ion = sodium_ion$GAL
 )
 ```
 
 ```{r}
 Confluence <- data.frame(
-  Dates = Temperature$Dates,
-  Temperature = Temperature$Confluence,
-  pH = pH$Confluence,
-  Eh = Eh$Confluence,
-  O2 = O2$Confluence,
-  O2_HACH = O2$Confluence_HACH,
-  O2_Colorimétrie = O2$Confluence_Colorimétrie,
-  O2_Mettler = O2$Confluence_Mettler,
-  Conductivité = Conductivité$Confluence,
-  Aluminium = Aluminium$Confluence,
-  Antimoine = Antimoine$Confluence,
-  Antimoine_123Sb = Antimoine$Confluence_123Sb,
-  Antimoine_121Sb = Antimoine$Confluence_121Sb,
-  Arséniate = Arséniate$Confluence,
-  Arsénite = Arsénite$Confluence,
-  Arsenic_Total = Arsenic_Total$Confluence,
-  Baryum = Baryum$Confluence,
-  Baryum_138Ba = Baryum$Confluence_138Ba,
-  Baryum_137Ba = Baryum$Confluence_137Ba,
-  Baryum_136Ba = Baryum$Confluence_136Ba,
-  Bore = Bore$Confluence,
-  Cadmium = Cadmium$Confluence,
-  Cadmium_114Cd = Cadmium$Confluence_114Cd,
-  Cadmium_111Cd = Cadmium$Confluence_111Cd,
-  Calcium = Calcium$Confluence,
-  Calcium_44Ca = Calcium$Confluence_44Ca,
-  Calcium_43Ca = Calcium$Confluence_43Ca,
-  Césium = Césium$Confluence,
-  Chrome = Chrome$Confluence,
-  Chrome_53Cr = Chrome$Confluence_53Cr,
-  Chrome_52Cr = Chrome$Confluence_52Cr,
-  Cobalt = Cobalt$Confluence,
-  Cuivre = Cuivre$Confluence,
-  Cuivre_65Cu = Cuivre$Confluence_65Cu,
-  Cuivre_63Cu = Cuivre$Confluence_63Cu,
-  Étain = Étain$Confluence,
-  Étain_120Sn = Étain$Confluence_120Sn,
-  Étain_118Sn = Étain$Confluence_118Sn,
-  Fer_Total = Fer_Total$Confluence,
-  Lanthane = Lanthane$Confluence,
-  Magnésium = Magnésium$Confluence,
-  Molybdène = Molybdène$Confluence,
-  Molybdène_97Mo = Molybdène$Confluence_97Mo,
-  Molybdène_95Mo = Molybdène$Confluence_95Mo,
-  Nickel = Nickel$Confluence,
-  Nickel_62Ni = Nickel$Confluence_62Ni,
-  Nickel_60Ni = Nickel$Confluence_60Ni,
-  Nitrate = Nitrate$Confluence,
-  Plomb = Plomb$Confluence,
-  Plomb_208Pb = Plomb$Confluence_208Pb,
-  Plomb_207Pb = Plomb$Confluence_207Pb,
-  Plomb_206Pb = Plomb$Confluence_206Pb,
-  Rubidium = Rubidium$Confluence,
-  Sodium = Sodium$Confluence,
-  Souffre = Souffre$Confluence,
-  Strontium = Strontium$Confluence,
-  Strontium_88Sr = Strontium$Confluence_88Sr,
-  Strontium_86Sr = Strontium$Confluence_86Sr,
-  Sulfate = Sulfate$Confluence,
-  Thallium = Thallium$Confluence,
-  Thallium_205Tl = Thallium$Confluence_205Tl,
-  Thallium_203Tl = Thallium$Confluence_203Tl,
-  Titane = Titane$Confluence,
-  Titane_49Ti = Titane$Confluence_49Ti,
-  Titane_47Ti = Titane$Confluence_47Ti,
-  Vanadium = Vanadium$Confluence,
-  Yttrium = Yttrium$Confluence,
-  Zinc = Zinc$Confluence,
-  Zinc_68Zn = Zinc$Confluence_68Zn,
-  Zinc_67Zn = Zinc$Confluence_67Zn,
-  Zinc_66Zn = Zinc$Confluence_66Zn,
-  Zirconium = Zirconium$Confluence,
-  Ion_Bromure = Ion_Bromure$Confluence,
-  Ion_Calcium = Ion_Calcium$Confluence,
-  Ion_Ferreux = Ion_Ferreux$Confluence,
-  Ion_Fluorure = Ion_Fluorure$Confluence,
-  Ion_Magnésium = Ion_Magnésium$Confluence,
-  Ion_Potassium = Ion_Potassium$Confluence,
-  Ion_Sodium = Ion_Sodium$Confluence
+  dates = temperature$dates,
+  temperature = temperature$Confluence,
+  ph = ph$Confluence,
+  eh = eh$Confluence,
+  o2 = o2$Confluence,
+  o2_HACH = o2$Confluence_hach,
+  o2_colorimétrie = o2$Confluence_colorimetrie,
+  o2_Mettler = o2$Confluence_mettler,
+  conductivity = conductivity$Confluence,
+  aluminium = aluminium$Confluence,
+  antimony = antimony$Confluence,
+  antimony_123Sb = antimony$Confluence_123Sb,
+  antimony_121Sb = antimony$Confluence_121Sb,
+  asV = asV$Confluence,
+  asIII = asIII$Confluence,
+  total_arsenic = total_arsenic$Confluence,
+  baryum = baryum$Confluence,
+  baryum_138Ba = baryum$Confluence_138Ba,
+  baryum_137Ba = baryum$Confluence_137Ba,
+  baryum_136Ba = baryum$Confluence_136Ba,
+  bore = bore$Confluence,
+  cadmium = cadmium$Confluence,
+  cadmium_114Cd = cadmium$Confluence_114Cd,
+  cadmium_111Cd = cadmium$Confluence_111Cd,
+  calcium = calcium$Confluence,
+  calcium_44Ca = calcium$Confluence_44Ca,
+  calcium_43Ca = calcium$Confluence_43Ca,
+  caesium = caesium$Confluence,
+  chromium = chromium$Confluence,
+  chromium_53Cr = chromium$Confluence_53Cr,
+  chromium_52Cr = chromium$Confluence_52Cr,
+  cobalt = cobalt$Confluence,
+  copper = copper$Confluence,
+  copper_65Cu = copper$Confluence_65Cu,
+  copper_63Cu = copper$Confluence_63Cu,
+  tin = tin$Confluence,
+  tin_120Sn = tin$Confluence_120Sn,
+  tin_118Sn = tin$Confluence_118Sn,
+  total_iron = total_iron$Confluence,
+  lanthanum = lanthanum$Confluence,
+  magnesium = magnesium$Confluence,
+  molybdenum = molybdenum$Confluence,
+  molybdenum_97Mo = molybdenum$Confluence_97Mo,
+  molybdenum_95Mo = molybdenum$Confluence_95Mo,
+  nickel = nickel$Confluence,
+  nickel_62Ni = nickel$Confluence_62Ni,
+  nickel_60Ni = nickel$Confluence_60Ni,
+  nitrate = nitrate$Confluence,
+  lead = lead$Confluence,
+  lead_208Pb = lead$Confluence_208Pb,
+  lead_207Pb = lead$Confluence_207Pb,
+  lead_206Pb = lead$Confluence_206Pb,
+  rubidium = rubidium$Confluence,
+  sodium = sodium$Confluence,
+  sulfur = sulfur$Confluence,
+  strontium = strontium$Confluence,
+  strontium_88Sr = strontium$Confluence_88Sr,
+  strontium_86Sr = strontium$Confluence_86Sr,
+  sulfate = sulfate$Confluence,
+  thallium = thallium$Confluence,
+  thallium_205Tl = thallium$Confluence_205Tl,
+  thallium_203Tl = thallium$Confluence_203Tl,
+  titanium = titanium$Confluence,
+  titanium_49Ti = titanium$Confluence_49Ti,
+  titanium_47Ti = titanium$Confluence_47Ti,
+  vanadium = vanadium$Confluence,
+  yttrium = yttrium$Confluence,
+  zinc = zinc$Confluence,
+  zinc_68Zn = zinc$Confluence_68Zn,
+  zinc_67Zn = zinc$Confluence_67Zn,
+  zinc_66Zn = zinc$Confluence_66Zn,
+  zirconium = zirconium$Confluence,
+  bromide = bromide$Confluence,
+  calcium_ion = calcium_ion$Confluence,
+  feII = feII$Confluence,
+  fluoride = fluoride$Confluence,
+  magnesium_ion = magnesium_ion$Confluence,
+  potassium_ion = potassium_ion$Confluence,
+  sodium_ion = sodium_ion$Confluence
 )
 ```
 
 ```{r}
 Amous1200 <- data.frame(
-  Dates = Temperature$Dates,
-  Temperature = Temperature$Amous,
-  pH = pH$Amous,
-  Eh = Eh$Amous,
-  O2 = O2$Amous,
-  O2_HACH = O2$Amous_HACH,
-  O2_Colorimétrie = O2$Amous_Colorimétrie,
-  O2_Mettler = O2$Amous_Mettler,
-  Conductivité = Conductivité$Amous,
-  Aluminium = Aluminium$Amous,
-  Antimoine = Antimoine$Amous,
-  Antimoine_123Sb = Antimoine$Amous_123Sb,
-  Antimoine_121Sb = Antimoine$Amous_121Sb,
-  Arséniate = Arséniate$Amous,
-  Arsénite = Arsénite$Amous,
-  Arsenic_Total = Arsenic_Total$Amous,
-  Baryum = Baryum$Amous,
-  Baryum_138Ba = Baryum$Amous_138Ba,
-  Baryum_137Ba = Baryum$Amous_137Ba,
-  Baryum_136Ba = Baryum$Amous_136Ba,
-  Bore = Bore$Amous,
-  Cadmium = Cadmium$Amous,
-  Cadmium_114Cd = Cadmium$Amous_114Cd,
-  Cadmium_111Cd = Cadmium$Amous_111Cd,
-  Calcium = Calcium$Amous,
-  Calcium_44Ca = Calcium$Amous_44Ca,
-  Calcium_43Ca = Calcium$Amous_43Ca,
-  Césium = Césium$Amous,
-  Chrome = Chrome$Amous,
-  Chrome_53Cr = Chrome$Amous_53Cr,
-  Chrome_52Cr = Chrome$Amous_52Cr,
-  Cobalt = Cobalt$Amous,
-  Cuivre = Cuivre$Amous,
-  Cuivre_65Cu = Cuivre$Amous_65Cu,
-  Cuivre_63Cu = Cuivre$Amous_63Cu,
-  Étain = Étain$Amous,
-  Étain_120Sn = Étain$Amous_120Sn,
-  Étain_118Sn = Étain$Amous_118Sn,
-  Fer_Total = Fer_Total$Amous,
-  Lanthane = Lanthane$Amous,
-  Magnésium = Magnésium$Amous,
-  Molybdène = Molybdène$Amous,
-  Molybdène_97Mo = Molybdène$Amous_97Mo,
-  Molybdène_95Mo = Molybdène$Amous_95Mo,
-  Nickel = Nickel$Amous,
-  Nickel_62Ni = Nickel$Amous_62Ni,
-  Nickel_60Ni = Nickel$Amous_60Ni,
-  Nitrate = Nitrate$Amous,
-  Plomb = Plomb$Amous,
-  Plomb_208Pb = Plomb$Amous_208Pb,
-  Plomb_207Pb = Plomb$Amous_207Pb,
-  Plomb_206Pb = Plomb$Amous_206Pb,
-  Rubidium = Rubidium$Amous,
-  Sodium = Sodium$Amous,
-  Souffre = Souffre$Amous,
-  Strontium = Strontium$Amous,
-  Strontium_88Sr = Strontium$Amous_88Sr,
-  Strontium_86Sr = Strontium$Amous_86Sr,
-  Sulfate = Sulfate$Amous,
-  Thallium = Thallium$Amous,
-  Thallium_205Tl = Thallium$Amous_205Tl,
-  Thallium_203Tl = Thallium$Amous_203Tl,
-  Titane = Titane$Amous,
-  Titane_49Ti = Titane$Amous_49Ti,
-  Titane_47Ti = Titane$Amous_47Ti,
-  Vanadium = Vanadium$Amous,
-  Yttrium = Yttrium$Amous,
-  Zinc = Zinc$Amous,
-  Zinc_68Zn = Zinc$Amous_68Zn,
-  Zinc_67Zn = Zinc$Amous_67Zn,
-  Zinc_66Zn = Zinc$Amous_66Zn,
-  Zirconium = Zirconium$Amous,
-  Ion_Bromure = Ion_Bromure$Amous,
-  Ion_Calcium = Ion_Calcium$Amous,
-  Ion_Ferreux = Ion_Ferreux$Amous,
-  Ion_Fluorure = Ion_Fluorure$Amous,
-  Ion_Magnésium = Ion_Magnésium$Amous,
-  Ion_Potassium = Ion_Potassium$Amous,
-  Ion_Sodium = Ion_Sodium$Amous
+  dates = temperature$dates,
+  temperature = temperature$Amous,
+  ph = ph$Amous,
+  eh = eh$Amous,
+  o2 = o2$Amous,
+  o2_HACH = o2$Amous_hach,
+  o2_colorimétrie = o2$Amous_colorimetrie,
+  o2_Mettler = o2$Amous_mettler,
+  conductivity = conductivity$Amous,
+  aluminium = aluminium$Amous,
+  antimony = antimony$Amous,
+  antimony_123Sb = antimony$Amous_123Sb,
+  antimony_121Sb = antimony$Amous_121Sb,
+  asV = asV$Amous,
+  asIII = asIII$Amous,
+  total_arsenic = total_arsenic$Amous,
+  baryum = baryum$Amous,
+  baryum_138Ba = baryum$Amous_138Ba,
+  baryum_137Ba = baryum$Amous_137Ba,
+  baryum_136Ba = baryum$Amous_136Ba,
+  bore = bore$Amous,
+  cadmium = cadmium$Amous,
+  cadmium_114Cd = cadmium$Amous_114Cd,
+  cadmium_111Cd = cadmium$Amous_111Cd,
+  calcium = calcium$Amous,
+  calcium_44Ca = calcium$Amous_44Ca,
+  calcium_43Ca = calcium$Amous_43Ca,
+  caesium = caesium$Amous,
+  chromium = chromium$Amous,
+  chromium_53Cr = chromium$Amous_53Cr,
+  chromium_52Cr = chromium$Amous_52Cr,
+  cobalt = cobalt$Amous,
+  copper = copper$Amous,
+  copper_65Cu = copper$Amous_65Cu,
+  copper_63Cu = copper$Amous_63Cu,
+  tin = tin$Amous,
+  tin_120Sn = tin$Amous_120Sn,
+  tin_118Sn = tin$Amous_118Sn,
+  total_iron = total_iron$Amous,
+  lanthanum = lanthanum$Amous,
+  magnesium = magnesium$Amous,
+  molybdenum = molybdenum$Amous,
+  molybdenum_97Mo = molybdenum$Amous_97Mo,
+  molybdenum_95Mo = molybdenum$Amous_95Mo,
+  nickel = nickel$Amous,
+  nickel_62Ni = nickel$Amous_62Ni,
+  nickel_60Ni = nickel$Amous_60Ni,
+  nitrate = nitrate$Amous,
+  lead = lead$Amous,
+  lead_208Pb = lead$Amous_208Pb,
+  lead_207Pb = lead$Amous_207Pb,
+  lead_206Pb = lead$Amous_206Pb,
+  rubidium = rubidium$Amous,
+  sodium = sodium$Amous,
+  sulfur = sulfur$Amous,
+  strontium = strontium$Amous,
+  strontium_88Sr = strontium$Amous_88Sr,
+  strontium_86Sr = strontium$Amous_86Sr,
+  sulfate = sulfate$Amous,
+  thallium = thallium$Amous,
+  thallium_205Tl = thallium$Amous_205Tl,
+  thallium_203Tl = thallium$Amous_203Tl,
+  titanium = titanium$Amous,
+  titanium_49Ti = titanium$Amous_49Ti,
+  titanium_47Ti = titanium$Amous_47Ti,
+  vanadium = vanadium$Amous,
+  yttrium = yttrium$Amous,
+  zinc = zinc$Amous,
+  zinc_68Zn = zinc$Amous_68Zn,
+  zinc_67Zn = zinc$Amous_67Zn,
+  zinc_66Zn = zinc$Amous_66Zn,
+  zirconium = zirconium$Amous,
+  bromide = bromide$Amous,
+  calcium_ion = calcium_ion$Amous,
+  feII = feII$Amous,
+  fluoride = fluoride$Amous,
+  magnesium_ion = magnesium_ion$Amous,
+  potassium_ion = potassium_ion$Amous,
+  sodium_ion = sodium_ion$Amous
 )
 ```
 
