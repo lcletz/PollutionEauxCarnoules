@@ -21,7 +21,7 @@ library(here)
 ```
 
 ```{r}
-data <- read.table(here("processed","S1_gamm_2004_2019.csv"), sep=";", dec=".", header=T)
+data <- read.table(here("processed","S1_gamm_2004_2019_twice.csv"), sep=";", dec=".", header=T)
 ```
 
 In this RMarkdown file, there has been various attempt to find the best formula for Arsenic_Total, Zinc, Plomb and Ion_Ferreux variables following four steps:
@@ -37,9 +37,9 @@ old_bic <- bic
 control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
                         niterEM = 50, opt = "optim")
 
-test <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Sulfate, bs='re') + Ion_Ferreux + 
-                 Numeric_Dates + Plomb + Rainfall_lag_1:O2 + Conductivité^2 + Zinc + 
-                 Ion_Ferreux:Plomb + O2:Ion_Ferreux + Zinc:pH + Zinc:Sulfate + Sulfate:Ion_Ferreux, 
+test <- gamm(log(Arsenic_Total + 1) ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') +
+               s(Sulfate, bs='re') + Ion_Ferreux +  Numeric_Dates + Plomb + Conductivité^2 + Zinc + 
+               Zinc:Sulfate + Sulfate:Ion_Ferreux + Plomb:O2 + Zinc:Ion_Ferreux, 
              data=data, correlation=corARMA(form = ~1, p=1),
              control=control)
 
@@ -48,9 +48,9 @@ summary(test$gam)
 ```
 
 The best formulae is:
-Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Sulfate, bs='re') + Ion_Ferreux + 
-                 Numeric_Dates + Plomb + Rainfall_lag_1:O2 + Conductivité^2 + Zinc + 
-                 Ion_Ferreux:Plomb + O2:Ion_Ferreux + Zinc:pH + Zinc:Sulfate + Sulfate:Ion_Ferreux
+log(Arsenic_Total + 1) ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') +
+               s(Sulfate, bs='re') + Ion_Ferreux +  Numeric_Dates + Plomb + Conductivité^2 + Zinc + 
+               Zinc:Sulfate + Sulfate:Ion_Ferreux + Plomb:O2 + Zinc:Ion_Ferreux
 
 with correlation AR(1).
 
@@ -59,14 +59,14 @@ with correlation AR(1).
 ```{r}
 old_bic <- bic
 
-test <- lm(Zinc ~ Numeric_Dates + Plomb + Arsenic_Total, data=data)
+test <- lm(Zinc ~ Numeric_Dates + Ion_Ferreux +  Arsenic_Total, data=data)
 
 bic <- BIC(test)
 summary(test)
 ```
 
 The best formulae is:
-Zinc ~ Numeric_Dates + Plomb + Arsenic_Total
+Zinc ~ Numeric_Dates + Ion_Ferreux +  Arsenic_Total
 
 for basic linear regression.
 
@@ -74,11 +74,10 @@ for basic linear regression.
 
 ```{r}
 old_bic <- bic
-control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
-                        niterEM = 50, opt = "optim")
 
-test <- gamm(Plomb ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(pH, bs='re') + 
-               Zinc + Conductivité + pH:Rainfall_lag_1 + Conductivité:Rainfall_lag_1, 
+test <- gamm(Plomb ~ s(Rainfall_lag_1, bs='re') + s(pH, bs='re') + 
+               log(Arsenic_Total + 1) + Zinc + Conductivité + pH:Rainfall_lag_1 + 
+               Conductivité:Rainfall_lag_1 + Conductivité:Arsenic_Total, 
              data=data, correlation=corARMA(form = ~1, p=1),
              control=control)
 
@@ -87,8 +86,9 @@ summary(test$gam)
 ```
 
 The best formulae is:
-Plomb ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(pH, bs='re') + 
-               Zinc + Conductivité + pH:Rainfall_lag_1 + Conductivité:Rainfall_lag_1
+Plomb ~ s(Rainfall_lag_1, bs='re') + s(pH, bs='re') + 
+               log(Arsenic_Total + 1) + Zinc + Conductivité + pH:Rainfall_lag_1 + 
+               Conductivité:Rainfall_lag_1 + Conductivité:Arsenic_Total
 
 with correlation AR(1).
 
@@ -96,12 +96,9 @@ with correlation AR(1).
 
 ```{r}
 old_bic <- bic
-control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,
-                        niterEM = 50, opt = "optim")
 
 test <- gamm(Ion_Ferreux ~ s(Rainfall, bs='re') + s(O2, bs='re') + s(Sulfate, bs='re') +
-               Numeric_Dates + pH + Conductivité + Plomb + sqrt(Arsenic_Total) +
-               Plomb:Conductivité + pH:Conductivité, 
+               Conductivité + sqrt(Arsenic_Total) + Rainfall:O2, 
              data=data, correlation=corARMA(form = ~1, p=1),
              control=control)
 
@@ -111,8 +108,7 @@ summary(test$gam)
 
 The best formulae is:
 Ion_Ferreux ~ s(Rainfall, bs='re') + s(O2, bs='re') + s(Sulfate, bs='re') +
-               Numeric_Dates + pH + Conductivité + Plomb + sqrt(Arsenic_Total) +
-               Plomb:Conductivité + pH:Conductivité
+               Conductivité + sqrt(Arsenic_Total) + Rainfall:O2
 
 with correlation AR(1).
 
