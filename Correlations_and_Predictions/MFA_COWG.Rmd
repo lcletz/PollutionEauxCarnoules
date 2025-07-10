@@ -27,7 +27,9 @@ library(here)
 data_small <- read.table(here("processed","COWG_gamm_2004_2010.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
   mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
 
-data_big <- read.table(here("processed","COWG_gamm_2004_2022.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
+#data_big <- read.table(here("processed","COWG_gamm_2004_2022.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
+#  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
+data_big <- read.table(here("processed","COWG_gamm_2004_2022_twice.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
   mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
 
 data_diff <- data_big %>% anti_join(data_small)
@@ -47,9 +49,9 @@ res.mfa$quanti.var$contrib
 ```
 Conductivité, Arsenic_Total, Zinc and Ion_Ferreux contribute the most to the first component.
 Rainfall, pH, O2 and Plomb contribute the most to the second one.
-Rainfall_lag_1, Temperature and **pH** contribute the most to the third one.
-Rainfall and **Temperature** contribute the most to the forth one, that means the forth and the second components are somewhat alike.
-Rainfall, **Temperature**, **pH**, **O2** contribute the most to the fifth component that we will not consider.
+Rainfall_lag_1, Temperature and pH contribute the most to the third one.
+Rainfall and Temperature contribute the most to the forth one, that means the forth and the second components are somewhat alike.
+Rainfall, Temperature, pH, O2 contribute the most to the fifth component that we will not consider.
 
 Most of the time, physicochemical elements are the most contributing to any axis. It also seems that when metalloids contribute, they're strongly correlated to dilution and thus to physicochemical measures.
 
@@ -100,9 +102,23 @@ b <- fviz_mfa_ind(res.mfa,
 ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
 ```
 
-```{r}
-library(plotly)
-ggplotly(b) %>% 
+```{r, warning=F}
+g <- fviz_mfa_ind(res.mfa,
+                  axes = c(1,2),
+                  repel = TRUE,
+                  mean.point = FALSE,
+                  habillage = factor(month(data_small$Corrected_Dates)),
+                  geom = "point", 
+                  pointsize = 1,
+                  ggtheme = theme_minimal(),
+                  title = "") +
+  geom_text(aes(label = year(data_small$Corrected_Dates),
+                color = factor(month(data_small$Corrected_Dates))),
+            vjust = -1.5, size = 3, show.legend = FALSE) +
+  labs(color = "Months") +
+  theme_minimal()
+
+ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
   layout(hovermode = "x unified")
 ```
 
@@ -117,13 +133,13 @@ The first component seems the most important, but the components 2, 3 and 4 migh
 ```{r}
 res.mfa$quanti.var$contrib
 ```
-**Rainfall**, **O2**, Conductivité, Arsenic_Total, **Sulfate** and Ion_Ferreux contribute the most to the first component.
-**pH** and **Plomb** contribute the most to the second one.
-Rainfall, Rainfall_lag_1 and **Conductivité** contribute the most to the third one.
-Temperature contributes the most to the forth one.
-Rainfall**_lag_1**, O2 and **Zinc** contribute the most to the fifth one.
+Rainfall, Conductivité, Arsenic_Total, Sulfate, Zinc and Ion_Ferreux contribute the most to the first component.
+Temperature, pH, O2 and Plomb contribute the most to the second one.
+Rainfall_lag_1, Temperature and pH contribute the most to the third one.
+Rainfall_lag_1 and Temperature contributes the most to the forth one.
+Temperature, O2 and Conductivité contribute the most to the fifth one.
 
-The variables have been distributed differently from station S1.
+From the second to the fifth component, we see a repetition in the most contributing variables, we could think of all of them as one and only.
 
 ```{r}
 gr_names <- rownames(res.mfa$partial.axes$coord)
@@ -165,7 +181,22 @@ b <- fviz_mfa_ind(res.mfa,
 ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
 ```
 
-```{r}
-ggplotly(b) %>% 
+```{r, warning=F}
+g <- fviz_mfa_ind(res.mfa,
+                  axes = c(1,2),
+                  repel = TRUE,
+                  mean.point = FALSE,
+                  habillage = factor(month(data_diff$Corrected_Dates)),
+                  geom = "point", 
+                  pointsize = 1,
+                  ggtheme = theme_minimal(),
+                  title = "") +
+  geom_text(aes(label = year(data_diff$Corrected_Dates),
+                color = factor(month(data_diff$Corrected_Dates))),
+            vjust = -1.5, size = 3, show.legend = FALSE) +
+  labs(color = "Months") +
+  theme_minimal()
+
+ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
   layout(hovermode = "x unified")
 ```

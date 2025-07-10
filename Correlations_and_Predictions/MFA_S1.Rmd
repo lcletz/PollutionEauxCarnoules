@@ -17,6 +17,7 @@ library(ggplot2)
 library(ggpubr)
 library(stringr)
 library(lubridate)
+library(plotly)
 library(FactoMineR)
 library(factoextra)
 here::i_am("Correlations_and_Predictions/MFA_S1.Rmd")
@@ -27,7 +28,9 @@ library(here)
 data_small <- read.table(here("processed","S1_gamm_2004_2010.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
   mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
 
-data_big <- read.table(here("processed","S1_gamm_2004_2019.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
+#data_big <- read.table(here("processed","S1_gamm_2004_2019.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
+#  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
+data_big <- read.table(here("processed","S1_gamm_2004_2019_twice.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
   mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
 
 data_diff <- data_big %>% anti_join(data_small)
@@ -101,9 +104,23 @@ b <- fviz_mfa_ind(res.mfa,
 ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
 ```
 
-```{r}
-library(plotly)
-ggplotly(b) %>% 
+```{r, warning=F}
+g <- fviz_mfa_ind(res.mfa,
+                  axes = c(1,2),
+                  repel = TRUE,
+                  mean.point = FALSE,
+                  habillage = factor(month(data_small$Corrected_Dates)),
+                  geom = "point", 
+                  pointsize = 1,
+                  ggtheme = theme_minimal(),
+                  title = "") +
+  geom_text(aes(label = year(data_small$Corrected_Dates),
+                color = factor(month(data_small$Corrected_Dates))),
+            vjust = -1.5, size = 3, show.legend = FALSE) +
+  labs(color = "Months") +
+  theme_minimal()
+
+ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
   layout(hovermode = "x unified")
 ```
 
@@ -130,9 +147,23 @@ b <- fviz_mfa_ind(res.mfa,
 ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
 ```
 
-```{r}
-library(plotly)
-ggplotly(b) %>% 
+```{r, warning=F}
+g <- fviz_mfa_ind(res.mfa,
+                  axes = c(1,3),
+                  repel = TRUE,
+                  mean.point = FALSE,
+                  habillage = factor(month(data_small$Corrected_Dates)),
+                  geom = "point", 
+                  pointsize = 1,
+                  ggtheme = theme_minimal(),
+                  title = "") +
+  geom_text(aes(label = year(data_small$Corrected_Dates),
+                color = factor(month(data_small$Corrected_Dates))),
+            vjust = -1.5, size = 3, show.legend = FALSE) +
+  labs(color = "Months") +
+  theme_minimal()
+
+ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
   layout(hovermode = "x unified")
 ```
 
@@ -159,8 +190,23 @@ b <- fviz_mfa_ind(res.mfa,
 ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
 ```
 
-```{r}
-ggplotly(b) %>% 
+```{r, warning=F}
+g <- fviz_mfa_ind(res.mfa,
+                  axes = c(2,3),
+                  repel = TRUE,
+                  mean.point = FALSE,
+                  habillage = factor(month(data_small$Corrected_Dates)),
+                  geom = "point", 
+                  pointsize = 1,
+                  ggtheme = theme_minimal(),
+                  title = "") +
+  geom_text(aes(label = year(data_small$Corrected_Dates),
+                color = factor(month(data_small$Corrected_Dates))),
+            vjust = -1.5, size = 3, show.legend = FALSE) +
+  labs(color = "Months") +
+  theme_minimal()
+
+ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
   layout(hovermode = "x unified")
 ```
 
@@ -170,16 +216,17 @@ ggplotly(b) %>%
 res.mfa <- MFA(data_diff[-1], group=c(6,5), graph=F)
 barplot(res.mfa$eig[,2])
 ```
-The first component has more than 50% of the variability, we'll probably need to study only the first two dimensions.
+The first component has more than 30% of the variability, we'll probably need to study only the first two dimensions.
 
 ```{r}
 res.mfa$quanti.var$contrib
 ```
-pH, Conductivité, Arsenic_Total, Plomb, Zinc and Ion_Ferreux contribute the most to the first component.
-Rainfall and Rainfall_lag_1 contribute the most to the second one.
-Rainfall and Rainfall_lag_1 contribute the most to the third one, we can read the second and the third components as one and the same.
+
+Rainfall, Conductivité, Arsenic_Total, Plomb, Zinc and Ion_Ferreux contribute the most to the first component.
+Rainfall_lag_1, O2 and Sulfate contribute the most to the second one.
+Rainfall and pH contribute the most to the third one.
 Temperature contributes the most to the forth one.
-Rainfall and O2 contribute the most to the fifth one.
+Rainfall_lag_1 and Temperature contribute the most to the fifth one.
 
 ```{r}
 gr_names <- rownames(res.mfa$partial.axes$coord)
@@ -220,8 +267,23 @@ b <- fviz_mfa_ind(res.mfa,
 ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
 ```
 
-```{r}
-ggplotly(b) %>% 
+```{r, warning=F}
+g <- fviz_mfa_ind(res.mfa,
+                  axes = c(1,2),
+                  repel = TRUE,
+                  mean.point = FALSE,
+                  habillage = factor(month(data_diff$Corrected_Dates)),
+                  geom = "point", 
+                  pointsize = 1,
+                  ggtheme = theme_minimal(),
+                  title = "") +
+  geom_text(aes(label = year(data_diff$Corrected_Dates),
+                color = factor(month(data_diff$Corrected_Dates))),
+            vjust = -1.5, size = 3, show.legend = FALSE) +
+  labs(color = "Months") +
+  theme_minimal()
+
+ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
   layout(hovermode = "x unified")
 ```
 
