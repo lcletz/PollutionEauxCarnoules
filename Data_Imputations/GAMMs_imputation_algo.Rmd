@@ -34,21 +34,21 @@ COWG <- read.table(here('processed','COWG.csv'), dec = '.', sep = ";", header = 
 ```
 
 ```{r}
-na_index <- which(is.na(S1$Sulfate))
-S1$Sulfate[na_index] <- ( S1$Souffre[na_index] * 96 ) / 32000
+na_index <- which(is.na(S1$sulfate))
+S1$sulfate[na_index] <- ( S1$sulfur[na_index] * 96 ) / 32000
 
-na_index <- which(is.na(COWG$Sulfate))
-COWG$Sulfate[na_index] <- ( COWG$Souffre[na_index] * 96 ) / 32000
+na_index <- which(is.na(COWG$sulfate))
+COWG$sulfate[na_index] <- ( COWG$sulfur[na_index] * 96 ) / 32000
 
 rm(na_index)
 ```
 
 ```{r}
-S1$Numeric_Dates <- as.numeric(S1$Corrected_Dates)
-S1 <- S1 %>% relocate(Numeric_Dates, .before = Temperature)
+S1$numeric_dates <- as.numeric(S1$corrected_dates)
+S1 <- S1 %>% relocate(numeric_dates, .before = temperature)
 
-COWG$Numeric_Dates <- as.numeric(COWG$Corrected_Dates)
-COWG <- COWG %>% relocate(Numeric_Dates, .before = Temperature)
+COWG$numeric_dates <- as.numeric(COWG$corrected_dates)
+COWG <- COWG %>% relocate(numeric_dates, .before = temperature)
 ```
 
 ```{r}
