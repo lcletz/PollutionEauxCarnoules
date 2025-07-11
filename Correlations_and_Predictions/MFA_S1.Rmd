@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Packages needed:
 ```{r}
+library(readr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -18,6 +19,7 @@ library(ggpubr)
 library(stringr)
 library(lubridate)
 library(plotly)
+library(scales)
 library(FactoMineR)
 library(factoextra)
 here::i_am("Correlations_and_Predictions/MFA_S1.Rmd")
@@ -25,21 +27,21 @@ library(here)
 ```
 
 ```{r}
-data_small <- read.table(here("processed","S1_gamm_2004_2010.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
-  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
+data_small <- read.table(here("processed","S1_gamm_2004_2010.csv"), sep=";", dec=".", header=T)[c(1,3:9,12,15:18)] %>%
+  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d")) %>%
+  mutate_at(c(2:13), rescale)
 
-#data_big <- read.table(here("processed","S1_gamm_2004_2019.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
-#  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
-data_big <- read.table(here("processed","S1_gamm_2004_2019_twice.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
-  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d"))
+data_big <- read.table(here("processed","S1_gamm_2004_2019_twice.csv"), sep=";", dec=".", header=T)[c(1,3:9,12,15:18)] %>%
+  mutate_at(1, function(x) as.Date(x, format="%Y-%m-%d")) %>%
+  mutate_at(c(2:13), rescale)
 
-data_diff <- data_big %>% anti_join(data_small)
+data_diff <- data_big %>% anti_join(data_small, by = "corrected_dates")
 ```
 
 # From 2004 to 2010
 
 ```{r}
-res.mfa <- MFA(data_small[-1], group=c(6,5), graph=F)
+res.mfa <- MFA(data_small[-c(1,4)], group=c(6,5), graph=F)
 barplot(res.mfa$eig[,2])
 ```
 
@@ -47,14 +49,45 @@ The first two components seem the most importants, but the third and the forth c
 
 ```{r}
 res.mfa$quanti.var$contrib
+res.mfa$quanti.var$cos2
 ```
-Conductivité, Arsenic_Total, Zinc and Ion_Ferreux contribute the most to the first component.
-Rainfall, pH, O2 and Plomb contribute the most to the second one.
-Rainfall_lag_1, Temperature contribute the most to the third one.
-pH and O2 contribute the most to the forth one, that means the forth and the second components are somewhat alike.
-Rainfall, Rainfall_lag_1, Sulfate and Ion_Ferreux contribute the most to the fifth component that we will not consider.
+conductivity, total_arsenic, zinc and feII contribute the most to the first component.
+rainfall, ph, o2 and lead contribute the most to the second one.
+rainfall_lag_1 and temperature contribute the most to the third one.
+ph and o2 contribute the most to the forth one, that means the forth and the second components are somewhat alike.
+rainfall, rainfall_lag_1, sulfate and feII contribute the most to the fifth component that we will not consider.
 
 Most of the time, physicochemical elements are the most contributing to any axis. It also seems that when metalloids contribute, they're strongly correlated to dilution and thus to physicochemical measures.
+
+conductivity, total_arsenic, zinc and feII are well represented by the individuals on the first dimension.
+rainfall, ph, o2 and lead are well represented on the second one.
+rainfall_lag_1 and temperature are well represented on the third one.
+ph and o2 are well represented on the forth one.
+rainfall, rainfall_lag_1 and sulfate are well represented on the fifth one.
+
+The most contributing variables for each dimension are well represented by the majority of the individuals on the same corresponding dimensions.
+
+```{r}
+res.mfa$separate.analyses$Gr1$var$contrib
+res.mfa$separate.analyses$Gr1$var$cos2
+
+res.mfa$separate.analyses$Gr2$var$contrib
+res.mfa$separate.analyses$Gr2$var$cos2
+```
+
+Let's look at the contributions and representations of each group's PCA.
+
+rainfall, ph and o2 contribute the most to the first component ; rainfall, rainfall_lag_1, ph and o2 are well represented on it.
+rainfall_lag_1 and conductivity contribute the most to the second one ; rainfall_lag_1 and conductivity are well represented on it.
+rainfall_lag_1 and temperature contribute the most to the third one ; rainfall_lag_1 and temperature are well represented on it.
+ph and o2 contribute the most to the forth one ; ph and o2 are well represented on it.
+rainfall and rainfall_lag_1 contribute the most to the fifth one ; rainfall and rainfall_lag_1 are well represented on it.
+
+total_arsenic, zinc and feII contribute the most to the first component ; total_arsenic, lead, zinc and feII are well represented on it.
+sulfate and feII contribute the most to the second one ; sulfate and feII are well represented on it.
+lead contribute the most to the third one ; lead is well represented on it.
+total_arsenic, sulfate and feII contribute the most to the forth one ; total_arsenic and feII are well represented on it.
+total_arsenic and zinc contribute the most to the fifth one ; zinc is more or less represented on it.
 
 ```{r}
 gr_names <- rownames(res.mfa$partial.axes$coord)
@@ -96,7 +129,7 @@ a <- fviz_mfa_var(res.mfa,
 b <- fviz_mfa_ind(res.mfa,
             axes = c(1,2),
             repel = TRUE,
-            habillage = factor(month(data_small$Corrected_Dates)),
+            habillage = factor(month(data_small$corrected_dates)),
             ggtheme = theme_minimal(),
             title = "") +
   labs(color='Months')
@@ -109,19 +142,51 @@ g <- fviz_mfa_ind(res.mfa,
                   axes = c(1,2),
                   repel = TRUE,
                   mean.point = FALSE,
-                  habillage = factor(month(data_small$Corrected_Dates)),
+                  habillage = factor(month(data_small$corrected_dates)),
                   geom = "point", 
                   pointsize = 1,
                   ggtheme = theme_minimal(),
                   title = "") +
-  geom_text(aes(label = year(data_small$Corrected_Dates),
-                color = factor(month(data_small$Corrected_Dates))),
+  geom_text(aes(label = year(data_small$corrected_dates),
+                color = factor(month(data_small$corrected_dates))),
             vjust = -1.5, size = 3, show.legend = FALSE) +
   labs(color = "Months") +
   theme_minimal()
 
 ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
   layout(hovermode = "x unified")
+```
+
+```{r}
+a <- fviz_pca_biplot(res.mfa$separate.analyses$Gr1,
+                     axes = c(1, 2),
+                     repel = TRUE,
+                     geom = "point",
+                     habillage = factor(month(data_small$corrected_dates)),
+                     legend = "none") 
+
+b <- fviz_pca_biplot(res.mfa$separate.analyses$Gr2,
+                     axes = c(1, 2),
+                     repel = TRUE,
+                     geom = "point",
+                     habillage = factor(month(data_small$corrected_dates)),
+                     ggtheme = theme_minimal(),
+                     legend = "none",
+                     title = "")
+
+legend <- get_legend(fviz_pca_biplot(res.mfa$separate.analyses$Gr1,
+                                     axes = c(1, 2),
+                                     geom = "point",
+                                     habillage = factor(month(data_small$corrected_dates))))
+
+ggarrange(a, b, legend, ncol = 3, widths = c(1, 1, 0.4))
+```
+```{r}
+data_small <- data.frame(data_small,
+                         ph_rain = res.mfa$separate.analyses$Gr1$ind$coord[, 1],
+                         cond_rain_lag_1 = res.mfa$separate.analyses$Gr1$ind$coord[, 2],
+                         arsenic_zinc = res.mfa$separate.analyses$Gr2$ind$coord[, 1])
+write_delim(data_small, here("processed","S1_scaled.csv"), delim = ";")
 ```
 
 ## Axis 1 and 3
@@ -139,7 +204,7 @@ a <- fviz_mfa_var(res.mfa,
 b <- fviz_mfa_ind(res.mfa,
             axes = c(1,3),
             repel = TRUE,
-            habillage = factor(month(data_small$Corrected_Dates)),
+            habillage = factor(month(data_small$corrected_dates)),
             ggtheme = theme_minimal(),
             title = "") +
   labs(color='Months')
@@ -152,13 +217,13 @@ g <- fviz_mfa_ind(res.mfa,
                   axes = c(1,3),
                   repel = TRUE,
                   mean.point = FALSE,
-                  habillage = factor(month(data_small$Corrected_Dates)),
+                  habillage = factor(month(data_small$corrected_dates)),
                   geom = "point", 
                   pointsize = 1,
                   ggtheme = theme_minimal(),
                   title = "") +
-  geom_text(aes(label = year(data_small$Corrected_Dates),
-                color = factor(month(data_small$Corrected_Dates))),
+  geom_text(aes(label = year(data_small$corrected_dates),
+                color = factor(month(data_small$corrected_dates))),
             vjust = -1.5, size = 3, show.legend = FALSE) +
   labs(color = "Months") +
   theme_minimal()
@@ -182,7 +247,7 @@ a <- fviz_mfa_var(res.mfa,
 b <- fviz_mfa_ind(res.mfa,
             axes = c(2,3),
             repel = TRUE,
-            habillage = factor(month(data_small$Corrected_Dates)),
+            habillage = factor(month(data_small$corrected_dates)),
             ggtheme = theme_minimal(),
             title = "") +
   labs(color='Months')
@@ -195,13 +260,13 @@ g <- fviz_mfa_ind(res.mfa,
                   axes = c(2,3),
                   repel = TRUE,
                   mean.point = FALSE,
-                  habillage = factor(month(data_small$Corrected_Dates)),
+                  habillage = factor(month(data_small$corrected_dates)),
                   geom = "point", 
                   pointsize = 1,
                   ggtheme = theme_minimal(),
                   title = "") +
-  geom_text(aes(label = year(data_small$Corrected_Dates),
-                color = factor(month(data_small$Corrected_Dates))),
+  geom_text(aes(label = year(data_small$corrected_dates),
+                color = factor(month(data_small$corrected_dates))),
             vjust = -1.5, size = 3, show.legend = FALSE) +
   labs(color = "Months") +
   theme_minimal()
@@ -213,20 +278,53 @@ ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
 # From 2011 to 2019
 
 ```{r}
-res.mfa <- MFA(data_diff[-1], group=c(6,5), graph=F)
+res.mfa <- MFA(data_diff[-c(1,4)], group=c(6,5), graph=F)
 barplot(res.mfa$eig[,2])
 ```
 The first component has more than 30% of the variability, we'll probably need to study only the first two dimensions.
 
 ```{r}
 res.mfa$quanti.var$contrib
+res.mfa$quanti.var$cos2
 ```
 
-Rainfall, Conductivité, Arsenic_Total, Plomb, Zinc and Ion_Ferreux contribute the most to the first component.
-Rainfall_lag_1, O2 and Sulfate contribute the most to the second one.
-Rainfall and pH contribute the most to the third one.
-Temperature contributes the most to the forth one.
-Rainfall_lag_1 and Temperature contribute the most to the fifth one.
+rainfall, conductivity, total_arsenic, lead, zinc and feII contribute the most to the first component.
+rainfall_lag_1, o2 and sulfate contribute the most to the second one.
+rainfall and ph contribute the most to the third one.
+temperature contributes the most to the forth one.
+rainfall_lag_1 and temperature contribute the most to the fifth one.
+
+These results are relatively equivalent to the previous ones.
+
+rainfall, conductivity, total_arsenic, lead, zinc and feII are well represented by the individuals on the first dimension.
+rainfall_lag_1, o2 and sulfate and lead are well represented on the second one.
+rainfall and ph are well represented on the third one.
+temperature is well represented on the forth one.
+rainfall_lag_1 and temperature are well represented on the fifth one.
+
+The most contributing variables for each dimension are well represented by the majority of the individuals on the same corresponding dimensions.
+
+```{r}
+res.mfa$separate.analyses$Gr1$var$contrib
+res.mfa$separate.analyses$Gr1$var$cos2
+
+res.mfa$separate.analyses$Gr2$var$contrib
+res.mfa$separate.analyses$Gr2$var$cos2
+```
+
+Let's look at the contributions and representations of each group's PCA.
+
+All variable contribute to the first component ; all variable are well represented on it.
+rainfall, rainfall_lag_1, ph and o2 contribute the most to the second one ; rainfall, rainfall_lag_1, ph and o2 are well represented on it.
+conductivity contributes the most to the third one ; conductivity is well represented on it.
+rainfall_lag_1 and temperature contribute the most to the forth one ; temperature is well represented on it.
+rainfall_lag_1 and o2 contribute the most to the fifth one ; rainfall_lag_1 and o2 are well represented on it.
+
+total_arsenic, lead, zinc and feII contribute the most to the first component ; all variable are well represented on it.
+lead, sulfate and zinc contribute the most to the second one ; lead and sulfate are well represented on it.
+zinc, sulfate and feII contribute the most to the third one ; zinc is well represented on it.
+lead and feII contribute the most to the forth one ; lead and feII are well represented on it.
+total_arsenic and feII contribute the most to the fifth one ; total_arsenic is more or less represented on it.
 
 ```{r}
 gr_names <- rownames(res.mfa$partial.axes$coord)
@@ -240,6 +338,7 @@ fviz_mfa_axes(res.mfa,
             ggtheme = theme_minimal(),
             title = "MFA Partial Axis Plot")
 ```
+
 The dimension 1 in both group almost fits the natural dimension 1.
 The dimension 2 also but one contributes positively while the other contributes negatively.
 The other dimensions are negligible.
@@ -259,7 +358,7 @@ a <- fviz_mfa_var(res.mfa,
 b <- fviz_mfa_ind(res.mfa,
             axes = c(1,2),
             repel = TRUE,
-            habillage = factor(month(data_diff$Corrected_Dates)),
+            habillage = factor(month(data_diff$corrected_dates)),
             ggtheme = theme_minimal(),
             title = "") +
   labs(color='Months')
@@ -272,13 +371,13 @@ g <- fviz_mfa_ind(res.mfa,
                   axes = c(1,2),
                   repel = TRUE,
                   mean.point = FALSE,
-                  habillage = factor(month(data_diff$Corrected_Dates)),
+                  habillage = factor(month(data_diff$corrected_dates)),
                   geom = "point", 
                   pointsize = 1,
                   ggtheme = theme_minimal(),
                   title = "") +
-  geom_text(aes(label = year(data_diff$Corrected_Dates),
-                color = factor(month(data_diff$Corrected_Dates))),
+  geom_text(aes(label = year(data_diff$corrected_dates),
+                color = factor(month(data_diff$corrected_dates))),
             vjust = -1.5, size = 3, show.legend = FALSE) +
   labs(color = "Months") +
   theme_minimal()
@@ -287,4 +386,27 @@ ggplotly(g, tooltip = c("label", "x", "y", "color")) %>%
   layout(hovermode = "x unified")
 ```
 
+```{r}
+a <- fviz_pca_biplot(res.mfa$separate.analyses$Gr1,
+                     axes = c(1, 2),
+                     repel = TRUE,
+                     geom = "point",
+                     habillage = factor(month(data_diff$corrected_dates)),
+                     legend = "none") 
 
+b <- fviz_pca_biplot(res.mfa$separate.analyses$Gr2,
+                     axes = c(1, 2),
+                     repel = TRUE,
+                     geom = "point",
+                     habillage = factor(month(data_diff$corrected_dates)),
+                     ggtheme = theme_minimal(),
+                     legend = "none",
+                     title = "")
+
+legend <- get_legend(fviz_pca_biplot(res.mfa$separate.analyses$Gr1,
+                                     axes = c(1, 2),
+                                     geom = "point",
+                                     habillage = factor(month(data_diff$corrected_dates))))
+
+ggarrange(a, b, legend, ncol = 3, widths = c(1, 1, 0.4))
+```
