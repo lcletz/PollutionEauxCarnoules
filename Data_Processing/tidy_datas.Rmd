@@ -1,6 +1,6 @@
 ---
 title: "Datas processing"
-author: "chloride_ionETZ Laura"
+author: "CLETZ Laura"
 date: "02/06/2025"
 output: pdf_document
 ---
