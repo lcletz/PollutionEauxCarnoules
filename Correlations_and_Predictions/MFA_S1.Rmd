@@ -410,3 +410,105 @@ legend <- get_legend(fviz_pca_biplot(res.mfa$separate.analyses$Gr1,
 
 ggarrange(a, b, legend, ncol = 3, widths = c(1, 1, 0.4))
 ```
+
+# From 2004 to 2019
+
+```{r}
+res.mfa <- MFA(data_big[-c(1,4)], group=c(6,5), graph=F)
+barplot(res.mfa$eig[,2])
+```
+
+The first component has more than a quarter of the variability, we'll probably need to study only the first two dimensions.
+
+```{r}
+res.mfa$quanti.var$contrib
+res.mfa$quanti.var$cos2
+```
+
+conductivity, total_arsenic, zinc and feII contribute the most to the first component.
+rainfall and ph contribute the most to the second one.
+rainfall_lag_1 and o2 contribute the most to the third one.
+temperature contributes the most to the forth one.
+sulfate and zinc contribute the most to the fifth one.
+
+These results are relatively equivalent to the previous ones.
+
+conductivity, total_arsenic, lead, zinc and feII are well represented by the individuals on the first dimension.
+rainfall and ph and lead are well represented on the second one.
+rainfall_lag_1 and o2 are well represented on the third one.
+temperature is well represented on the forth one.
+sulfate and zinc are well represented on the fifth one.
+
+The most contributing variables for each dimension are well represented by the majority of the individuals on the same corresponding dimensions.
+
+```{r}
+res.mfa$separate.analyses$Gr1$var$contrib
+res.mfa$separate.analyses$Gr1$var$cos2
+
+res.mfa$separate.analyses$Gr2$var$contrib
+res.mfa$separate.analyses$Gr2$var$cos2
+```
+
+Let's look at the contributions and representations of each group's PCA.
+
+rainfall and ph ; rainfall and ph are well represented on it.
+rainfall_lag_1 and o2 contribute the most to the second one ; rainfall_lag_1 and o2 are well represented on it.
+temperature, ph and conductivity contributes the most to the third one ; temperature, ph and conductivity is well represented on it.
+temperature contributes the most to the forth one ; temperature is well represented on it.
+rainfall, rainfall_lag_1 and o2 contribute the most to the fifth one ; rainfall, rainfall_lag_1 and o2 are well represented on it.
+
+total_arsenic, lead, zinc and feII contribute the most to the first component ; total_arsenic, lead, zinc and feII are well represented on it.
+sulfate and feII contribute the most to the second one ; lead and sulfate are well represented on it.
+lead contributes the most to the third one ; lead is well represented on it.
+sulfate, zinc and feII contribute the most to the forth one ; zinc and feII are well represented on it.
+total_arsenic and zinc contribute the most to the fifth one ; total_arsenic and zinc are well represented on it.
+
+```{r}
+gr_names <- rownames(res.mfa$partial.axes$coord)
+gr_names <- ifelse(gr_names %in% gr_names[c(1:5)],
+                        str_replace(gr_names, "Gr1", "Élém. ph-chimiques + temps"),
+                        str_replace(gr_names, "Gr2", "Élém. traces"))
+rownames(res.mfa$partial.axes$coord) <- gr_names
+
+fviz_mfa_axes(res.mfa,
+            repel = TRUE, 
+            ggtheme = theme_minimal(),
+            title = "MFA Partial Axis Plot")
+```
+
+The dimension 1 in both group almost fits the natural dimension 1.
+The dimension 2 is not well fitted by the ACPs' second dimension that are almost negligible but one contributes positively while the other contributes negatively.
+The dimension 3 is only fitted by the dimension 3 of metals and metalloids, this is because lead is the main contributor.
+The other dimensions are negligible.
+
+Let's analyse the axis 1 and 2, though we could also analyse the axis 3.
+
+```{r}
+a <- fviz_mfa_var(res.mfa, 
+             axes = c(1,2), 
+             repel = TRUE, 
+             col.var = custom_groups,  
+             ggtheme = theme_minimal(),
+             title = "") +
+  labs(color='')  +
+  theme(legend.position = "bottom")
+
+b <- fviz_mfa_ind(res.mfa,
+            axes = c(1,2),
+            repel = TRUE,
+            geom = "point",
+            habillage = factor(month(data_big$corrected_dates)),
+            ggtheme = theme_minimal(),
+            title = "") +
+  labs(color='Months')
+
+ggarrange(a, b, labels = c("MFA Variables Plot", "MFA Individuals Plot"))
+```
+
+```{r}
+data_big <- data.frame(data_big,
+                         ph_rain_o2 = res.mfa$separate.analyses$Gr1$ind$coord[, 1],
+                         cond_temp = res.mfa$separate.analyses$Gr1$ind$coord[, 2],
+                         as_zn_fe = res.mfa$separate.analyses$Gr2$ind$coord[, 1])
+write_delim(data_big, here("processed","S1_scaled_2019.csv"), delim = ";")
+```
