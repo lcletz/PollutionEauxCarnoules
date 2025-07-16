@@ -46,7 +46,7 @@ aic <- NA
 
 Initial formulae:
 total_arsenic ~ rainfall + rainfall_lag_1 + 
-               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + lead + lead^3 + zinc +
+               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + I(lead + lead^3) + zinc +
                rainfall:zinc + rainfall:lead + rainfall:feII + rainfall:sulfate + rainfall:conductivity + rainfall:o2 +
                rainfall_lag_1:zinc + rainfall_lag_1:lead + rainfall_lag_1:feII + rainfall_lag_1:sulfate +
                rainfall_lag_1:conductivity + rainfall_lag_1:o2 + numeric_dates
@@ -56,7 +56,7 @@ old_bic <- bic
 old_aic <- aic
 
 test <- gamm(total_arsenic ~ rainfall +  
-               o2 + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + lead + lead^3 + zinc +
+               o2 + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + I(lead + lead^3) + zinc +
                rainfall:zinc + rainfall:lead + rainfall:feII + rainfall:o2, 
              data=data, correlation=corARMA(form = ~1, p=1))
 
@@ -68,7 +68,7 @@ summary(test$gam)
 
 The best formulae is:
 total_arsenic ~ rainfall +  
-               o2 + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + lead + lead^3 + zinc +
+               o2 + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + I(lead + lead^3) + zinc +
                rainfall:zinc + rainfall:lead + rainfall:feII + rainfall:o2
                
 with correlation AR(1).
@@ -99,6 +99,49 @@ total_arsenic ~ rainfall + rainfall_lag_1 +
                o2 + conductivity + s(sulfate, bs = "bs") + feII + zinc +
                rainfall:conductivity + rainfall:o2 +
                rainfall_lag_1:feII + numeric_dates
+
+with correlation AR(1).
+
+## From 2004 to 2010, new concept
+
+```{r}
+zinc_fer <- data$arsenic_zinc
+fer_arsenic <- data$arsenic_zinc
+as_zn_fe <- data$arsenic_zinc
+
+data <- data.frame(data, zinc_fer = zinc_fer, fer_arsenic = fer_arsenic, as_zn_fe = as_zn_fe)
+
+rm(zinc_fer) ; rm(fer_arsenic) ; rm(as_zn_fe)
+```
+
+Initial formulae:
+total_arsenic ~ ph_rain + rainfall_lag_1 + 
+               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + zinc_fer + I(lead + lead^3) +
+               lead:sulfate + zinc_fer:sulfate +
+               ph_rain:zinc_fer + ph_rain:lead + ph_rain:sulfate + ph_rain:o2 +
+               rainfall_lag_1:zinc_fer + rainfall_lag_1:lead + rainfall_lag_1:sulfate + 
+               rainfall_lag_1:o2 + s(numeric_dates, bs='bs')
+               
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(total_arsenic ~ rainfall_lag_1 + 
+               o2 + conductivity + s(sulfate, bs = "bs") + zinc_fer + I(lead + lead^3) +
+               zinc_fer:sulfate + rainfall_lag_1:sulfate + 
+               s(numeric_dates, bs='bs'), 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+The best formulae is:
+total_arsenic ~ rainfall_lag_1 + o2 + conductivity + s(sulfate, 
+    bs = "bs") + zinc_fer + I(lead + lead^3) + zinc_fer:sulfate + 
+    rainfall_lag_1:sulfate + s(numeric_dates, bs = "bs")
 
 with correlation AR(1).
 
@@ -158,6 +201,34 @@ The best formulae is:
 zinc ~ rainfall_lag_1 + 
                s(sulfate, bs = "bs") + feII + lead + lead^3 + total_arsenic +
                rainfall_lag_1:total_arsenic + numeric_dates
+
+with correlation AR(1).
+
+## From 2004 to 2010, new concept
+
+Initial formulae:
+zinc ~ ph_rain + rainfall_lag_1 + 
+               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + fer_arsenic + I(lead + lead^3) +
+               lead:sulfate + fer_arsenic:sulfate +
+               ph_rain:fer_arsenic + ph_rain:lead + ph_rain:sulfate + ph_rain:o2 +
+               rainfall_lag_1:fer_arsenic + rainfall_lag_1:lead + rainfall_lag_1:sulfate + 
+               rainfall_lag_1:o2 + s(numeric_dates, bs='bs')
+               
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gls(zinc ~ fer_arsenic, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test)
+aic <- AIC(test)
+
+summary(test)$tTable
+```
+
+The best formulae is:
+zinc ~ fer_arsenic
 
 with correlation AR(1).
 
@@ -226,6 +297,36 @@ The best formulae is:
 lead ~ rainfall_lag_1 + 
                o2 + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + zinc + zinc^3 + 
                rainfall_lag_1:zinc + rainfall_lag_1:o2
+
+with correlation AR(1).
+
+## From 2004 to 2010, new concept
+
+Initial formulae:
+lead ~ ph_rain + rainfall_lag_1 + 
+               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + I(as_zn_fe + as_zn_fe^3) + 
+               as_zn_fe:sulfate +
+               ph_rain:as_zn_fe + ph_rain:sulfate + ph_rain:o2 +
+               rainfall_lag_1:as_zn_fe + rainfall_lag_1:sulfate + 
+               rainfall_lag_1:o2 + s(numeric_dates, bs='bs')
+               
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gls(lead ~ ph_rain + rainfall_lag_1 + conductivity + sulfate + as_zn_fe + 
+               as_zn_fe:sulfate + rainfall_lag_1:sulfate, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test)
+aic <- AIC(test)
+
+summary(test)$tTable
+```
+
+The best formulae is:
+lead ~ ph_rain + rainfall_lag_1 + conductivity + sulfate + as_zn_fe + 
+               as_zn_fe:sulfate + rainfall_lag_1:sulfate
 
 with correlation AR(1).
 
@@ -324,3 +425,36 @@ feII ~ rainfall + rainfall_lag_1 +
 
 with correlation AR(1).
 
+## From 2004 to 2010, new concept
+
+Initial formulae:
+feII ~ ph_rain + rainfall_lag_1 + 
+               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + arsenic_zinc + I(lead + lead^3) +
+               lead:sulfate + arsenic_zinc:sulfate +
+               ph_rain:arsenic_zinc + ph_rain:lead + ph_rain:sulfate + ph_rain:o2 +
+               rainfall_lag_1:arsenic_zinc + rainfall_lag_1:lead + rainfall_lag_1:sulfate + 
+               rainfall_lag_1:o2 + s(numeric_dates, bs='bs')
+               
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(feII ~ rainfall_lag_1 + 
+               s(sulfate, bs = "bs") + arsenic_zinc + I(lead + lead^3) +
+               arsenic_zinc:sulfate + rainfall_lag_1:sulfate + 
+               s(numeric_dates, bs='bs'), 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+The best formulae is:
+feII ~ rainfall_lag_1 + 
+               s(sulfate, bs = "bs") + arsenic_zinc + I(lead + lead^3) +
+               arsenic_zinc:sulfate + rainfall_lag_1:sulfate + 
+               s(numeric_dates, bs='bs')
+               
+with correlation AR(1).
