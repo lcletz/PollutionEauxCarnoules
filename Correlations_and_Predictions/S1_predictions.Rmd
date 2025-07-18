@@ -34,34 +34,45 @@ data_small <- read.table(here('processed', 'S1_gamm_2004_2010.csv'), dec = '.', 
 
 ```{r}
 new_data <- data.frame(
-  Dates = as.Date("2025-04-24", format = "%Y-%m-%d"),
-  Temperature = 16.8,
-  Rainfall = 107.4,
-  Rainfall_lag_1 = 243.1,
-  Conductivité = 4560,
-  pH = 2.97,
-  O2 = 2.86,
-  Ion_Ferreux = 1069.64,
-  Sulfate = (1240903.62 * 96) / 32000,
-  Zinc = 19337.51,
-  Arsenic_Total = 115181.67,
-  Plomb = 1614.53
+  dates = as.Date("2025-04-24", format = "%Y-%m-%d"),
+  temperature = 16.8,
+  rainfall = 107.4,
+  rainfall_lag_1 = 243.1,
+  conductivity = 4560,
+  ph = 2.97,
+  o2 = 2.86,
+  feII = 1069.64,
+  sulfate = (1240903.62 * 96) / 32000,
+  zinc = 19337.51,
+  total_arsenic = 115181.67,
+  lead = 1614.53
   ) %>%
-  mutate(Numeric_Dates = as.numeric(Dates)) 
+  mutate(numeric_dates = as.numeric(dates)) 
 ```
 
 ```{r}
 test <- read.table(here('processed','Source_S1.csv'), dec = '.', sep = ";", header = TRUE)[77:174,] %>%
   mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d")) %>%
-  mutate(Numeric_Dates = as.numeric(Corrected_Dates)) %>%
+  mutate(numeric_dates = as.numeric(corrected_dates)) %>%
   select(names(new_data))
 ```
 
-# Temperature
+```{r}
+newest_data <- data.frame(
+  dates = as.Date("2025-07-17", format = "%Y-%m-%d"),
+  temperature = 16.6,
+  ph = 3.30,
+  eh = 232,
+  conductivity = 4690,
+  o2 = 2.28
+)
+```
+
+# temperature
 ## Whole data
 
 ```{r}
-temp <- ts(data$Temperature, start = c(2004,11), end = c(2019,1), frequency = 12)
+temp <- ts(data$temperature, start = c(2004,11), end = c(2019,1), frequency = 12)
 
 fit_temp <- arima(temp, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
@@ -80,10 +91,11 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(ts(test$Temperature, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$temperature, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
-points(2025.33, new_data$Temperature, col='red', pch=19)
+points(2025.33, new_data$temperature, col='red', pch=19)
+points(2025.583, newest_data$temperature, col='red', pch=19)
 
 abline(h=13, col='red')
 abline(h=18, col='red')
@@ -103,7 +115,7 @@ axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ## Small data
 
 ```{r}
-temp <- ts(data_small$Temperature, start = c(2004,11), end = c(2011,1), frequency = 12)
+temp <- ts(data_small$temperature, start = c(2004,11), end = c(2011,1), frequency = 12)
 
 fit_temp <- arima(temp, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
@@ -122,10 +134,11 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(ts(test$Temperature, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$temperature, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "red")
 
-points(2025.33, new_data$Temperature, col='red', pch=19)
+points(2025.33, new_data$temperature, col='red', pch=19)
+points(2025.583, newest_data$temperature, col='red', pch=19)
 
 abline(h=13, col='red')
 abline(h=18, col='red')
@@ -144,20 +157,20 @@ axis(1, at = seq(2004, 2026, by = 1), las = 2)
 
 Both prediction are valid, but the one with the whole is more precise.
 
-# O2
+# o2
 ## Whole data
 
 ```{r}
-o2 <- ts(data$O2, start = c(2004,11), end = c(2019,1), frequency = 12)
+o2 <- ts(data$o2, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-fit_o2 <- arima(data$O2, order = c(1, 1, 2),
+fit_o2 <- arima(data$o2, order = c(1, 1, 2),
       seasonal = list(order = c(1, 1, 2), period = 12), method = "CSS-ML")
 
 pred_o2 <- predict(fit_o2, n.ahead = 90)
 ```
 
 ```{r}
-plot.ts(o2, type='l', xlab='Temps', ylab="O2",
+plot.ts(o2, type='l', xlab='Temps', ylab="o2",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_o2$pred, start = c(2019,1), end = c(2026,6), frequency = 12)
@@ -167,8 +180,10 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(2025.33, new_data$O2, col="red", pch=19)
-points(ts(test$O2, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(2025.33, new_data$o2, col="red", pch=19)
+points(2025.583, newest_data$o2, col='red', pch=19)
+
+points(ts(test$o2, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
@@ -177,7 +192,7 @@ axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ## Small data
 
 ```{r}
-o2 <- ts(data_small$O2, start = c(2004,11), end = c(2011,1), frequency = 12)
+o2 <- ts(data_small$o2, start = c(2004,11), end = c(2011,1), frequency = 12)
 
 fit_o2 <- arima(o2, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
@@ -186,7 +201,7 @@ pred_o2 <- predict(fit_o2, n.ahead = 187)
 ```
 
 ```{r}
-plot.ts(o2, type='l', xlab='Temps', ylab="O2",
+plot.ts(o2, type='l', xlab='Temps', ylab="o2",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_o2$pred, start = c(2011,1), end = c(2026,6), frequency = 12)
@@ -196,10 +211,11 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(ts(test$O2, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$o2, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
-points(2025.33, new_data$O2, col='red', pch=19)
+points(2025.33, new_data$o2, col='red', pch=19)
+points(2025.583, newest_data$o2, col='red', pch=19)
 
 abline(h=13, col='red')
 abline(h=18, col='red')
@@ -209,20 +225,20 @@ axis(1, at = seq(2004, 2026, by = 1), las = 2)
 
 The second prediction is not precise enough.
 
-# pH
+# ph
 ## Whole data
 
 ```{r}
-ph <- ts(data$pH, start = c(2004,11), end = c(2019,1), frequency = 12)
+ph <- ts(data$ph, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-fit_ph <- arima(data$pH, order = c(1, 1, 1),
+fit_ph <- arima(data$ph, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
 
 pred_ph <- predict(fit_ph, n.ahead = 90)
 ```
 
 ```{r}
-plot.ts(ph, type='l', xlab='Temps', ylab="pH",
+plot.ts(ph, type='l', xlab='Temps', ylab="ph",
         xlim = c(2004,2026), ylim = c(0,7), xaxt = 'n')
 
 ts <- ts(pred_ph$pred, start = c(2019,1), end = c(2026,6), frequency = 12)
@@ -232,19 +248,19 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(2025.33, new_data$pH, col="red", pch=19)
-points(ts(test$pH, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(2025.33, new_data$ph, col="red", pch=19)
+points(2025.583, newest_data$ph, col='red', pch=19)
+
+points(ts(test$ph, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
 
-Not a good prediction...
-
 ## Small data
 
 ```{r}
-ph <- ts(data_small$pH, start = c(2004,11), end = c(2011,1), frequency = 12)
+ph <- ts(data_small$ph, start = c(2004,11), end = c(2011,1), frequency = 12)
 
 fit_ph <- arima(ph, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
@@ -253,7 +269,7 @@ pred_ph <- predict(fit_ph, n.ahead = 187)
 ```
 
 ```{r}
-plot.ts(ph, type='l', xlab='Temps', ylab="pH",
+plot.ts(ph, type='l', xlab='Temps', ylab="ph",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_ph$pred, start = c(2011,1), end = c(2026,6), frequency = 12)
@@ -263,10 +279,11 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(ts(test$pH, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$ph, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
-points(2025.33, new_data$pH, col='red', pch=19)
+points(2025.33, new_data$ph, col='red', pch=19)
+points(2025.583, newest_data$ph, col='red', pch=19)
 
 abline(h=13, col='red')
 abline(h=18, col='red')
@@ -274,15 +291,13 @@ abline(h=18, col='red')
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
 
-It may seems as a better prediction but it is too wide and it appears like the pH is going below zero which is impossible.
-
-# Arsenic_Total
+# total_arsenic
 ## Whole data
 
 ```{r}
-ars <- ts(data$Arsenic_Total, start = c(2004,11), end = c(2019,1), frequency = 12)
+ars <- ts(data$total_arsenic, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-fit_ars <- arima(data$Arsenic_Total, order = c(1, 1, 1),
+fit_ars <- arima(data$total_arsenic, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
 
 pred_ars <- predict(fit_ars, n.ahead = 90)
@@ -299,8 +314,8 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(2025.33, new_data$Arsenic_Total, col="red", pch=19)
-points(ts(test$Arsenic_Total, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(2025.33, new_data$total_arsenic, col="red", pch=19)
+points(ts(test$total_arsenic, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 legend(x = "bottomright",
@@ -323,7 +338,7 @@ Absolutely not a good prediction.
 ## Small data
 
 ```{r}
-ars <- ts(data_small$Arsenic_Total, start = c(2004,11), end = c(2011,1), frequency = 12)
+ars <- ts(data_small$total_arsenic, start = c(2004,11), end = c(2011,1), frequency = 12)
 
 fit_ars <- arima(ars, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
@@ -342,10 +357,10 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(ts(test$Arsenic_Total, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$total_arsenic, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
-points(2025.33, new_data$Arsenic_Total, col='red', pch=19)
+points(2025.33, new_data$total_arsenic, col='red', pch=19)
 
 abline(h=13, col='red')
 abline(h=18, col='red')
@@ -358,14 +373,14 @@ Better prediction but prediction interval too wide.
 ## GAMM and whole data
 
 ```{r}
-ars <- ts(data_small$Arsenic_Total, start = c(2004,11), end = c(2019,1), frequency = 12)
+ars <- ts(data_small$total_arsenic, start = c(2004,11), end = c(2019,1), frequency = 12)
 
 plot.ts(ars, type='l', xlab='Temps', ylab="Concentration en Arsenic",
         xlim = c(2004,2026), xaxt = 'n')
 
-gam_ars <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Sulfate, bs='re') + Ion_Ferreux + 
-                 Numeric_Dates + Plomb + Rainfall_lag_1:O2 + Conductivité^2 + Zinc + 
-                 Ion_Ferreux:Plomb + O2:Ion_Ferreux + Zinc:pH + Zinc:Sulfate + Sulfate:Ion_Ferreux, 
+gam_ars <- gamm(total_arsenic ~ s(rainfall_lag_1, bs='re') + s(o2, bs='re') + s(sulfate, bs='re') + feII + 
+                 numeric_dates + lead + rainfall_lag_1:o2 + conductivity^2 + zinc + 
+                 feII:lead + o2:feII + zinc:ph + zinc:sulfate + sulfate:feII, 
                 data = data, correlation = corARMA(form = ~1, p=1))
 
 pred_ars <- predict.gam(gam_ars$gam, newdata = test, se.fit = TRUE)
@@ -373,7 +388,7 @@ points(ts(pred_ars$fit, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 15, col = "cyan3")
 points(spline(ts(pred_ars$fit, start = c(2011,2), end = c(2019,1), frequency = 12)),
        type='l', col = "cyan3")
-points(ts(test$Arsenic_Total, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$total_arsenic, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 upper <- spline(ts(pred_ars$fit + pred_ars$se.fit, start = c(2011,2), end = c(2019,1), frequency = 12))
@@ -386,7 +401,7 @@ points(2025.33, pred_ars$fit, pch=19, col='cyan3')
 points(2025.33, pred_ars$fit + pred_ars$se.fit, pch=15, col='cyan4')
 points(2025.33, pred_ars$fit - pred_ars$se.fit, pch=15, col='cyan4')
 
-points(2025.33, new_data$Arsenic_Total, col="red", pch=19)
+points(2025.33, new_data$total_arsenic, col="red", pch=19)
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
@@ -396,14 +411,14 @@ Still not conclusive...
 ## GAMM and small data
 
 ```{r}
-ars <- ts(data_small$Arsenic_Total, start = c(2004,11), end = c(2011,1), frequency = 12)
+ars <- ts(data_small$total_arsenic, start = c(2004,11), end = c(2011,1), frequency = 12)
 
 plot.ts(ars, type='l', xlab='Temps', ylab="Concentration en Arsenic",
         xlim = c(2004,2026), xaxt = 'n')
 
-gam_ars <- gamm(Arsenic_Total ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(Sulfate, bs='re') + Ion_Ferreux + 
-                 Numeric_Dates + Plomb + Rainfall_lag_1:O2 + Conductivité^2 + Zinc + 
-                 Ion_Ferreux:Plomb + O2:Ion_Ferreux + Zinc:pH + Zinc:Sulfate + Sulfate:Ion_Ferreux, 
+gam_ars <- gamm(total_arsenic ~ s(rainfall_lag_1, bs='re') + s(o2, bs='re') + s(sulfate, bs='re') + feII + 
+                 numeric_dates + lead + rainfall_lag_1:o2 + conductivity^2 + zinc + 
+                 feII:lead + o2:feII + zinc:ph + zinc:sulfate + sulfate:feII, 
                 data = data_small, correlation = corARMA(form = ~1, p=1))
 
 pred_ars <- predict.gam(gam_ars$gam, newdata = test, se.fit = TRUE)
@@ -411,7 +426,7 @@ points(ts(pred_ars$fit, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 15, col = "cyan3")
 points(spline(ts(pred_ars$fit, start = c(2011,2), end = c(2019,1), frequency = 12)),
        type='l', col = "cyan3")
-points(ts(test$Arsenic_Total, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$total_arsenic, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 upper <- spline(ts(pred_ars$fit + pred_ars$se.fit, start = c(2011,2), end = c(2019,1), frequency = 12))
@@ -424,27 +439,27 @@ points(2025.33, pred_ars$fit, pch=19, col='cyan3')
 points(2025.33, pred_ars$fit + pred_ars$se.fit, pch=15, col='cyan4')
 points(2025.33, pred_ars$fit - pred_ars$se.fit, pch=15, col='cyan4')
 
-points(2025.33, new_data$Arsenic_Total, col="red", pch=19)
+points(2025.33, new_data$total_arsenic, col="red", pch=19)
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
 
 Hard to say.
 
-# Zinc
+# zinc
 ## Whole data
 
 ```{r}
-zinc <- ts(data$Zinc, start = c(2004,11), end = c(2019,1), frequency = 12)
+zinc <- ts(data$zinc, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-fit_zinc <- arima(data$Zinc, order = c(1, 1, 0),
+fit_zinc <- arima(data$zinc, order = c(1, 1, 0),
       seasonal = list(order = c(1, 1, 0), period = 12), method = "CSS-ML")
 
 pred_zinc <- predict(fit_zinc, n.ahead = 90)
 ```
 
 ```{r}
-plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en Zinc (ppb)",
+plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en zinc (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_zinc$pred, start = c(2019,1), end = c(2026,6), frequency = 12)
@@ -454,8 +469,8 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(2025.33, new_data$Zinc, col="red", pch=19)
-points(ts(test$Zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(2025.33, new_data$zinc, col="red", pch=19)
+points(ts(test$zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
@@ -466,7 +481,7 @@ Absolutely not a good prediction.
 ## Small data
 
 ```{r}
-zinc <- ts(data_small$Zinc, start = c(2004,11), end = c(2011,1), frequency = 12)
+zinc <- ts(data_small$zinc, start = c(2004,11), end = c(2011,1), frequency = 12)
 
 fit_zinc <- arima(zinc, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
@@ -475,7 +490,7 @@ pred_zinc <- predict(fit_zinc, n.ahead = 187)
 ```
 
 ```{r}
-plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en Zinc (ppb)",
+plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en zinc (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_zinc$pred, start = c(2011,1), end = c(2026,6), frequency = 12)
@@ -485,10 +500,10 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(ts(test$Zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
-points(2025.33, new_data$Zinc, col='red', pch=19)
+points(2025.33, new_data$zinc, col='red', pch=19)
 
 abline(h=13, col='red')
 abline(h=18, col='red')
@@ -501,19 +516,19 @@ Better prediction but prediction interval too wide.
 ## GAMM and whole data
 
 ```{r}
-zinc <- ts(data_small$Zinc, start = c(2004,11), end = c(2019,1), frequency = 12)
+zinc <- ts(data_small$zinc, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en Zinc (ppb)",
+plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en zinc (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
-lm_zinc <- lm(Zinc ~ Numeric_Dates + Plomb + Arsenic_Total, data = data)
+lm_zinc <- lm(zinc ~ numeric_dates + lead + total_arsenic, data = data)
 
 pred_zinc <- predict(lm_zinc, newdata = test, se.fit = TRUE)
 points(ts(pred_zinc$fit, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 15, col = "cyan3")
 points(spline(ts(pred_zinc$fit, start = c(2011,2), end = c(2019,1), frequency = 12)),
        type='l', col = "cyan3")
-points(ts(test$Zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 upper <- spline(ts(pred_zinc$fit + pred_zinc$se.fit, start = c(2011,2), end = c(2019,1), frequency = 12))
@@ -526,7 +541,7 @@ points(2025.33, pred_zinc$fit, pch=19, col='cyan3')
 points(2025.33, pred_zinc$fit + pred_zinc$se.fit, pch=15, col='cyan4')
 points(2025.33, pred_zinc$fit - pred_zinc$se.fit, pch=15, col='cyan4')
 
-points(2025.33, new_data$Zinc, col="red", pch=19)
+points(2025.33, new_data$zinc, col="red", pch=19)
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
@@ -536,19 +551,19 @@ Not good.
 ## GAMM and small data
 
 ```{r}
-zinc <- ts(data_small$Zinc, start = c(2004,11), end = c(2011,1), frequency = 12)
+zinc <- ts(data_small$zinc, start = c(2004,11), end = c(2011,1), frequency = 12)
 
-plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en Zinc (ppb)",
+plot.ts(zinc, type='l', xlab='Temps', ylab="Concentration en zinc (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
-lm_zinc <- lm(Zinc ~ Numeric_Dates + Plomb + Arsenic_Total, data = data_small)
+lm_zinc <- lm(zinc ~ numeric_dates + lead + total_arsenic, data = data_small)
 
 pred_zinc <- predict(lm_zinc, newdata = test, se.fit = TRUE)
 points(ts(pred_zinc$fit, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 15, col = "cyan3")
 points(spline(ts(pred_zinc$fit, start = c(2011,2), end = c(2019,1), frequency = 12)),
        type='l', col = "cyan3")
-points(ts(test$Zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$zinc, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 upper <- spline(ts(pred_zinc$fit + pred_zinc$se.fit, start = c(2011,2), end = c(2019,1), frequency = 12))
@@ -561,27 +576,27 @@ points(2025.33, pred_zinc$fit, pch=19, col='cyan3')
 points(2025.33, pred_zinc$fit + pred_zinc$se.fit, pch=15, col='cyan4')
 points(2025.33, pred_zinc$fit - pred_zinc$se.fit, pch=15, col='cyan4')
 
-points(2025.33, new_data$Zinc, col="red", pch=19)
+points(2025.33, new_data$zinc, col="red", pch=19)
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
 
 Nope but not too far.
 
-# Plomb
+# lead
 ## Whole data
 
 ```{r}
-fer <- ts(data$Plomb, start = c(2004,11), end = c(2019,1), frequency = 12)
+fer <- ts(data$lead, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-fit_fer <- arima(data$Plomb, order = c(1, 1, 1),
+fit_fer <- arima(data$lead, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
 
 pred_fer <- predict(fit_fer, n.ahead = 90)
 ```
 
 ```{r}
-plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en Plomb (ppb)",
+plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en lead (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_fer$pred, start = c(2019,1), end = c(2026,6), frequency = 12)
@@ -591,8 +606,8 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(2025.33, new_data$Plomb, col="red", pch=19)
-points(ts(test$Plomb, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(2025.33, new_data$lead, col="red", pch=19)
+points(ts(test$lead, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
@@ -603,7 +618,7 @@ Absolutely not a good prediction.
 ## Small data
 
 ```{r}
-fer <- ts(data_small$Plomb, start = c(2004,11), end = c(2011,1), frequency = 12)
+fer <- ts(data_small$lead, start = c(2004,11), end = c(2011,1), frequency = 12)
 
 fit_fer <- arima(fer, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
@@ -612,7 +627,7 @@ pred_fer <- predict(fit_fer, n.ahead = 187)
 ```
 
 ```{r}
-plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en Plomb (ppb)",
+plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en lead (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_fer$pred, start = c(2011,1), end = c(2026,6), frequency = 12)
@@ -622,10 +637,10 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(ts(test$Plomb, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$lead, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
-points(2025.33, new_data$Plomb, col='red', pch=19)
+points(2025.33, new_data$lead, col='red', pch=19)
 
 abline(h=13, col='red')
 abline(h=18, col='red')
@@ -638,13 +653,13 @@ Way better prediction.
 ## GAMM and whole data
 
 ```{r}
-fer <- ts(data_small$Plomb, start = c(2004,11), end = c(2019,1), frequency = 12)
+fer <- ts(data_small$lead, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en Plomb",
+plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en lead",
         xlim = c(2004,2026), xaxt = 'n')
 
-gam_fer <- gamm(Plomb ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(pH, bs='re') + 
-               Zinc + Conductivité + pH:Rainfall_lag_1 + Conductivité:Rainfall_lag_1, 
+gam_fer <- gamm(lead ~ s(rainfall_lag_1, bs='re') + s(o2, bs='re') + s(ph, bs='re') + 
+               zinc + conductivity + ph:rainfall_lag_1 + conductivity:rainfall_lag_1, 
                 data = data, correlation = corARMA(form = ~1, p=1))
 
 pred_fer <- predict.gam(gam_fer$gam, newdata = test, se.fit = TRUE)
@@ -652,7 +667,7 @@ points(ts(pred_fer$fit, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 15, col = "cyan3")
 points(spline(ts(pred_fer$fit, start = c(2011,2), end = c(2019,1), frequency = 12)),
        type='l', col = "cyan3")
-points(ts(test$Plomb, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$lead, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 upper <- spline(ts(pred_fer$fit + pred_fer$se.fit, start = c(2011,2), end = c(2019,1), frequency = 12))
@@ -665,7 +680,7 @@ points(2025.33, pred_fer$fit, pch=19, col='cyan3')
 points(2025.33, pred_fer$fit + pred_fer$se.fit, pch=15, col='cyan4')
 points(2025.33, pred_fer$fit - pred_fer$se.fit, pch=15, col='cyan4')
 
-points(2025.33, new_data$Plomb, col="red", pch=19)
+points(2025.33, new_data$lead, col="red", pch=19)
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
@@ -675,13 +690,13 @@ Still not conclusive...
 ## GAMM and small data
 
 ```{r}
-lead <- ts(data_small$Plomb, start = c(2004,11), end = c(2011,1), frequency = 12)
+lead <- ts(data_small$lead, start = c(2004,11), end = c(2011,1), frequency = 12)
 
-plot.ts(lead, type='l', xlab='Temps', ylab="Concentration en Plomb (ppb)",
+plot.ts(lead, type='l', xlab='Temps', ylab="Concentration en lead (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
-gam_lead <- gamm(Plomb ~ s(Rainfall_lag_1, bs='re') + s(O2, bs='re') + s(pH, bs='re') + 
-               Zinc + Conductivité + pH:Rainfall_lag_1 + Conductivité:Rainfall_lag_1, 
+gam_lead <- gamm(lead ~ s(rainfall_lag_1, bs='re') + s(o2, bs='re') + s(ph, bs='re') + 
+               zinc + conductivity + ph:rainfall_lag_1 + conductivity:rainfall_lag_1, 
                 data = data_small, correlation = corARMA(form = ~1, p=1))
 
 pred_lead <- predict.gam(gam_lead$gam, newdata = test, se.fit = TRUE)
@@ -689,7 +704,7 @@ points(ts(pred_lead$fit, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 15, col = "cyan3")
 points(spline(ts(pred_lead$fit, start = c(2011,2), end = c(2019,1), frequency = 12)),
        type='l', col = "cyan3")
-points(ts(test$Plomb, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$lead, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 upper <- spline(ts(pred_lead$fit + pred_lead$se.fit, start = c(2011,2), end = c(2019,1), frequency = 12))
@@ -702,27 +717,27 @@ points(2025.33, pred_lead$fit, pch=19, col='cyan3')
 points(2025.33, pred_lead$fit + pred_lead$se.fit, pch=15, col='cyan4')
 points(2025.33, pred_lead$fit - pred_lead$se.fit, pch=15, col='cyan4')
 
-points(2025.33, new_data$Plomb, col="red", pch=19)
+points(2025.33, new_data$lead, col="red", pch=19)
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
 
 Almost!
 
-# Ion_Ferreux
+# feII
 ## Whole data
 
 ```{r}
-fer <- ts(data$Ion_Ferreux, start = c(2004,11), end = c(2019,1), frequency = 12)
+fer <- ts(data$feII, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-fit_fer <- arima(data$Ion_Ferreux, order = c(1, 1, 0),
+fit_fer <- arima(data$feII, order = c(1, 1, 0),
       seasonal = list(order = c(1, 1, 0), period = 12), method = "CSS-ML")
 
 pred_fer <- predict(fit_fer, n.ahead = 90)
 ```
 
 ```{r}
-plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en Ion_Ferreux (ppb)",
+plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en feII (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_fer$pred, start = c(2019,1), end = c(2026,6), frequency = 12)
@@ -732,8 +747,8 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(2025.33, new_data$Ion_Ferreux, col="red", pch=19)
-points(ts(test$Ion_Ferreux, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(2025.33, new_data$feII, col="red", pch=19)
+points(ts(test$feII, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
@@ -744,7 +759,7 @@ Good prediction but not precise enough.
 ## Small data
 
 ```{r}
-fer <- ts(data_small$Ion_Ferreux, start = c(2004,11), end = c(2011,1), frequency = 12)
+fer <- ts(data_small$feII, start = c(2004,11), end = c(2011,1), frequency = 12)
 
 fit_fer <- arima(fer, order = c(1, 1, 1),
       seasonal = list(order = c(1, 1, 1), period = 12), method = "CSS-ML")
@@ -753,7 +768,7 @@ pred_fer <- predict(fit_fer, n.ahead = 187)
 ```
 
 ```{r}
-plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en Ion_Ferreux (ppb)",
+plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en feII (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
 ts <- ts(pred_fer$pred, start = c(2011,1), end = c(2026,6), frequency = 12)
@@ -763,10 +778,10 @@ y_coords <- c(ts + ts_se, rev(ts - ts_se))
 polygon(x_coords, y_coords, col = 'cyan3', border = "cyan")
 
 points(ts, type='l', col='blue')
-points(ts(test$Ion_Ferreux, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$feII, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
-points(2025.33, new_data$Ion_Ferreux, col='red', pch=19)
+points(2025.33, new_data$feII, col='red', pch=19)
 
 abline(h=13, col='red')
 abline(h=18, col='red')
@@ -779,14 +794,14 @@ Way better prediction!
 ## GAMM and whole data
 
 ```{r}
-fer <- ts(data_small$Ion_Ferreux, start = c(2004,11), end = c(2019,1), frequency = 12)
+fer <- ts(data_small$feII, start = c(2004,11), end = c(2019,1), frequency = 12)
 
-plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en Ion_Ferreux",
+plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en feII",
         xlim = c(2004,2026), xaxt = 'n')
 
-gam_fer <- gamm(Ion_Ferreux ~ s(Rainfall, bs='re') + s(O2, bs='re') + s(Sulfate, bs='re') +
-               Numeric_Dates + pH + Conductivité + Plomb + sqrt(Arsenic_Total) +
-               Plomb:Conductivité + pH:Conductivité, 
+gam_fer <- gamm(feII ~ s(rainfall, bs='re') + s(o2, bs='re') + s(sulfate, bs='re') +
+               numeric_dates + ph + conductivity + lead + sqrt(total_arsenic) +
+               lead:conductivity + ph:conductivity, 
                 data = data, correlation = corARMA(form = ~1, p=1))
 
 pred_fer <- predict.gam(gam_fer$gam, newdata = test, se.fit = TRUE)
@@ -794,7 +809,7 @@ points(ts(pred_fer$fit, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 15, col = "cyan3")
 points(spline(ts(pred_fer$fit, start = c(2011,2), end = c(2019,1), frequency = 12)),
        type='l', col = "cyan3")
-points(ts(test$Ion_Ferreux, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$feII, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 upper <- spline(ts(pred_fer$fit + pred_fer$se.fit, start = c(2011,2), end = c(2019,1), frequency = 12))
@@ -807,7 +822,7 @@ points(2025.33, pred_fer$fit, pch=19, col='cyan3')
 points(2025.33, pred_fer$fit + pred_fer$se.fit, pch=15, col='cyan4')
 points(2025.33, pred_fer$fit - pred_fer$se.fit, pch=15, col='cyan4')
 
-points(2025.33, new_data$Ion_Ferreux, col="red", pch=19)
+points(2025.33, new_data$feII, col="red", pch=19)
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
@@ -817,14 +832,14 @@ Nope.
 ## GAMM and small data
 
 ```{r}
-fer <- ts(data_small$Ion_Ferreux, start = c(2004,11), end = c(2011,1), frequency = 12)
+fer <- ts(data_small$feII, start = c(2004,11), end = c(2011,1), frequency = 12)
 
-plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en Ion_Ferreux (ppb)",
+plot.ts(fer, type='l', xlab='Temps', ylab="Concentration en feII (ppb)",
         xlim = c(2004,2026), xaxt = 'n')
 
-gam_fer <- gamm(Ion_Ferreux ~ s(Rainfall, bs='re') + s(O2, bs='re') + s(Sulfate, bs='re') +
-               Numeric_Dates + pH + Conductivité + Plomb + sqrt(Arsenic_Total) +
-               Plomb:Conductivité + pH:Conductivité, 
+gam_fer <- gamm(feII ~ s(rainfall, bs='re') + s(o2, bs='re') + s(sulfate, bs='re') +
+               numeric_dates + ph + conductivity + lead + sqrt(total_arsenic) +
+               lead:conductivity + ph:conductivity, 
                 data = data_small, correlation = corARMA(form = ~1, p=1))
 
 pred_fer <- predict.gam(gam_fer$gam, newdata = test, se.fit = TRUE)
@@ -832,7 +847,7 @@ points(ts(pred_fer$fit, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 15, col = "cyan3")
 points(spline(ts(pred_fer$fit, start = c(2011,2), end = c(2019,1), frequency = 12)),
        type='l', col = "cyan3")
-points(ts(test$Ion_Ferreux, start = c(2011,2), end = c(2019,1), frequency = 12),
+points(ts(test$feII, start = c(2011,2), end = c(2019,1), frequency = 12),
        pch = 19, col = "darkred")
 
 upper <- spline(ts(pred_fer$fit + pred_fer$se.fit, start = c(2011,2), end = c(2019,1), frequency = 12))
@@ -845,7 +860,7 @@ points(2025.33, pred_fer$fit, pch=19, col='cyan3')
 points(2025.33, pred_fer$fit + pred_fer$se.fit, pch=15, col='cyan4')
 points(2025.33, pred_fer$fit - pred_fer$se.fit, pch=15, col='cyan4')
 
-points(2025.33, new_data$Ion_Ferreux, col="red", pch=19)
+points(2025.33, new_data$feII, col="red", pch=19)
 
 axis(1, at = seq(2004, 2026, by = 1), las = 2)
 ```
