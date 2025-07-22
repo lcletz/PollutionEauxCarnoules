@@ -1,0 +1,315 @@
+---
+title: "Grouped by Year-Season-Month' trends"
+author: "CLETZ Laura"
+date: "16/07/2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages needed:
+```{r}
+library(dplyr)
+library(tidyr)
+library(emmeans)
+library(ggplot2)
+library(lubridate)
+library(mgcv)
+library(scales)
+here::i_am("Formulae_Optimisation/S1_Formula_Opt.Rmd")
+library(here)
+```
+
+# S1
+
+```{r}
+data <- read.table(here("processed","S1_scaled_2019.csv"), sep=";", dec=".", header=T)
+```
+
+```{r}
+get_season <- function(date) {
+  month <- month(date)
+  day <- day(date)
+  
+  if ((month == 12 && day >= 21) || month %in% c(1, 2) || (month == 3 && day < 20)) {
+    return("Hiver")
+  } else if ((month == 3 && day >= 20) || month %in% c(4, 5) || (month == 6 && day < 21)) {
+    return("Printemps")
+  } else if ((month == 6 && day >= 21) || month %in% c(7, 8) || (month == 9 && day < 23)) {
+    return("Été")
+  } else {
+    return("Automne")
+  }
+}
+```
+
+```{r}
+data <- data %>% mutate(
+  year = year(corrected_dates),
+  month = month.name[month(corrected_dates)]
+) %>%
+  mutate(
+    season = sapply(corrected_dates, get_season)
+    )
+
+data <- data.frame(data, 
+                   tert_rain = with(data,
+                                  cut(rainfall,
+                                  quantile(rainfall, c(0:3/3)),
+                                  include.lowest = T,
+                                  labels = c("Il pleut un peu", "Il pleut", "Il pleut beaucoup"))),
+                   tert_rain_lag_1 = with(data,
+                                  cut(rainfall_lag_1,
+                                  quantile(rainfall_lag_1, c(0:3/3)),
+                                  include.lowest = T,
+                                  labels = c("Il pleut un peu", "Il pleut", "Il pleut beaucoup")))
+                   )
+```
+                
+```{r}
+fit_as <- gamm(total_arsenic ~ zinc + feII + s(sulfate, bs='bs') + tert_rain + ph_rain_o2 +
+                 conductivity + season + tert_rain:zinc + tert_rain:feII + tert_rain:lead + 
+                 tert_rain:ph_rain_o2 + tert_rain:season + zinc:lead + lead:feII +
+                 month + month:tert_rain + year + year:tert_rain, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+fit_as$gam$call <- quote(gamm(total_arsenic ~ zinc + feII + s(sulfate, bs='bs') + tert_rain + ph_rain_o2 +
+                 conductivity + season + tert_rain:zinc + tert_rain:feII + tert_rain:lead + 
+                 tert_rain:ph_rain_o2 + tert_rain:season + zinc:lead + lead:feII +
+                 month + month:tert_rain + year + year:tert_rain, 
+             data=data, correlation=corARMA(form = ~1, p=1)))
+```
+
+```{r}
+fit_zn <- gamm(zinc ~ s(ph_rain_o2, bs='bs') + total_arsenic + feII + lead + tert_rain_lag_1 + season +
+                tert_rain_lag_1:total_arsenic + lead:feII + tert_rain_lag_1:season +
+                 month + year, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+fit_zn$gam$call <- quote(gamm(zinc ~ s(ph_rain_o2, bs='bs') + total_arsenic + feII + lead + tert_rain_lag_1 + season +
+                tert_rain_lag_1:total_arsenic + lead:feII + tert_rain_lag_1:season + month, 
+             data=data, correlation=corARMA(form = ~1, p=1)))
+```
+
+```{r}
+fit_lead<- gamm(lead ~ zinc + feII + total_arsenic + tert_rain_lag_1 + s(conductivity, bs='bs') + season +
+                  tert_rain_lag_1:zinc + tert_rain_lag_1:feII + zinc:feII + total_arsenic:feII + tert_rain_lag_1:season + month, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+fit_lead$gam$call <- quote(gamm(lead ~ zinc + feII + total_arsenic + tert_rain_lag_1 + s(conductivity, bs='bs') + season +
+                  tert_rain_lag_1:zinc + tert_rain_lag_1:feII + zinc:feII + total_arsenic:feII + tert_rain_lag_1:season + month,
+             data=data, correlation=corARMA(form = ~1, p=1)))
+```
+
+```{r}
+fit_iron<- gamm(feII ~ zinc + total_arsenic + lead + sulfate + tert_rain_lag_1 + s(ph_rain_o2, bs='bs') + season +
+                  tert_rain_lag_1:zinc + tert_rain_lag_1:total_arsenic + tert_rain_lag_1:season +
+                  zinc:total_arsenic + lead:total_arsenic + month, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+fit_iron$gam$call <- quote(gamm(feII ~ zinc + total_arsenic + lead + sulfate + tert_rain_lag_1 + s(ph_rain_o2, bs='bs') + season +
+                  tert_rain_lag_1:zinc + tert_rain_lag_1:total_arsenic + tert_rain_lag_1:season +
+                  zinc:total_arsenic + lead:total_arsenic + month, 
+             data=data, correlation=corARMA(form = ~1, p=1)))
+```
+
+```{r}
+emmip1 <- emmip(fit_as$gam, ~ tert_rain | season, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "arsenic")
+emmip2 <- emmip(fit_zn$gam, ~ tert_rain_lag_1 | season, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "zinc")
+emmip3 <- emmip(fit_lead$gam, ~ tert_rain_lag_1 | season, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "lead")
+emmip4 <- emmip(fit_iron$gam, ~ tert_rain_lag_1 | season, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "feII")
+emmip_df <- bind_rows(emmip1, emmip2, emmip3, emmip4)
+```
+
+```{r}
+ggplot(emmip_df, aes(x = xvar, y = yvar, group = metal, color = metal)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = metal), alpha = 0.2, color = NA) +
+  facet_wrap(~season) +
+  theme_minimal() +
+  labs(y = "", x = "Pluie à t ou t-1",
+       color = "Éléments traces", fill = "Éléments traces")
+```
+
+```{r}
+emmip1 <- emmip(fit_as$gam, ~ month | tert_rain, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "arsenic")
+emmip2 <- emmip(fit_zn$gam, ~ month | tert_rain_lag_1, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "zinc")
+emmip3 <- emmip(fit_lead$gam, ~ month | tert_rain_lag_1, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "lead")
+emmip4 <- emmip(fit_iron$gam, ~ month | tert_rain_lag_1, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "feII")
+emmip_df <- bind_rows(emmip1, emmip2, emmip3, emmip4)
+emmip_df <- data.frame(emmip_df, rain = c(emmip_df$tert_rain[1:36], emmip_df$tert_rain_lag_1[37:144]) )
+```
+
+```{r}
+ggplot(emmip_df, aes(x = xvar, y = yvar, group = metal, color = metal)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = metal), alpha = 0.2, color = NA) +
+  facet_wrap(~rain) +
+  theme_minimal() +
+  labs(y = "", x = "",
+       color = "Éléments traces", fill = "Éléments traces") +
+  theme(axis.text.x = element_text(angle = 75, vjust = 0.5, hjust = 1))
+```
+
+```{r}
+emmip1 <- emmip(fit_as$gam, ~ tert_rain | month, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "arsenic")
+emmip2 <- emmip(fit_zn$gam, ~ tert_rain_lag_1 | month, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "zinc")
+emmip3 <- emmip(fit_lead$gam, ~ tert_rain_lag_1 | month, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "lead")
+emmip4 <- emmip(fit_iron$gam, ~ tert_rain_lag_1 | month, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "feII")
+emmip_df <- bind_rows(emmip1, emmip2, emmip3, emmip4)
+emmip_df <- data.frame(emmip_df, rain = c(emmip_df$tert_rain[1:36], emmip_df$tert_rain_lag_1[37:144]) )
+```
+
+```{r}
+ggplot(emmip_df, aes(x = xvar, y = yvar, group = metal, color = metal)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = metal), alpha = 0.2, color = NA) +
+  facet_wrap(~month) +
+  theme_minimal() +
+  labs(y = "", x = "",
+       color = "Éléments traces", fill = "Éléments traces")
+```
+
+# COWG
+
+```{r}
+library(scales)
+data <- read.table(here("processed","COWG_gamm_2004_2022_twice.csv"), sep=";", dec=".", header=T)[c(1,3:4,6:9,12,15:18)] %>%
+  mutate_at(2:12, function(x) rescale(x))
+```
+
+```{r}
+data <- data %>% mutate(
+  year = year(corrected_dates),
+  month = month.name[month(corrected_dates)]
+) %>%
+  mutate(
+    season = sapply(corrected_dates, get_season)
+    )
+
+data <- data.frame(data, 
+                   tert_rain = with(data,
+                                  cut(rainfall,
+                                  quantile(rainfall, c(0:3/3)),
+                                  include.lowest = T,
+                                  labels = c("Il pleut un peu", "Il pleut", "Il pleut beaucoup"))),
+                   tert_rain_lag_1 = with(data,
+                                  cut(rainfall_lag_1,
+                                  quantile(rainfall_lag_1, c(0:3/3)),
+                                  include.lowest = T,
+                                  labels = c("Il pleut un peu", "Il pleut", "Il pleut beaucoup")))
+                   )
+```
+                
+```{r}
+fit_as <- gamm(total_arsenic ~ zinc + feII + s(sulfate, bs='bs') + tert_rain + o2 +
+                 conductivity + season + tert_rain:zinc + tert_rain:feII + tert_rain:lead + 
+                 tert_rain:o2 + tert_rain:season + zinc:lead + lead:feII +
+                 month + month:tert_rain + year + year:tert_rain, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+fit_as$gam$call <- quote(gamm(total_arsenic ~ zinc + feII + s(sulfate, bs='bs') + tert_rain + o2 +
+                 conductivity + season + tert_rain:zinc + tert_rain:feII + tert_rain:lead + 
+                 tert_rain:o2 + tert_rain:season + zinc:lead + lead:feII +
+                 month + month:tert_rain + year + year:tert_rain, 
+             data=data, correlation=corARMA(form = ~1, p=1)))
+```
+
+```{r}
+fit_zn <- gamm(zinc ~ s(o2, bs='bs') + total_arsenic + feII + lead + tert_rain_lag_1 + season +
+                tert_rain_lag_1:total_arsenic + lead:feII + tert_rain_lag_1:season +
+                 month + year, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+fit_zn$gam$call <- quote(gamm(zinc ~ s(o2, bs='bs') + total_arsenic + feII + lead + tert_rain_lag_1 + season +
+                tert_rain_lag_1:total_arsenic + lead:feII + tert_rain_lag_1:season + month, 
+             data=data, correlation=corARMA(form = ~1, p=1)))
+```
+
+```{r}
+fit_lead<- gamm(lead ~ zinc + feII + total_arsenic + tert_rain_lag_1 + s(conductivity, bs='bs') + season +
+                  tert_rain_lag_1:zinc + tert_rain_lag_1:feII + zinc:feII + total_arsenic:feII + tert_rain_lag_1:season + month, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+fit_lead$gam$call <- quote(gamm(lead ~ zinc + feII + total_arsenic + tert_rain_lag_1 + s(conductivity, bs='bs') + season +
+                  tert_rain_lag_1:zinc + tert_rain_lag_1:feII + zinc:feII + total_arsenic:feII + tert_rain_lag_1:season + month,
+             data=data, correlation=corARMA(form = ~1, p=1)))
+```
+
+```{r}
+control <- lmeControl(msMaxIter = 200, msMaxEval = 200, tolerance = 1e-4,niterEM = 50, opt = "optim")
+
+fit_iron<- gamm(feII ~ zinc + total_arsenic + lead + sulfate + tert_rain_lag_1 + s(o2, bs='bs') + season +
+                  tert_rain_lag_1:zinc + tert_rain_lag_1:total_arsenic + tert_rain_lag_1:season +
+                  zinc:total_arsenic + lead:total_arsenic + month, 
+             data=data, correlation=corARMA(form = ~1, p=1), control=control)
+
+fit_iron$gam$call <- quote(gamm(feII ~ zinc + total_arsenic + lead + sulfate + tert_rain_lag_1 + s(o2, bs='bs') + season +
+                  tert_rain_lag_1:zinc + tert_rain_lag_1:total_arsenic + tert_rain_lag_1:season +
+                  zinc:total_arsenic + lead:total_arsenic + month, 
+             data=data, correlation=corARMA(form = ~1, p=1), control=control))
+```
+
+```{r}
+emmip1 <- emmip(fit_as$gam, ~ tert_rain | season, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "arsenic")
+emmip2 <- emmip(fit_zn$gam, ~ tert_rain_lag_1 | season, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "zinc")
+emmip3 <- emmip(fit_lead$gam, ~ tert_rain_lag_1 | season, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "lead")
+emmip4 <- emmip(fit_iron$gam, ~ tert_rain_lag_1 | season, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "feII")
+emmip_df <- bind_rows(emmip1, emmip2, emmip3, emmip4)
+```
+
+```{r}
+ggplot(emmip_df, aes(x = xvar, y = yvar, group = metal, color = metal)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = metal), alpha = 0.2, color = NA) +
+  facet_wrap(~season) +
+  theme_minimal() +
+  labs(y = "", x = "Pluie à t ou t-1",
+       color = "Éléments traces", fill = "Éléments traces")
+```
+
+```{r}
+emmip1 <- emmip(fit_as$gam, ~ month | tert_rain, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "arsenic")
+emmip2 <- emmip(fit_zn$gam, ~ month | tert_rain_lag_1, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "zinc")
+emmip3 <- emmip(fit_lead$gam, ~ month | tert_rain_lag_1, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "lead")
+emmip4 <- emmip(fit_iron$gam, ~ month | tert_rain_lag_1, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "feII")
+emmip_df <- bind_rows(emmip1, emmip2, emmip3, emmip4)
+emmip_df <- data.frame(emmip_df, rain = c(emmip_df$tert_rain[1:36], emmip_df$tert_rain_lag_1[37:144]) )
+```
+
+```{r}
+ggplot(emmip_df, aes(x = xvar, y = yvar, group = metal, color = metal)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = metal), alpha = 0.2, color = NA) +
+  facet_wrap(~rain) +
+  theme_minimal() +
+  labs(y = "", x = "",
+       color = "Éléments traces", fill = "Éléments traces") +
+  theme(axis.text.x = element_text(angle = 75, vjust = 0.5, hjust = 1))
+```
+
+```{r}
+emmip1 <- emmip(fit_as$gam, ~ tert_rain | month, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "arsenic")
+emmip2 <- emmip(fit_zn$gam, ~ tert_rain_lag_1 | month, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "zinc")
+emmip3 <- emmip(fit_lead$gam, ~ tert_rain_lag_1 | month, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "lead")
+emmip4 <- emmip(fit_iron$gam, ~ tert_rain_lag_1 | month, CIs = TRUE, data = data, plotit = FALSE) %>% mutate(metal = "feII")
+emmip_df <- bind_rows(emmip1, emmip2, emmip3, emmip4)
+emmip_df <- data.frame(emmip_df, rain = c(emmip_df$tert_rain[1:36], emmip_df$tert_rain_lag_1[37:144]) )
+```
+
+```{r}
+ggplot(emmip_df, aes(x = xvar, y = yvar, group = metal, color = metal)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = metal), alpha = 0.2, color = NA) +
+  facet_wrap(~month) +
+  theme_minimal() +
+  labs(y = "", x = "",
+       color = "Éléments traces", fill = "Éléments traces")
+```
+
+
+
+
+
