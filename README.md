@@ -57,3 +57,73 @@ DUBOIS Jonathan, CASIOT-MAROUANI Corinne
 <div align="center">
   <img src="Meetings/retroplanning.png" alt="Retroplanning" />
 </div>
+
+---
+
+├── Correlations_and_Predictions
+│   ├── ccf.Rmd
+│   ├── corr_table_COWG.Rmd
+│   ├── COWG_predictions.Rmd
+│   ├── HW_predictions.Rmd
+│   ├── MFA_COWG.Rmd
+│   ├── MFA_S1.Rmd
+│   ├── rainfall_chems_corr.Rmd
+│   ├── README.md
+│   ├── S1_by_COWG_predictions.Rmd
+│   ├── S1_by_limited_COWG_predictions.Rmd
+│   ├── S1_predictions.Rmd
+│   ├── sensitivity_analysis_COWG.Rmd
+│   ├── var_comparison_COWG.Rmd
+│   └── weather_corr_analysis.Rmd
+├── Data_Imputations
+│   ├── CV_S1.Rmd
+│   ├── GAMMs_imputation_algo.Rmd
+│   ├── missing_datas_imputation.Rmd
+│   ├── new_md_imputation.Rmd
+│   ├── README.md
+│   ├── S1_cowg_comparison.Rmd
+│   └── T-1_GAMMs.Rmd
+├── Data_Processing
+│   ├── chr_to_num_processing.Rmd
+│   ├── COWG_tidy_datas.Rmd
+│   ├── dates_processing.Rmd
+│   ├── discharge_processing.Rmd
+│   ├── indicators_processing.Rmd
+│   ├── LD_table.Rmd
+│   ├── rainfall_datas_processing.Rmd
+│   ├── README.md
+│   ├── tidy_datas.Rmd
+│   └── weather_processing.Rmd
+├── DESCRIPTION
+├── Descriptive_Statistics
+│   ├── Amous1200_desc_stat.Rmd
+│   ├── Confluence_desc_stat.Rmd
+│   ├── COWG_desc_stat.Rmd
+│   ├── GAL_desc_stat.Rmd
+│   ├── joint_analysis.Rmd
+│   ├── README.md
+│   ├── S5_desc_stat.Rmd
+│   └── source_S1_desc_stat.Rmd
+├── Formulae_Optimisation
+│   ├── COWG_Formula_Opt.Rmd
+│   ├── README.md
+│   ├── S1_Formula_Opt.Rmd
+│   └── season_group.Rmd
+├── main_script.Rmd
+├── Meetings
+│   ├── COWG_gamm_interactive_plot_files
+│   ├── COWG_gamm_interactive_plot.html
+│   ├── cowg_interactive_plot_files
+│   ├── cowg_interactive_plot.html
+│   ├── Rapport n°1 - 06_06_2025.pptx
+│   ├── Rapport n°2 - 12_06_2025.pptx
+│   ├── Rapport n°3 - 26_06_2025.pptx
+│   ├── Rapport n°4 - 04_07_2025.pptx
+│   ├── Rapport n°5 - 16_07_2025.pptx
+│   ├── retroplanning.png
+│   ├── S1_gamm_interactive_plot_files
+│   ├── S1_gamm_interactive_plot.html
+│   ├── S1_interactive_plot_files
+│   └── S1_interactive_plot.html
+├── NAMESPACE
+└── README.md
