@@ -98,7 +98,9 @@ points(2025.33, new_data$temperature, col='red', pch=19)
 points(2025.583, newest_data$temperature, col='red', pch=19)
 
 abline(h=13, col='red')
+text(1,13, "13 C°", adj = c(0.5, -0.5))
 abline(h=18, col='red')
+text(1, 18, "18 C°", adj = c(0.5, -0.5))
 
 legend(x = "bottomright",
        legend=c("S1", "Intervalle de prédiction", "Points non-imputés", "Point test"),

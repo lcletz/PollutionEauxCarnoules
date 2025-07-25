@@ -39,7 +39,7 @@ S1 <- read.table(here('processed', 'S1_gamm_2004_2019_twice.csv'), dec = '.', se
 
 ```{r}
 new_data <- data.frame(
-  Dates = as.Date("2025-04-24", format = "%Y-%m-%d"),
+  dates = as.Date("2025-04-24", format = "%Y-%m-%d"),
   Temperature = 16.8,
   Rainfall = 107.4,
   Rainfall_lag_1 = 243.1,
@@ -52,13 +52,13 @@ new_data <- data.frame(
   Arsenic_Total = 115181.67,
   Plomb = 1614.53
   ) %>%
-  mutate(Numeric_Dates = as.numeric(Dates)) 
+  mutate(Numeric_dates = as.numeric(dates)) 
 ```
 
 ```{r}
 test <- read.table(here('processed','Source_S1.csv'), dec = '.', sep = ";", header = TRUE)[77:174,] %>%
   mutate_at(1:2, function(x) as.Date(x, format="%Y-%m-%d")) %>%
-  mutate(Numeric_Dates = as.numeric(Corrected_Dates)) %>%
+  mutate(Numeric_dates = as.numeric(Corrected_dates)) %>%
   select(names(new_data))
 ```
 
