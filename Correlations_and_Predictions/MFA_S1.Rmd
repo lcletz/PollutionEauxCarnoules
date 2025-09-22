@@ -181,11 +181,13 @@ legend <- get_legend(fviz_pca_biplot(res.mfa$separate.analyses$Gr1,
 
 ggarrange(a, b, legend, ncol = 3, widths = c(1, 1, 0.4))
 ```
+
 ```{r}
 data_small <- data.frame(data_small,
-                         ph_rain = res.mfa$separate.analyses$Gr1$ind$coord[, 1],
-                         cond_rain_lag_1 = res.mfa$separate.analyses$Gr1$ind$coord[, 2],
-                         arsenic_zinc = res.mfa$separate.analyses$Gr2$ind$coord[, 1])
+                         metaux_cond = res.mfa$ind$coord[, 1],
+                         redox = res.mfa$ind$coord[, 2],
+                         metaux_temp = res.mfa$ind$coord[, 3],
+                         metaux = res.mfa$separate.analyses$Gr2$ind$coord[, 1])
 write_delim(data_small, here("processed","S1_scaled.csv"), delim = ";")
 ```
 

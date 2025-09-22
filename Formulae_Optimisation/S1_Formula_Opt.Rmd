@@ -41,23 +41,163 @@ bic <- NA
 aic <- NA
 ```
 
+The MFA results showed that rainfall at any time, O2, pH, conductivity, to-explain variables (arsenic, iron, lead and zinc), Sulfate, and the dates/periods are somehow correlated. We created 4 new variables out of it.
+
 # total_arsenic
 ## From 2004 to 2010
 
-Initial formulae:
-total_arsenic ~ rainfall + rainfall_lag_1 + 
-               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + I(lead + lead^3) + zinc +
-               rainfall:zinc + rainfall:lead + rainfall:feII + rainfall:sulfate + rainfall:conductivity + rainfall:o2 +
-               rainfall_lag_1:zinc + rainfall_lag_1:lead + rainfall_lag_1:feII + rainfall_lag_1:sulfate +
-               rainfall_lag_1:conductivity + rainfall_lag_1:o2 + numeric_dates
+```{r}
+reg1 <- lm(total_arsenic ~ rainfall + o2, data=data)
+reg2 <- lm(total_arsenic ~ redox, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ redox + conductivity, data=data)
+reg2 <- lm(total_arsenic ~ redox * conductivity, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ redox + sulfate, data=data)
+reg2 <- lm(total_arsenic ~ redox * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ zinc + redox, data=data)
+reg2 <- lm(total_arsenic ~ zinc * redox, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ redox + feII, data=data)
+reg2 <- lm(total_arsenic ~ redox * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ lead + redox, data=data)
+reg2 <- lm(total_arsenic ~ lead * redox, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ metaux_temp + redox, data=data)
+reg2 <- lm(total_arsenic ~ metaux_temp * redox, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ lead + zinc, data=data)
+reg2 <- lm(total_arsenic ~ lead * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ metaux_temp + metaux, data=data)
+reg2 <- lm(total_arsenic ~ metaux_temp * metaux, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ lead + feII, data=data)
+reg2 <- lm(total_arsenic ~ lead * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ conductivity + redox, data=data)
+reg2 <- lm(total_arsenic ~ conductivity * redox, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ zinc + feII, data=data)
+reg2 <- lm(total_arsenic ~ zinc * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ zinc + sulfate, data=data)
+reg2 <- lm(total_arsenic ~ zinc * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ sulfate + conductivity, data=data)
+reg2 <- lm(total_arsenic ~ sulfate * conductivity, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ sulfate + lead, data=data)
+reg2 <- lm(total_arsenic ~ sulfate * lead, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ rainfall_lag_1 + conductivity, data=data)
+reg2 <- lm(total_arsenic ~ rainfall_lag_1 * conductivity, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ rainfall_lag_1 + feII, data=data)
+reg2 <- lm(total_arsenic ~ rainfall_lag_1 * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ rainfall_lag_1 + zinc, data=data)
+reg2 <- lm(total_arsenic ~ rainfall_lag_1 * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ redox + numeric_dates, data=data)
+reg2 <- lm(total_arsenic ~ redox * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ feII + numeric_dates, data=data)
+reg2 <- lm(total_arsenic ~ feII * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ lead + numeric_dates, data=data)
+reg2 <- lm(total_arsenic ~ lead * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ zinc + numeric_dates, data=data)
+reg2 <- lm(total_arsenic ~ zinc * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(total_arsenic ~ rainfall_lag_1 + numeric_dates, data=data)
+reg2 <- lm(total_arsenic ~ rainfall_lag_1 * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+Thus the initial formula:
+total_arsenic ~ redox + rainfall_lag_1 + zinc + s(lead, bs='bs') + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + redox:feII + 
+                    zinc:numeric_dates + zinc:feII + zinc:lead +
+                    lead:feII + rainfall_lag_1:feII
                
 ```{r}
 old_bic <- bic
 old_aic <- aic
 
-test <- gamm(total_arsenic ~ rainfall +  
-               o2 + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + I(lead + lead^3) + zinc +
-               rainfall:zinc + rainfall:lead + rainfall:feII + rainfall:o2, 
+test <- gamm(total_arsenic ~ redox + rainfall_lag_1 + zinc + s(lead, bs='bs') + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + redox:feII + 
+                    zinc:numeric_dates + zinc:feII + zinc:lead +
+                    lead:feII + rainfall_lag_1:feII, 
              data=data, correlation=corARMA(form = ~1, p=1))
 
 bic <- BIC(test$lme)
@@ -66,12 +206,131 @@ aic <- AIC(test$lme)
 summary(test$gam)
 ```
 
-The best formulae is:
-total_arsenic ~ rainfall +  
-               o2 + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + I(lead + lead^3) + zinc +
-               rainfall:zinc + rainfall:lead + rainfall:feII + rainfall:o2
-               
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(total_arsenic ~ redox + rainfall_lag_1 + zinc + s(lead, bs='bs') + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + redox:feII + 
+                    zinc:numeric_dates + zinc:feII + zinc:lead +
+                    lead:feII, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(total_arsenic ~ redox + rainfall_lag_1 + zinc + s(lead, bs='bs') + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + 
+                    zinc:numeric_dates + zinc:feII + zinc:lead +
+                    lead:feII, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(total_arsenic ~ redox + rainfall_lag_1 + zinc + s(lead, bs='bs') + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + 
+                    zinc:numeric_dates + zinc:feII + 
+                    lead:feII, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(total_arsenic ~ redox + rainfall_lag_1 + zinc + s(lead, bs='bs') + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + 
+                    zinc:numeric_dates + zinc:feII, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(total_arsenic ~ redox + zinc + s(lead, bs='bs') + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + 
+                    zinc:numeric_dates + zinc:feII, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(total_arsenic ~ redox + zinc + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + 
+                    zinc:numeric_dates + zinc:feII, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+The best formula is:
+total_arsenic ~ redox + zinc + feII + s(sulfate, bs='bs') + numeric_dates +
+                    redox:numeric_dates + redox:zinc + 
+                    zinc:numeric_dates + zinc:feII
 with correlation AR(1).
+
+```{r}
+qqnorm(test$gam$residuals/sqrt(test$gam$sig2))
+abline(a=0,b=1,col='red')
+```
+
+```{r}
+qqnorm(test$lme$residuals/sqrt(test$lme$sigma^2))
+abline(a=0,b=1,col='red')
+```
+
+```{r, echo=FALSE}
+shapiro.test(test$lme$residuals)
+shapiro.test(test$gam$residuals)
+```
+
+```{r, echo=FALSE}
+shapiro.test(test$lme$residuals)
+shapiro.test(test$gam$residuals)
+```
+
+```{r}
+acf(test$gam$residuals,
+    main = "Auto-corrélation des résidus",
+    ylab = expression(gamma),
+    type = "correlation")
+```
 
 ## From 2004 to 2019
 
@@ -102,34 +361,185 @@ total_arsenic ~ rainfall + rainfall_lag_1 +
 
 with correlation AR(1).
 
-## From 2004 to 2010, new concept
+# Zinc
+## From 2004 to 2010
 
 ```{r}
-zinc_fer <- data$arsenic_zinc
-fer_arsenic <- data$arsenic_zinc
-as_zn_fe <- data$arsenic_zinc
-
-data <- data.frame(data, zinc_fer = zinc_fer, fer_arsenic = fer_arsenic, as_zn_fe = as_zn_fe)
-
-rm(zinc_fer) ; rm(fer_arsenic) ; rm(as_zn_fe)
+reg1 <- lm(zinc ~ rainfall + o2, data=data)
+reg2 <- lm(zinc ~ redox, data=data)
+anova(reg1, reg2)
 ```
 
-Initial formulae:
-total_arsenic ~ ph_rain + rainfall_lag_1 + 
-               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + zinc_fer + I(lead + lead^3) +
-               lead:sulfate + zinc_fer:sulfate +
-               ph_rain:zinc_fer + ph_rain:lead + ph_rain:sulfate + ph_rain:o2 +
-               rainfall_lag_1:zinc_fer + rainfall_lag_1:lead + rainfall_lag_1:sulfate + 
-               rainfall_lag_1:o2 + s(numeric_dates, bs='bs')
+```{r}
+reg1 <- lm(zinc ~ rainfall + conductivity, data=data)
+reg2 <- lm(zinc ~ rainfall * conductivity, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ rainfall + sulfate, data=data)
+reg2 <- lm(zinc ~ rainfall * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ total_arsenic + rainfall, data=data)
+reg2 <- lm(zinc ~ total_arsenic * rainfall, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ rainfall + feII, data=data)
+reg2 <- lm(zinc ~ rainfall * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ lead + rainfall, data=data)
+reg2 <- lm(zinc ~ lead * rainfall, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ lead + o2, data=data)
+reg2 <- lm(zinc ~ lead * o2, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ feII + o2, data=data)
+reg2 <- lm(zinc ~ feII * o2, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ total_arsenic + o2, data=data)
+reg2 <- lm(zinc ~ total_arsenic * o2, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ metaux_temp + o2, data=data)
+reg2 <- lm(zinc ~ metaux_temp * o2, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ metaux_temp + rainfall, data=data)
+reg2 <- lm(zinc ~ metaux_temp * rainfall, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ lead + total_arsenic, data=data)
+reg2 <- lm(zinc ~ lead * total_arsenic, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ lead + feII, data=data)
+reg2 <- lm(zinc ~ lead * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ conductivity + o2, data=data)
+reg2 <- lm(zinc ~ conductivity * o2, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ total_arsenic + feII, data=data)
+reg2 <- lm(zinc ~ total_arsenic * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ total_arsenic + sulfate, data=data)
+reg2 <- lm(zinc ~ total_arsenic * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ sulfate + conductivity, data=data)
+reg2 <- lm(zinc ~ sulfate * conductivity, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ sulfate + lead, data=data)
+reg2 <- lm(zinc ~ sulfate * lead, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ rainfall_lag_1 + conductivity, data=data)
+reg2 <- lm(zinc ~ rainfall_lag_1 * conductivity, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ rainfall_lag_1 + feII, data=data)
+reg2 <- lm(zinc ~ rainfall_lag_1 * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ rainfall_lag_1 + total_arsenic, data=data)
+reg2 <- lm(zinc ~ rainfall_lag_1 * total_arsenic, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ rainfall + numeric_dates, data=data)
+reg2 <- lm(zinc ~ rainfall * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ feII + numeric_dates, data=data)
+reg2 <- lm(zinc ~ feII * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ lead + numeric_dates, data=data)
+reg2 <- lm(zinc ~ lead * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ total_arsenic + numeric_dates, data=data)
+reg2 <- lm(zinc ~ total_arsenic * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ rainfall_lag_1 + numeric_dates, data=data)
+reg2 <- lm(zinc ~ rainfall_lag_1 * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(zinc ~ ph + feII, data=data)
+reg2 <- lm(zinc ~ ph * feII, data=data)
+anova(reg1, reg2)
+```
+
+Thus the initial formula:
+zinc ~ rainfall + o2 + conductivity + s(lead, bs='bs') + feII + total_arsenic + numeric_dates + s(sulfate, bs='bs') +
+          rainfall:conductivity +
+          o2:lead + o2:feII +
+          numeric_dates:lead + numeric_dates:total_arsenic
                
 ```{r}
 old_bic <- bic
 old_aic <- aic
 
-test <- gamm(total_arsenic ~ rainfall_lag_1 + 
-               o2 + conductivity + s(sulfate, bs = "bs") + zinc_fer + I(lead + lead^3) +
-               zinc_fer:sulfate + rainfall_lag_1:sulfate + 
-               s(numeric_dates, bs='bs'), 
+test <- gamm(zinc ~ rainfall + o2 + conductivity + s(lead, bs='bs') + feII + total_arsenic + numeric_dates + s(sulfate, bs='bs') +
+                rainfall:conductivity +
+                o2:lead + o2:feII +
+                numeric_dates:lead + numeric_dates:total_arsenic, 
              data=data, correlation=corARMA(form = ~1, p=1))
 
 bic <- BIC(test$lme)
@@ -138,43 +548,82 @@ aic <- AIC(test$lme)
 summary(test$gam)
 ```
 
-The best formulae is:
-total_arsenic ~ rainfall_lag_1 + o2 + conductivity + s(sulfate, 
-    bs = "bs") + zinc_fer + I(lead + lead^3) + zinc_fer:sulfate + 
-    rainfall_lag_1:sulfate + s(numeric_dates, bs = "bs")
-
-with correlation AR(1).
-
-# Zinc
-## From 2004 to 2010
-
-Initial formulae:
-zinc ~ rainfall + rainfall_lag_1 + 
-               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + lead + lead^3 + total_arsenic +
-               rainfall:total_arsenic + rainfall:lead + rainfall:feII + rainfall:sulfate + rainfall:conductivity + rainfall:o2 +
-               rainfall_lag_1:total_arsenic + rainfall_lag_1:lead + rainfall_lag_1:feII + rainfall_lag_1:sulfate +
-               rainfall_lag_1:conductivity + rainfall_lag_1:o2 + numeric_dates
-            
 ```{r}
 old_bic <- bic
 old_aic <- aic
 
-test <- gls(zinc ~ rainfall_lag_1 + 
-               feII + lead + lead^3 + total_arsenic +
-               rainfall_lag_1:total_arsenic, 
+test <- gamm(zinc ~ rainfall + o2 + conductivity + s(lead, bs='bs') + feII + total_arsenic + numeric_dates + s(sulfate, bs='bs') +
+                o2:lead + o2:feII +
+                numeric_dates:lead + numeric_dates:total_arsenic, 
              data=data, correlation=corARMA(form = ~1, p=1))
 
-bic <- BIC(test)
-aic <- AIC(test)
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
 
-summary(test)$tTable
+summary(test$gam)
 ```
 
-The best formulae is:
-zinc ~ rainfall_lag_1 + 
-               feII + lead + lead^3 + total_arsenic +
-               rainfall_lag_1:total_arsenic
-               
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(zinc ~ rainfall + o2 + conductivity + s(lead, bs='bs') + feII + total_arsenic + numeric_dates + s(sulfate, bs='bs') +
+                o2:lead + 
+                numeric_dates:lead + numeric_dates:total_arsenic, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(zinc ~ rainfall + o2 + conductivity + s(lead, bs='bs') + feII + total_arsenic + numeric_dates + s(sulfate, bs='bs') +
+                o2:lead + 
+                numeric_dates:lead, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(zinc ~ rainfall + o2 + conductivity + s(lead, bs='bs') + feII + total_arsenic + numeric_dates + s(sulfate, bs='bs') +
+                numeric_dates:lead, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(zinc ~ rainfall + o2 + s(lead, bs='bs') + feII + total_arsenic + numeric_dates + s(sulfate, bs='bs') +
+                numeric_dates:lead, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+
+summary(test$gam)
+```
+
+The best formula is:
+zinc ~ rainfall + o2 + s(lead, bs='bs') + feII + total_arsenic + numeric_dates + s(sulfate, bs='bs') +
+                numeric_dates:lead
 with correlation AR(1).
 
 ## From 2004 to 2019
@@ -204,51 +653,183 @@ zinc ~ rainfall_lag_1 +
 
 with correlation AR(1).
 
-## From 2004 to 2010, new concept
-
-Initial formulae:
-zinc ~ ph_rain + rainfall_lag_1 + 
-               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + fer_arsenic + I(lead + lead^3) +
-               lead:sulfate + fer_arsenic:sulfate +
-               ph_rain:fer_arsenic + ph_rain:lead + ph_rain:sulfate + ph_rain:o2 +
-               rainfall_lag_1:fer_arsenic + rainfall_lag_1:lead + rainfall_lag_1:sulfate + 
-               rainfall_lag_1:o2 + s(numeric_dates, bs='bs')
-               
-```{r}
-old_bic <- bic
-old_aic <- aic
-
-test <- gls(zinc ~ fer_arsenic, 
-             data=data, correlation=corARMA(form = ~1, p=1))
-
-bic <- BIC(test)
-aic <- AIC(test)
-
-summary(test)$tTable
-```
-
-The best formulae is:
-zinc ~ fer_arsenic
-
-with correlation AR(1).
-
 # lead
 ## From 2004 to 2010
 
-Initial formulae:
-lead ~ rainfall + rainfall_lag_1 + 
-               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + feII + zinc + zinc^3 + total_arsenic +
-               rainfall:total_arsenic + rainfall:zinc + rainfall:feII + rainfall:sulfate + rainfall:conductivity + rainfall:o2 +
-               rainfall_lag_1:total_arsenic + rainfall_lag_1:zinc + rainfall_lag_1:feII + rainfall_lag_1:sulfate +
-               rainfall_lag_1:conductivity + rainfall_lag_1:o2 + numeric_dates
+```{r}
+reg1 <- lm(lead ~ rainfall + o2, data=data)
+reg2 <- lm(lead ~ redox, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ rainfall + zinc, data=data)
+reg2 <- lm(lead ~ rainfall * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ rainfall + total_arsenic, data=data)
+reg2 <- lm(lead ~ rainfall * total_arsenic, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ rainfall + sulfate, data=data)
+reg2 <- lm(lead ~ rainfall * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ o2 + zinc, data=data)
+reg2 <- lm(lead ~ o2 * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ o2 + total_arsenic, data=data)
+reg2 <- lm(lead ~ o2 * total_arsenic, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ o2 + sulfate, data=data)
+reg2 <- lm(lead ~ o2 * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ o2 + feII, data=data)
+reg2 <- lm(lead ~ o2 * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ ph + zinc, data=data)
+reg2 <- lm(lead ~ ph * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ ph + feII, data=data)
+reg2 <- lm(lead ~ ph * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ rainfall_lag_1 + zinc, data=data)
+reg2 <- lm(lead ~ rainfall_lag_1 * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ rainfall_lag_1 + total_arsenic, data=data)
+reg2 <- lm(lead ~ rainfall_lag_1 * total_arsenic, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ rainfall_lag_1 + feII, data=data)
+reg2 <- lm(lead ~ rainfall_lag_1 * feII, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ total_arsenic + zinc, data=data)
+reg2 <- lm(lead ~ total_arsenic * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ sulfate + zinc, data=data)
+reg2 <- lm(lead ~ sulfate * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ feII + zinc, data=data)
+reg2 <- lm(lead ~ feII * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ feII + sulfate, data=data)
+reg2 <- lm(lead ~ feII * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ zinc + conductivity, data=data)
+reg2 <- lm(lead ~ metaux_cond, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ feII + conductivity, data=data)
+reg2 <- lm(lead ~ feII * conductivity, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ feII + numeric_dates, data=data)
+reg2 <- lm(lead ~ feII * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ total_arsenic + numeric_dates, data=data)
+reg2 <- lm(lead ~ total_arsenic * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ zinc + numeric_dates, data=data)
+reg2 <- lm(lead ~ zinc * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ sulfate + numeric_dates, data=data)
+reg2 <- lm(lead ~ sulfate * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ temperature + numeric_dates, data=data)
+reg2 <- lm(lead ~ temperature * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ temperature + zinc, data=data)
+reg2 <- lm(lead ~ temperature * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ temperature + sulfate, data=data)
+reg2 <- lm(lead ~ temperature * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(lead ~ rainfall, data=data)
+reg2 <- lm(lead ~ rainfall_lag_1, data=data)
+anova(reg1, reg2)
+```
+
+Thus the nitial formula:
+lead ~ rainfall_lag_1 + o2 + temperature + zinc + feII + total_arsenic + numeric_dates +
+          o2:feII + o2:zinc + s(sulfate, bs='bs') +
+          total_arsenic:numeric_dates
 
 ```{r}
 old_bic <- bic
 old_aic <- aic
 
-test <- gamm(lead ~ rainfall_lag_1 + 
-               s(conductivity, bs='bs') + feII + zinc + zinc^3 + total_arsenic +
-               rainfall_lag_1:total_arsenic,
+test <- gamm(lead ~ rainfall_lag_1 + o2 + temperature + zinc + feII + total_arsenic + numeric_dates +
+                 o2:feII + o2:zinc + s(sulfate, bs='bs') +
+                 total_arsenic:numeric_dates,
              data=data, correlation=corARMA(form = ~1, p=1))
 
 bic <- BIC(test$lme)
@@ -257,23 +838,74 @@ summary(test$gam)
 ```
 
 ```{r}
-reg1 <- gamm(lead ~ rainfall_lag_1 + 
-               s(conductivity, bs='bs') + feII + zinc + zinc^3 + total_arsenic +
-               rainfall_lag_1:total_arsenic, 
-             data=data, correlation=corARMA(form = ~1, p=1))
-reg2 <- gamm(lead ~ rainfall_lag_1 + 
-               s(conductivity, bs='bs') + feII + arsenic_zinc
-               rainfall_lag_1:arsenic_zinc, 
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(lead ~ rainfall_lag_1 + o2 + temperature + zinc + feII + total_arsenic + numeric_dates +
+                 o2:zinc + s(sulfate, bs='bs') +
+                 total_arsenic:numeric_dates,
              data=data, correlation=corARMA(form = ~1, p=1))
 
-AIC(reg1$lme, reg2$lme)
-BIC(reg1$lme, reg2$lme)
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
 ```
 
-The best formulae is:
-lead ~ rainfall_lag_1 + 
-               s(conductivity, bs='bs') + feII + zinc + zinc^3 + total_arsenic +
-               rainfall_lag_1:total_arsenic
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(lead ~ rainfall_lag_1 + o2 + temperature + zinc + feII + total_arsenic + numeric_dates +
+                 o2:zinc + s(sulfate, bs='bs'),
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(lead ~ rainfall_lag_1 + o2 + temperature + zinc + feII + numeric_dates +
+                 o2:zinc + s(sulfate, bs='bs'),
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(lead ~ rainfall_lag_1 + o2 + temperature + zinc + numeric_dates +
+                 o2:zinc + s(sulfate, bs='bs'),
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(lead ~ rainfall_lag_1 + o2 + temperature + zinc + 
+                 o2:zinc + s(sulfate, bs='bs'),
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
+```
+
+The best formula is:
+lead ~ rainfall_lag_1 + o2 + temperature + zinc + 
+                 o2:zinc + s(sulfate, bs='bs')
 
 with correlation AR(1).
 
@@ -300,55 +932,134 @@ lead ~ rainfall_lag_1 +
 
 with correlation AR(1).
 
-## From 2004 to 2010, new concept
-
-Initial formulae:
-lead ~ ph_rain + rainfall_lag_1 + 
-               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + I(as_zn_fe + as_zn_fe^3) + 
-               as_zn_fe:sulfate +
-               ph_rain:as_zn_fe + ph_rain:sulfate + ph_rain:o2 +
-               rainfall_lag_1:as_zn_fe + rainfall_lag_1:sulfate + 
-               rainfall_lag_1:o2 + s(numeric_dates, bs='bs')
-               
-```{r}
-old_bic <- bic
-old_aic <- aic
-
-test <- gls(lead ~ ph_rain + rainfall_lag_1 + conductivity + sulfate + as_zn_fe + 
-               as_zn_fe:sulfate + rainfall_lag_1:sulfate, 
-             data=data, correlation=corARMA(form = ~1, p=1))
-
-bic <- BIC(test)
-aic <- AIC(test)
-
-summary(test)$tTable
-```
-
-The best formulae is:
-lead ~ ph_rain + rainfall_lag_1 + conductivity + sulfate + as_zn_fe + 
-               as_zn_fe:sulfate + rainfall_lag_1:sulfate
-
-with correlation AR(1).
-
 # feII
 ## From 2004 to 2010
 
+```{r}
+reg1 <- lm(feII ~ rainfall, data=data)
+reg2 <- lm(feII ~ rainfall_lag_1, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ rainfall + ph, data=data)
+reg2 <- lm(feII ~ redox, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ redox + total_arsenic, data=data)
+reg2 <- lm(feII ~ redox * total_arsenic, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ redox + zinc, data=data)
+reg2 <- lm(feII ~ redox * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ redox + lead, data=data)
+reg2 <- lm(feII ~ redox * lead, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ redox + sulfate, data=data)
+reg2 <- lm(feII ~ redox * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ conductivity + sulfate, data=data)
+reg2 <- lm(feII ~ conductivity * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ conductivity + total_arsenic, data=data)
+reg2 <- lm(feII ~ conductivity * total_arsenic, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ conductivity + zinc, data=data)
+reg2 <- lm(feII ~ conductivity * zinc, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ zinc + sulfate, data=data)
+reg2 <- lm(feII ~ zinc * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ total_arsenic + sulfate, data=data)
+reg2 <- lm(feII ~ total_arsenic * sulfate, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ zinc + total_arsenic, data=data)
+reg2 <- lm(feII ~ zinc * total_arsenic, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ lead + temperature, data=data)
+reg2 <- lm(feII ~ metaux_temp, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ zinc + numeric_dates, data=data)
+reg2 <- lm(feII ~ zinc * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ sulfate + numeric_dates, data=data)
+reg2 <- lm(feII ~ sulfate * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ total_arsenic + numeric_dates, data=data)
+reg2 <- lm(feII ~ total_arsenic * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ lead + numeric_dates, data=data)
+reg2 <- lm(feII ~ lead * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ metaux_temp + numeric_dates, data=data)
+reg2 <- lm(feII ~ metaux_temp * numeric_dates, data=data)
+anova(reg1, reg2)
+```
+
+```{r}
+reg1 <- lm(feII ~ conductivity + numeric_dates, data=data)
+reg2 <- lm(feII ~ conductivity * numeric_dates, data=data)
+anova(reg1, reg2)
+```
 Initial formulae:
-feII ~ rainfall + rainfall_lag_1 + 
-               s(o2, bs='bs') + s(conductivity, bs='bs') + s(sulfate, bs = "bs") + lead + lead^3 + zinc + total_arsenic +
-               rainfall:total_arsenic + rainfall:zinc + rainfall:lead + rainfall:sulfate + rainfall:conductivity + rainfall:o2 +
-               rainfall_lag_1:total_arsenic + rainfall_lag_1:zinc + rainfall_lag_1:lead + rainfall_lag_1:sulfate +
-               rainfall_lag_1:conductivity + rainfall_lag_1:o2 + numeric_dates
+feII ~ redox + conductivity + zinc + total_arsenic + lead + s(sulfate, bs="bs") + numeric_dates +
+          sulfate:redox + sulfate:conductivity + sulfate:zinc + sulfate:numeric_dates +
+          zinc:total_arsenic
                
 ```{r}
 old_bic <- bic
 old_aic <- aic
 
-test <- gamm(feII ~ rainfall + rainfall_lag_1 + 
-               s(sulfate, bs = "bs") + zinc + total_arsenic +
-               rainfall:sulfate +
-               rainfall_lag_1:total_arsenic + rainfall_lag_1:zinc + rainfall_lag_1:sulfate +
-               numeric_dates, 
+test <- gamm(feII ~ redox + conductivity + zinc + total_arsenic + lead + s(sulfate, bs="bs") + numeric_dates +
+                     sulfate:redox + sulfate:conductivity + sulfate:zinc + sulfate:numeric_dates +
+                     zinc:total_arsenic, 
              data=data, correlation=corARMA(form = ~1, p=1))
 
 bic <- BIC(test$lme)
@@ -357,41 +1068,62 @@ summary(test$gam)
 ```
 
 ```{r}
-reg1 <- gamm(feII ~ rainfall + rainfall_lag_1 + 
-               s(sulfate, bs = "bs") + zinc + total_arsenic +
-               rainfall:sulfate +
-               rainfall_lag_1:total_arsenic + rainfall_lag_1:zinc + rainfall_lag_1:sulfate +
-               numeric_dates, 
-             data=data, correlation=corARMA(form = ~1, p=1))
-reg2 <- gamm(feII ~ rainfall + rainfall_lag_1 + 
-               conductivity + s(sulfate, bs = "bs") + arsenic_zinc +
-               rainfall:sulfate + 
-               rainfall_lag_1:arsenic_zinc + rainfall_lag_1:sulfate +
-               numeric_dates, 
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(feII ~ redox + conductivity + zinc + total_arsenic + lead + s(sulfate, bs="bs") + numeric_dates +
+                     sulfate:redox + sulfate:conductivity + sulfate:numeric_dates +
+                     zinc:total_arsenic, 
              data=data, correlation=corARMA(form = ~1, p=1))
 
-AIC(reg1$lme, reg2$lme)
-BIC(reg1$lme, reg2$lme)
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
 ```
 
 ```{r}
-reg1 <- gamm(feII ~ rainfall + rainfall_lag_1 + 
-               conductivity + s(sulfate, bs = "bs") + arsenic_zinc +
-               rainfall:sulfate + 
-               rainfall_lag_1:arsenic_zinc + rainfall_lag_1:sulfate +
-               numeric_dates, 
-             data=data, correlation=corARMA(form = ~1, p=1))
-reg2 <- gamm(feII ~ rainfall + cond_rain_lag_1 + s(sulfate, bs = "bs") + arsenic_zinc +
-               rainfall:sulfate + 
-               cond_rain_lag_1:arsenic_zinc + cond_rain_lag_1:sulfate +
-               numeric_dates, 
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(feII ~ redox + conductivity + zinc + total_arsenic + s(sulfate, bs="bs") + numeric_dates +
+                     sulfate:redox + sulfate:conductivity + sulfate:numeric_dates +
+                     zinc:total_arsenic, 
              data=data, correlation=corARMA(form = ~1, p=1))
 
-AIC(reg1$lme, reg2$lme)
-BIC(reg1$lme, reg2$lme)
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
 ```
 
-The best formulae is:
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(feII ~ redox + conductivity + zinc + total_arsenic + s(sulfate, bs="bs") + numeric_dates +
+                     sulfate:conductivity + sulfate:numeric_dates +
+                     zinc:total_arsenic, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
+```
+
+```{r}
+old_bic <- bic
+old_aic <- aic
+
+test <- gamm(feII ~ conductivity + zinc + total_arsenic + s(sulfate, bs="bs") + numeric_dates +
+                     sulfate:conductivity + sulfate:numeric_dates +
+                     zinc:total_arsenic, 
+             data=data, correlation=corARMA(form = ~1, p=1))
+
+bic <- BIC(test$lme)
+aic <- AIC(test$lme)
+summary(test$gam)
+```
+
+The best formula is:
 feII ~ rainfall + rainfall_lag_1 + 
                conductivity + s(sulfate, bs = "bs") + arsenic_zinc +
                rainfall:sulfate + 
